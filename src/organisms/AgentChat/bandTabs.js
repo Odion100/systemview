@@ -19,7 +19,13 @@
 export const BAND_KINDS = [
   { key: "jobs", label: "job", family: "work" },
   { key: "lanes", label: "lane", family: "work" },
-  { key: "lists", label: "list", family: "work" },
+  // THE LIST IS THE DRAWER'S FLOOR AND DOES NOT COME AND GO. His ruling, 2026-11-07: *"the list
+  // should exist down there empty instead of disappearing"*, and then what it is: *"default list
+  // always."* Every other kind still lives by the emptiness rule — a tab that can only say
+  // "nothing here" is furniture — but the session's own plan is not an inventory that happens to
+  // be empty, it is the thing the drawer is FOR, and a surface that vanishes when there is nothing
+  // on it is a surface you cannot put the first thing on.
+  { key: "lists", label: "list", family: "work", always: true },
 ];
 
 export const TAB_KEY = "sv.chat.bandTab";
@@ -48,6 +54,7 @@ export const bandLabel = (kind, n, parts = null) => {
  * Which tabs to draw, and which is active.
  *
  * - A kind with no rows gets NO TAB — a tab that can only ever say "nothing here" is furniture.
+ *   EXCEPT a kind marked `always`, which is the list: see BAND_KINDS.
  * - The stored choice wins while it still has rows; otherwise the first tab that has any does,
  *   because the alternative is an empty pane beside a tab bar that says there is work.
  *   THE SAME RULE IS THE MIGRATION: a stored key from the band's document era ("rfcs", "owed",
@@ -71,7 +78,7 @@ export const bandTabs = (counts = {}, stored = "") => {
       return [{ ...k, n: parts.lanes + parts.subagents, parts }];
     }
     return [{ ...k, n: Number(c) || 0 }];
-  }).filter((t) => t.n > 0);
+  }).filter((t) => t.n > 0 || t.always);
   if (!tabs.length) return { tabs, active: "" };
   const kept = tabs.find((t) => t.key === stored);
   return { tabs, active: (kept || tabs[0]).key };
@@ -114,4 +121,26 @@ export const writeBand = (key, value, store) => {
   } catch {
     /* private mode — the choice lasts this page's life, which is better than refusing it */
   }
+};
+
+// THE DEFAULT LIST'S OWN KEY. The session's plan carries no `source` — that absence IS its
+// identity, and the row wears "default" for it — so a row has to be synthesised when the session
+// has not written a plan yet, or has emptied it.
+export const DEFAULT_LIST_KEY = "default";
+
+/**
+ * Guarantee the session's own plan has a row, even with nothing on it.
+ *
+ * `rows` are the lists already derived from disk and this session's events. A sourceless row is
+ * the plan; if one is there it is kept exactly as it is — items, status, record and all — and if
+ * not, an empty one is put at the END, because a plan with nothing on it should not outrank a run
+ * that is actually moving.
+ *
+ * IT IS NOT FILTERED BY `cleared`. Clearing the plan is how he empties it, not how he deletes it:
+ * the row has to survive its own clear or "always" would mean "until he uses it".
+ */
+export const withDefaultList = (rows = []) => {
+  const list = Array.isArray(rows) ? rows : [];
+  if (list.some((l) => l && !l.source)) return list;
+  return [...list, { key: DEFAULT_LIST_KEY, source: "", items: [], status: null, attachments: null }];
 };

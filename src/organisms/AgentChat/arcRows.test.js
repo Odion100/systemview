@@ -132,7 +132,9 @@ describe("the row's own line", () => {
 describe("the band", () => {
   it("has no arcs kind — the rows feed the dashboards now", () => {
     expect(BAND_KINDS.some((k) => k.key === "arcs")).toBe(false);
-    expect(bandTabs({ arcs: 4 }).tabs).toEqual([]);
+    // The list is the band's floor and is always there, so the honest assertion is that an arc
+    // count adds nothing to it.
+    expect(bandTabs({ arcs: 4 }).tabs.map((t) => t.key)).toEqual(["lists"]);
   });
 });
 

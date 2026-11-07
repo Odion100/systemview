@@ -55,7 +55,7 @@ import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun, markJobState, jobStates, hasJobState } from "../../utils/hostJobs";
-import { bandTabs, bandLabel, bandHead, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
+import { bandTabs, bandLabel, bandHead, withDefaultList, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 import NudgeCog from "./NudgeCog";
 import { unseenSubagents } from "./unseenSubagents";
 import { chipFor, menuFor } from "./jobState";
@@ -6107,7 +6107,11 @@ const countdown = (str, now = Date.now()) => {
     const rows = new Map();
     for (const r of work.standingRuns || []) {
       const src = String(r.source || "");
-      if (src.startsWith("lane:") || !(r.items && r.items.length)) continue;
+      // A SOURCELESS ROW IS THE SESSION'S PLAN, AND AN EMPTY ONE IS STILL A ROW (his ruling,
+      // 2026-11-07: *"default list always"*). Every other row needs items, because a run with none
+      // has nothing to show and the emptiness rule governs the band everywhere else.
+      if (src.startsWith("lane:")) continue;
+      if (src && !(r.items && r.items.length)) continue;
       // status + attachments ride along so the row can wear the run's declared ending — a run
       // marked abandoned with its account attached is the third face (done · abandoned · nudging).
       rows.set(String(r.owner || "").slice(4), {
@@ -6134,7 +6138,13 @@ const countdown = (str, now = Date.now()) => {
           attachments: prior ? prior.attachments : null,
         });
       }
-    return [...rows.values()].filter((l) => JSON.stringify(l.items) !== clearedLists[l.key]);
+    // THE DEFAULT LIST IS NEVER FILTERED AWAY — his ruling, 2026-11-07: *"default list always."*
+    // The cleared fingerprint still governs every sourced run (that is how a confirmed delete stops
+    // the session's own event echo from resurrecting a row), and the plan is added back after it,
+    // because clearing the plan is how he empties it rather than how he deletes it.
+    return withDefaultList(
+      [...rows.values()].filter((l) => JSON.stringify(l.items) !== clearedLists[l.key]),
+    );
   })();
   // STANDING LANES (RFC-059 slice 2): a lane row is born from a spawn and DIES AT CLEANUP —
   // nothing in between kills it. Rows come from the host's run files, so they outlive refreshes;

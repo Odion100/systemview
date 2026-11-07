@@ -1,11 +1,11 @@
-import { bandTabs, bandLabel, bandHead, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
+import { bandTabs, bandLabel, bandHead, withDefaultList, DEFAULT_LIST_KEY, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 
 // The band's rule is about EMPTINESS, which is the only thing a tabbed surface can get wrong in a
 // way the user feels: a tab bar that says there is work beside a pane that shows none.
 describe("the work band is tabs — one per type of work", () => {
-  it("gives a tab only to a kind that has rows", () => {
+  it("gives a tab only to a kind that has rows — except the list, which is the floor", () => {
     const { tabs } = bandTabs({ jobs: 2, lanes: 0, lists: 0 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs"]);
+    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lists"]);
   });
 
   it("keeps the stored choice while it still has rows", () => {
@@ -16,8 +16,13 @@ describe("the work band is tabs — one per type of work", () => {
     expect(bandTabs({ jobs: 1, lanes: 0 }, "lanes").active).toBe("jobs");
   });
 
-  it("has no tabs and no active tab when nothing stands", () => {
-    expect(bandTabs({}, "lanes")).toEqual({ tabs: [], active: "" });
+  // HIS RULING, 2026-11-07: *"the list should exist down there empty instead of disappearing…
+  // default list always."* The band used to render nothing at all when nothing stood, which is a
+  // surface you cannot put the first thing on.
+  it("still draws the list when nothing stands at all, and stands on it", () => {
+    const { tabs, active } = bandTabs({}, "lanes");
+    expect(tabs.map((t) => [t.key, t.n])).toEqual([["lists", 0]]);
+    expect(active).toBe("lists");
   });
 
   it("orders them the way the head reads them — jobs, lanes, lists", () => {
@@ -32,7 +37,9 @@ describe("the work band is tabs — one per type of work", () => {
   // counts still ARRIVE (one object from one caller), so this is the claim that matters: a kind
   // BAND_KINDS does not name can never draw a tab, however many rows it reports.
   it("gives no tab to a kind that moved to the dashboard, however many rows it has", () => {
-    expect(bandTabs({ owed: 3, reports: 9, rfcs: 4, arcs: 2, gaps: 7 })).toEqual({ tabs: [], active: "" });
+    const { tabs, active } = bandTabs({ owed: 3, reports: 9, rfcs: 4, arcs: 2, gaps: 7 });
+    expect(tabs.map((t) => t.key)).toEqual(["lists"]);
+    expect(active).toBe("lists");
   });
 
   it("and a stored key from the document era falls through to the work that is running", () => {
@@ -56,13 +63,15 @@ describe("the work band is tabs — one per type of work", () => {
   // and nothing on screen could reach them — the exact opposite of "no subagent runs unseen".
   it("gives the lane tab to a running subagent even with no lane registered at all", () => {
     const { tabs, active } = bandTabs({ lanes: { lanes: 0, subagents: 2 } }, "");
-    expect(tabs.map((t) => t.key)).toEqual(["lanes"]);
+    expect(tabs.map((t) => t.key)).toEqual(["lanes", "lists"]);
     expect(active).toBe("lanes");
     expect(tabs[0].n).toBe(2);
   });
 
   it("still has no lane tab when neither kind stands", () => {
-    expect(bandTabs({ lanes: { lanes: 0, subagents: 0 } }, "lanes")).toEqual({ tabs: [], active: "" });
+    const { tabs, active } = bandTabs({ lanes: { lanes: 0, subagents: 0 } }, "lanes");
+    expect(tabs.map((t) => t.key)).toEqual(["lists"]);
+    expect(active).toBe("lists");
   });
 
   it("counts every row in the pane, so the number cannot disagree with what opening it shows", () => {
@@ -98,7 +107,7 @@ describe("the work band is tabs — one per type of work", () => {
   // inside the lane tab. Only the second one is left, so it is worth claiming on its own.
   it("still folds the lane tab's two parts into one tab, ignoring a document count beside it", () => {
     const { tabs } = bandTabs({ lanes: { lanes: 1, subagents: 1 }, reports: { "": 1, spec: 2 } });
-    expect(tabs.map((t) => t.key)).toEqual(["lanes"]);
+    expect(tabs.map((t) => t.key)).toEqual(["lanes", "lists"]);
     expect(tabs[0].n).toBe(2);
     expect(tabs[0].parts).toEqual({ lanes: 1, subagents: 1 });
   });
@@ -122,7 +131,7 @@ describe("a tab says which family it belongs to", () => {
   it("has one family left, because one kind of thing is left", () => {
     const { tabs } = bandTabs({ jobs: 1, lanes: 1, lists: 1 });
     expect(tabs.every((t) => t.family === "work")).toBe(true);
-    expect(bandTabs({ reports: 1, rfcs: 1, arcs: 1, gaps: 1, owed: 1 }).tabs).toEqual([]);
+    expect(bandTabs({ reports: 1, rfcs: 1, arcs: 1, gaps: 1, owed: 1 }).tabs.map((t) => t.key)).toEqual(["lists"]);
   });
 
   it("carries the family through alongside the count, so the render needs no second lookup", () => {
@@ -168,5 +177,40 @@ describe("the head speaks work-state", () => {
   // A subagent is not a lane and the head keeps them apart, the same way the tab's label does.
   it("counts a subagent separately from a lane, because they are not the same thing", () => {
     expect(bandHead({ lanes: 0, subagents: 2 }).map((s) => s.text)).toEqual(["2 subagents running"]);
+  });
+});
+
+// ── THE DEFAULT LIST ALWAYS HAS A ROW ──────────────────────────────────────────────────────────
+// His ruling, 2026-11-07, after watching it appear only once this session wrote one: *"default
+// list always… I don't know why the default list is ever disappearing."* The plan is the session's
+// own working memory — no source, no nudge, no run record — and it is what the drawer is for.
+describe("the default list always has a row", () => {
+  it("synthesises an empty one when the session has no plan", () => {
+    expect(withDefaultList([])).toEqual([
+      { key: DEFAULT_LIST_KEY, source: "", items: [], status: null, attachments: null },
+    ]);
+  });
+
+  it("keeps the real one untouched when there is one — items, record and all", () => {
+    const plan = { key: "sess", source: "", items: [{ id: "1" }], status: { text: "x" }, attachments: [1] };
+    expect(withDefaultList([plan])).toEqual([plan]);
+  });
+
+  // A plan with nothing on it must not outrank work that is actually moving, so it goes last.
+  it("puts the synthesised one at the END, behind the runs that are moving", () => {
+    const run = { key: "r1", source: "job:x", items: [{ id: "1" }] };
+    const rows = withDefaultList([run]);
+    expect(rows[0]).toBe(run);
+    expect(rows[1].source).toBe("");
+  });
+
+  it("does not add a second one when the session's plan is already empty", () => {
+    const empty = { key: "sess", source: "", items: [] };
+    expect(withDefaultList([empty])).toEqual([empty]);
+  });
+
+  it("answers for a caller that hands it nothing at all", () => {
+    expect(withDefaultList().length).toBe(1);
+    expect(withDefaultList(null).length).toBe(1);
   });
 });
