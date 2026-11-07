@@ -85,3 +85,53 @@ export const TEMPLATES = {
   // to distrust the red. Add assertions as nested bullets when you know what you're checking.
   run: (v) => `:::run{title="${(v || "steps").split(".").pop()}"}\n- ${v}({ })\n:::`,
 };
+
+// ── WHAT THE RIGHT-CLICK MENU OFFERS ────────────────────────────────────────────────────────────
+//
+// THE GATING LIVED IN THE JSX AND SO NOTHING COULD ASSERT IT. `Markdown.js` cannot be mounted in a
+// test — react-markdown is ESM and `transformIgnorePatterns` excludes node_modules — so every
+// affordance gated inside it was unspec'able, and this menu is where the document's own verbs are
+// decided. Found proving RFC-075's c4: "add a proof" is offered on a LEAF claim and withheld on a
+// container one, and there was no way to assert either half.
+//
+// So the conditions are here and the rendering stays there. One function, six questions, no DOM —
+// what you can do to a document depends only on WHAT YOU HIT, which is exactly the kind of thing a
+// pure function should answer.
+//
+// `at` is the menu's own state as `openMenu` built it from the DOM: `{ start, end, label, thread,
+// block }`, where `start` is 0 when the press landed off every block (the document itself) and
+// `block.kind` is "container" | "leaf".
+export function menuOffers(at = {}, { canThread = false, canAddMember = false, canRegister = false, threadCount = 0 } = {}) {
+  const block = at.block || null;
+  const onHost = !!at.start;
+  const inThread = !!at.thread;
+  return {
+    // A WRAPPER comes off without taking anything with it, so it needs no confirmation; a LEAF block
+    // IS its content, so removing one is armed first — a stray right-click must not take out the
+    // chart you were reading.
+    unwrapBlock: !!block && block.kind === "container",
+    removeBlock: !!block && block.kind !== "container",
+    // Membership is the DOCUMENT's, offered once: a second members line would be a second answer to
+    // one question.
+    addMember: !!canAddMember,
+    clearThreads: threadCount > 0,
+    // RFC-075 c4 — ONLY A LEAF CLAIM GROWS A PROOF. A container claim already holds its fold, and
+    // this gesture is the one way a statement gains one without being retyped.
+    addProof: !!block && block.name === "claim" && block.kind === "leaf",
+    // RFC-073 c10 — registering is a pick, and the door closes the moment the document says what it
+    // is: a leaf is identity, and a document is one thing.
+    register: !!canRegister,
+    // Inside a thread the useful verbs are removing it and naming who it is for; on a plain block,
+    // starting one.
+    threadVerbs: inThread,
+    startThread: !inThread && onHost && !!canThread,
+    // WHY NOTHING IS OFFERED, which is a different sentence depending on where the press landed:
+    // off every block there is nothing to wrap, and on a block the host cannot save replies for
+    // there is nowhere for them to live.
+    note: !inThread && !(onHost && canThread) ? (onHost ? "no-save" : "nothing-to-wrap") : null,
+    // Wrapping needs something to wrap; inserting always lands somewhere — below the block you hit,
+    // or at the end of the document when you hit none.
+    wraps: onHost,
+    insertAt: onHost ? "below" : "end",
+  };
+}

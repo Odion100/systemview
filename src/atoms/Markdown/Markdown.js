@@ -21,7 +21,7 @@ import {
 } from "./context";
 import { useComments } from "./comments";
 import { expectThread } from "./threadFocus";
-import { namespaceOptions, testOptions, fileOptions, TEMPLATES } from "./menuOptions";
+import { namespaceOptions, testOptions, fileOptions, menuOffers, TEMPLATES } from "./menuOptions";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "./registry";
 import TaskItem from "./blocks/TaskItem";
@@ -227,6 +227,12 @@ const Drawer = ({ name, options, loading, onPick, onBack }) => {
 };
 
 const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, threadCount = 0, openDrawer, drawer }) => {
+  // WHAT IS OFFERED IS `menuOffers`' ANSWER, not this render's. The conditions used to be the JSX's
+  // own and so nothing could assert them — this component cannot be mounted in a test, which made
+  // every verb it gates unspec'able (found proving RFC-075 c4: a proof is offered on a leaf claim
+  // and withheld on a container one, and neither half was assertable). The rendering is still here;
+  // the deciding is not.
+  const offers = menuOffers(at, { canThread, canAddMember, canRegister, threadCount });
   const [armed, setArmed] = useState(false);
   const [armedClear, setArmedClear] = useState(false); // two-step confirm on removal
   const rootRef = useRef(null);
@@ -283,15 +289,13 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
       {/* What you can do depends on WHAT YOU HIT. Inside a thread, the useful verb is removing it;
           on a plain block, starting one; on empty space, there's nothing to wrap — you can still
           insert, which lands at the end of the document. */}
-      {at.block && at.block.kind === "container" ? (
+      {offers.unwrapBlock ? (
         // A WRAPPER comes off without taking anything with it — the content was surrounded, not
         // absorbed — so this needs no confirmation step.
         <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "unwrap-block" })}>
           🗑 Remove this {at.block.name} <span className="md-menu__hint">keeps the content</span>
         </button>
-      ) : at.block ? (
-        // A LEAF block IS its content, so deleting one is armed first — a stray right-click shouldn't
-        // take out the chart you were reading.
+      ) : offers.removeBlock ? (
         <button
           type="button"
           className={`md-menu__item md-menu__item--lead${armed ? " md-menu__item--armed" : ""}`}
@@ -303,7 +307,7 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
       {/* RFC-071 — MEMBERSHIP IS THE DOCUMENT'S, so this sits above the per-block verbs and lands at
           the top of the file wherever you right-clicked. Offered once: a second members line would
           be a second answer to one question. */}
-      {canAddMember ? (
+      {offers.addMember ? (
         <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => openDrawer("members")}>
           👥 Add a member to this document <span className="md-menu__hint">who hears when it changes</span>
           <span className="md-menu__more">›</span>
@@ -311,7 +315,7 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
       ) : null}
       {/* RFC-075 round two — CLEAR ALL THREADS, double-confirmed (his). The first press arms it,
           the second does it; everything the threads wrapped stays, the conversations go. */}
-      {threadCount > 0 ? (
+      {offers.clearThreads ? (
         <button
           type="button"
           className={`md-menu__item md-menu__item--lead${armedClear ? " md-menu__item--armed" : ""}`}
@@ -326,20 +330,20 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
       {/* RFC-075 — a leaf claim grows a proof. Offered only on a claim that has none: a container
           claim already holds its fold, and this gesture is the one way a statement gains one
           without being retyped. */}
-      {at.block && at.block.name === "claim" && at.block.kind === "leaf" ? (
+      {offers.addProof ? (
         <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "add-proof" })}>
           🧾 Add a proof to this claim <span className="md-menu__hint">the check, pressable</span>
         </button>
       ) : null}
       {/* RFC-073 c10 — registering is a PICK. Offered only while the document says nothing: a leaf
           is identity, a document is one thing, and the door closes the moment one exists. */}
-      {canRegister ? (
+      {offers.register ? (
         <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => openDrawer("register")}>
           📇 Register this document <span className="md-menu__hint">rfc · arc · report · gap</span>
           <span className="md-menu__more">›</span>
         </button>
       ) : null}
-      {at.thread ? (
+      {offers.threadVerbs ? (
         <>
           <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "unthread" })}>
             💬 Remove this thread <span className="md-menu__hint">keeps the content</span>
@@ -353,16 +357,16 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
             <span className="md-menu__more">›</span>
           </button>
         </>
-      ) : at.start && canThread ? (
+      ) : offers.startThread ? (
         <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "thread" })}>
           💬 Start a thread here
         </button>
       ) : (
         <div className="md-menu__note">
-          {at.start ? "Replies need a place to save — none here." : "Nothing to wrap here."}
+          {offers.note === "no-save" ? "Replies need a place to save — none here." : "Nothing to wrap here."}
         </div>
       )}
-      {at.start ? (
+      {offers.wraps ? (
         <>
           <div className="md-menu__sep">Wrap this in</div>
           {WRAPS.map((w) => (
@@ -377,7 +381,7 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
           ))}
         </>
       ) : null}
-      <div className="md-menu__sep">{at.start ? "Insert below" : "Insert at the end"}</div>
+      <div className="md-menu__sep">{offers.insertAt === "below" ? "Insert below" : "Insert at the end"}</div>
       {INSERTS.map((b) => (
         <button
           key={b.label}
