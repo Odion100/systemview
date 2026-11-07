@@ -215,8 +215,31 @@ describe("the standing tile matches the page except where it deliberately moved 
 
 // ─── AND THE REST OF THE PAGE ──────────────────────────────────────────────────────────────────
 
-it("the owed tile is the page's .dbb-needs, element for element", () => {
-  same(OwedTile, ".dbb-needs");
+// THE OWED COLUMNS TOOK THE SAME DOOR RULING the beads did, one tile over: the page's row WAS the
+// door — a single obligation travelled on its own body — and the tile's arrow is. Everything the
+// extraction carried still has to match: the same columns, one row per document, the same words.
+describe("the owed tile matches the page except where the door moved", () => {
+  const mine = () => tileSection(OwedTile, ".dbb-needs");
+
+  it("holds the same columns and the same rows, said the same way", () => {
+    const heads = (el) => [...el.querySelectorAll(".dbb-col__head h2")].map((n) => n.textContent);
+    const words = (el) =>
+      [...el.querySelectorAll(".dbb-owed__id, .dbb-owed__says, .dbb-owed__tail, .dbb-owed__proj")].map(
+        (n) => n.textContent
+      );
+    expect(heads(mine())).toEqual(heads(pageSection(".dbb-needs")));
+    expect(words(mine())).toEqual(words(pageSection(".dbb-needs")));
+  });
+
+  it("every row grew the arrow, and a row with nothing to fold stopped being a press", () => {
+    const lines = mine().querySelectorAll(".dbb-owed__line");
+    expect(lines.length).toBeGreaterThan(0);
+    expect(mine().querySelectorAll(".dbb-owed__line > .dbb-owed__go")).toHaveLength(lines.length);
+    expect(pageSection(".dbb-needs").querySelectorAll(".dbb-owed__go")).toHaveLength(0);
+    expect(pageSection(".dbb-needs").querySelectorAll("button.dbb-owed__row").length).toBeGreaterThan(
+      mine().querySelectorAll("button.dbb-owed__row").length
+    );
+  });
 });
 
 // ─── THE REPORTS, WHERE THE DIFFERENCE IS ALSO THE POINT ───────────────────────────────────────

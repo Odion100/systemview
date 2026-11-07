@@ -331,7 +331,37 @@
   list-style: none;
   margin: 0;
   padding: 0;
+  // THE BODY AND THE ARROW SIT ON ONE LINE, and the body keeps the grid it always had — the arrow
+  // is a sibling outside it, so the five columns never have to make room for a sixth thing that is
+  // not about the document.
+  &__line {
+    display: flex;
+    align-items: center;
+    &:hover .dbb-owed__go,
+    &:focus-within .dbb-owed__go {
+      opacity: 1;
+    }
+  }
+  // Hidden until the line is under the pointer, exactly like the bead's: a column of arrows reads
+  // as the page's loudest element while the rows are what he came to read.
+  &__go {
+    flex: 0 0 auto;
+    margin-left: 2px;
+    padding: 0 4px;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 11px;
+    color: var(--sv-text-faint);
+    cursor: pointer;
+    opacity: 0;
+    border-radius: 3px;
+    &:hover { color: var(--sv-blue); }
+    &:focus-visible { opacity: 1; }
+  }
   &__row {
+    flex: 1 1 auto;
+    min-width: 0;
     display: grid;
     grid-template-columns: 8px auto 1fr auto auto;
     align-items: center;
@@ -888,19 +918,20 @@
   padding: 0;
   border-left: 2px solid var(--sv-border-soft);
 }
+// A SUB-ROW IS READING NOW — one obligation, said; its arrow is what opens the document at that
+// block, so nothing here is a press and the cursor must not claim otherwise.
 .dbb-owed__subrow {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   text-align: left;
   padding: 4px 10px;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
-  cursor: pointer;
-  &:hover { background: var(--sv-hover); }
 }
 
 // ─── POSITIONAL FILTERS AND THE ARROW — his rulings, 2026-11-06 ────────────────────────────────

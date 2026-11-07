@@ -200,10 +200,15 @@ describe("the owed columns still fold by document", () => {
     expect(work.querySelector(".dbb-owed__sub")).toBeInTheDocument();
   });
 
-  it("a single-obligation row opens its document instead of folding", () => {
+  // THE ARROW TRAVELS AND THE ROW DOES NOT (his ruling, 2026-11-06). A single-obligation row has
+  // nothing to fold, so its body is reading — a row that only travelled is exactly what the ruling
+  // took out.
+  it("the arrow opens the document, and the row's own body is not a press", () => {
     const data = mk();
     const { container } = render(<OwedTile data={data} />);
-    fireEvent.click(container.querySelector(".dbb-col--press .dbb-owed__row"));
+    const line = container.querySelector(".dbb-col--press .dbb-owed__line");
+    expect(line.querySelector("button.dbb-owed__row")).toBe(null);
+    fireEvent.click(line.querySelector(".dbb-owed__go"));
     expect(data.open).toHaveBeenCalledWith(expect.objectContaining({ project: "p", path: WAITING.row.path }));
   });
 
