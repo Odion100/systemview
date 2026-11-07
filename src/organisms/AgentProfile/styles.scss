@@ -754,6 +754,22 @@
   // the slight transition — the enabled colour eases in and out when the hook is flipped
   transition: background-color 0.25s ease, border-color 0.25s ease;
 }
+// THE LINE WHERE THE LIST TURNS OVER. The carried hooks sort to the top, so flipping one makes it
+// JUMP — and a row that moves across an unmarked list looks like it moved for no reason. The rule
+// needs no state: the boundary is the first not-carried row standing after a carried one, which is
+// exactly what the adjacent selector says.
+.agent-profile__hook--on + .agent-profile__hook--off {
+  margin-top: 11px;
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    top: -9px;
+    border-top: 1px solid var(--sv-border);
+  }
+}
 // THE BLINK WHERE A FLIPPED HOOK LANDS — one beat, then the row is just a row again.
 .agent-profile__hook--moved { animation: agent-profile-hook-landed 0.6s ease-out 1; }
 @keyframes agent-profile-hook-landed {
