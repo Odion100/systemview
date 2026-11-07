@@ -112,7 +112,10 @@ reason. It served RFC-075 and had been sitting modified since the doctrine pass.
 
 ::commit{sha=c598d432}
 
-The rebuilt bundle.
+The rebuilt bundle. And this document's own commit, recorded because a `Serves:` trailer with
+nothing pointing back is a link until somebody checks it:
+
+::commit{sha=1e68fd12}
 
 **And one thing in your tree that is NOT mine:** `meetings/2026-10-28-the-landing-page-becomes-the-dashboard.md`
 shows as deleted-unstaged. I did not delete it and I have not committed or restored it —

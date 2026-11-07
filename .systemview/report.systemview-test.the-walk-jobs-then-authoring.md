@@ -1,6 +1,6 @@
 # The walk — jobs first, then the authoring skills they drive
 
-::report{id="The walk — jobs, then authoring" as=planning retain=permanent}
+::report{id="The walk — jobs, then authoring" as=planning retain=10d}
 
 **Eleven documents, not twenty-six.** Three jobs and twenty-three skills exist; most of them have
 nothing to do with automation and org execution, so walking all of them would spend your attention
@@ -155,7 +155,7 @@ at what it served.
 
 ::::
 
-- [ ] **`proactive-development`** :file[~/.autobot/jobs/proactive-development/job.md] · 441 lines · *do work for your own project, in a lane*
+- [x] **`proactive-development`** :file[~/.autobot/jobs/proactive-development/job.md] · 441 lines · *do work for your own project, in a lane*
 
   **Two things.** First: the boundary you dictated — the board, gaps, dead runs, non-arc RFCs, and
   never an arc's queue — is stated at §43–52, ten paragraphs in. The AIM line, which is the only
@@ -163,13 +163,13 @@ at what it served.
   says *"do work for your own project"* with no boundary in it at all. Second: at 393 lines it is
   the longest document in the system, and it is the one most likely to run with nobody watching.
 
-- [ ] **`chore-round`** :file[~/.claude/skills/chore-round/SKILL.md] · 116 lines · *work this agent's chore board*
+- [x] **`chore-round`** :file[~/.claude/skills/chore-round/SKILL.md] · 116 lines · *work this agent's chore board*
 
   **The question:** a chore is a pointer, and `arc-development` requires inputs. A chore that cannot
   supply them is refused at fire time, every time, silently from your side. Does the round detect
   that, or does a misconfigured chore just never run?
 
-- [ ] **`job-authoring`** :file[~/.claude/skills/job-authoring/SKILL.md] · 278 lines · *author or repair a job*
+- [x] **`job-authoring`** :file[~/.claude/skills/job-authoring/SKILL.md] · 278 lines · *author or repair a job*
 
   **The question I had was wrong, and the document answers it.** I wrote that nothing compares a
   job's `requires:` against a hook's `with:` until it refuses at 3am. It does, at AUTHORING time:
@@ -186,12 +186,12 @@ at what it served.
 
 ## Group 2 — the authoring skills the jobs drive into
 
-- [ ] **`arc-planning`** :file[~/.claude/skills/arc-planning/SKILL.md] · 425 lines · *the biggest document we own*
+- [x] **`arc-planning`** :file[~/.claude/skills/arc-planning/SKILL.md] · 425 lines · *the biggest document we own*
 
   **The question:** it was written before `rfc-execution` and `arc-development` existed. How much of
   it is now describing work those two own?
 
-- [ ] **`rfc-authoring`** :file[~/.claude/skills/rfc-authoring/SKILL.md] · 341 lines
+- [x] **`rfc-authoring`** :file[~/.claude/skills/rfc-authoring/SKILL.md] · 341 lines
 
 ::::thread{id=t2}
 **CLAIMS GO AROUND THE WORDS, NOT IN A LIST AT THE END — his correction, 2026-11-01.** The skill
@@ -214,11 +214,11 @@ rendered roll-up of every claim in the file, or it stops being cheap to judge.
 document cannot say whether it was built. Migration step, or do the pre-block RFCs stay unmarkable?
 ::::
 
-- [ ] **`rfc-execution`** :file[~/.claude/skills/rfc-execution/SKILL.md] · 193 lines
+- [x] **`rfc-execution`** :file[~/.claude/skills/rfc-execution/SKILL.md] · 193 lines
 
   **The question:** it is the newest of the three and the only one that has never run end to end.
 
-- [ ] **`report-authoring`** :file[~/.claude/skills/report-authoring/SKILL.md] · 155 lines · *the
+- [x] **`report-authoring`** :file[~/.claude/skills/report-authoring/SKILL.md] · 155 lines · *the
   report that work leaves behind* — **REWRITTEN FROM NOTHING 2026-11-02, so it has never been
   walked.** Not the 99-line document retired earlier: that one described a report's shape, which is
   the chapter's job. This one opens on *report writing is about FORENSICS — you are writing for an
@@ -393,7 +393,7 @@ been in use returned the table (0.71) or my own pointer paragraph in AGENTS.md (
 phrasing now stands in all nine skills, jobs and docs, plus the MCP tool's description.
 ::::
 
-- [ ] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] · 150 lines — written, briefly retired, and REWRITTEN on his ruling: it stays, because a spec is a runnable artifact and a report is the document that requires one. Its spine is now HOW to think — contract by shape, wrap it and name it `Test`, no gatekeeping on what counts
+- [x] **`spec-authoring`** :file[~/.claude/skills/spec-authoring/SKILL.md] · 150 lines — written, briefly retired, and REWRITTEN on his ruling: it stays, because a spec is a runnable artifact and a report is the document that requires one. Its spine is now HOW to think — contract by shape, wrap it and name it `Test`, no gatekeeping on what counts
 
   **The question:** should it be a skill at all, or doctrine pointed at — and what does that
   doctrine actually say about cmds, wrappers and what counts as a spec?
@@ -805,18 +805,18 @@ enforced moved to 30 with the reason it exists written down.
 
 ::::
 
-- [ ] **`gap-authoring`** :file[~/.claude/skills/gap-authoring/SKILL.md] · 94 lines
+- [x] **`gap-authoring`** :file[~/.claude/skills/gap-authoring/SKILL.md] · 94 lines
 
   **The question:** gaps are now in `proactive-development`'s queue. Does this skill know that?
 
 ## Group 3 — last, because they encode whatever we settle
 
-- [ ] **`skill-authoring`** :file[~/.claude/skills/skill-authoring/SKILL.md] · 409 lines — and its §8 is the open design question: the run law is
+- [x] **`skill-authoring`** :file[~/.claude/skills/skill-authoring/SKILL.md] · 409 lines — and its §8 is the open design question: the run law is
   PASTED into all 23 skills, which is how one wrong block became 22 wrong skills today. Paste, or a
   pointer and a retrieval query?
-- [ ] **`skill-maintenance`** :file[~/.claude/skills/skill-maintenance/SKILL.md] · 176 lines — the pass that finds the bad step. It reads the run
+- [x] **`skill-maintenance`** :file[~/.claude/skills/skill-maintenance/SKILL.md] · 176 lines — the pass that finds the bad step. It reads the run
   records, so it cannot be judged until the jobs above are producing honest ones.
-- [ ] **`spec-maintenance`** :file[~/.claude/skills/spec-maintenance/SKILL.md] · 173 lines — **WRITTEN TONIGHT, so it is in this walk as a new
+- [x] **`spec-maintenance`** :file[~/.claude/skills/spec-maintenance/SKILL.md] · 173 lines — **WRITTEN TONIGHT, so it is in this walk as a new
   document rather than a reviewed one.** The pass over the permanent specs at all three grains — an
   arc's objective against the claims its plans produced, a claim against the behaviour it names, a
   fold against the method it points at. Its spine is the AUTHORITY CALL: the pass does not update
@@ -929,7 +929,7 @@ tonight is still a false statement, and the place it must not live is only in my
 against the deferred documents land on this list as they turn up, and the list is what we work
 through at the end.
 
-- [ ] **`how-we-work-tour`** :file[~/.claude/skills/how-we-work-tour/SKILL.md] · 168 lines — states that `::cue{call="…"}` is *"designed, NOT WIRED — renders
+- [x] **`how-we-work-tour`** :file[~/.claude/skills/how-we-work-tour/SKILL.md] · 168 lines — states that `::cue{call="…"}` is *"designed, NOT WIRED — renders
   honest, plays nothing."* **It is wired.** `cuePerform.js` imports `callCommand` and `AgentChat.js`
   executes it; `nav`, `act` and `refresh` all run from inside a sequence. A skill teaching that a
   live verb is dead costs the one thing cues were built for — a walk that does its own navigating

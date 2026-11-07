@@ -1,6 +1,6 @@
 # What a good test is
 
-::report{id="What a good test is" as=planning retain=48h}
+::report{id="What a good test is" as=planning retain=48h retired=2026-11-07 retiredAs=expired}
 
 ::members{who=systemview-test}
 

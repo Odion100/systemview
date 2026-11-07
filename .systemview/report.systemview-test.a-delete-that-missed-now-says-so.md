@@ -140,3 +140,12 @@ suite is 328 green with it back.
 - [ ] Write a worklist with `source: "whatever:thing"` — the reply now says it draws no row and is never nudged
 - [ ] Open `RFCs/proofs/the-proofs-run.md` — the first fixture chip resolves again
 - [ ] Decide the meetings question above; the rest of that commit's damage is undone
+
+## The rest of the record
+
+The two commits that are not features, recorded here because a `Serves:` trailer with nothing
+pointing back is a link until somebody checks it.
+
+::commit{sha=929442c7}
+
+::commit{sha=a93997ca}
