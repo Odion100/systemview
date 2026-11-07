@@ -84,6 +84,15 @@ export const TRAILS = {
   report: ["filed", "retired"],
 };
 
+// A FORK SITS IMMEDIATELY AFTER THE STATION IT LEAVES, because the renderer shares a column with the
+// station before — that shared column is what draws the dive into a dead end. `rejected` is never in
+// TRAILS itself: `pressTo` clears everything PAST its target off that order, and a station sitting
+// between `approved` and `built` there would make approving an RFC unwrite its own STATUS heading.
+const forkedAtApproval = (trail) => {
+  const i = trail.indexOf("approved");
+  return i < 0 ? trail : [...trail.slice(0, i + 1), "rejected", ...trail.slice(i + 1)];
+};
+
 // ─── RETIREMENT CARRIES A REASON (RFC-076 §4.2) ──────────────────────────────────────────────
 //
 // Retirement used to be a gate: you could only retire something finished. That gate is gone and
@@ -278,18 +287,27 @@ export function stateOf(kind, row, leaf = null) {
 /**
  * WHAT THE TRAIL DRAWS from where you are standing — which is not always its whole list.
  *
- * A trail that draws a station the document will never reach reads as *"still coming"*. So a
- * rejected RFC shows draft → rejected and nothing else, and a gap shows the ONE ending it took
- * rather than both. From `open`, though, both of a gap's endings are genuinely available and both
- * are drawn — that is the fork, and hiding half of it would hide a press.
+ * THE SHAPE NEVER CHANGES ON AN ENDING, and the accent says which road was taken (his ruling: *"the
+ * bar is supposed to just light up on rejected — that's the direction it went"*). A fork is drawn as
+ * a dead end rather than hidden until somebody takes it, so the drawing says the ending EXISTS
+ * before anybody is standing in it — which is the one thing a lifecycle that can only succeed never
+ * admits. The one redraw that stays is a retirement after a fork ending: that is a road OUT of a
+ * dead end, which the fork drawing cannot say.
  *
  * @returns {{steps: string[], alt: string[]}} the stations, and which of them are ALTERNATIVES to
  *   the one before rather than steps after it — the renderer draws those with a different mark.
  */
 export function stepsFor(kind, current, row = null, leaf = null) {
-  if (kind === "rfc") return { steps: current === "rejected" ? ["draft", "rejected"] : TRAILS.rfc, alt: [] };
-  // An arc's approval can be rejected like any other — same fork, same drawing.
-  if (kind === "arc") return { steps: current === "rejected" ? ["draft", "rejected"] : TRAILS.arc, alt: [] };
+  // A VERDICT FORKS AT THE APPROVAL STATION — an rfc and an arc run the same flow, so they draw the
+  // same dead end, and the trail behind it is the kind's whole lifecycle standing where it was.
+  // Retired after a rejected verdict draws the road out: the full trail would wear `built` and
+  // `settled` as walked on a design nobody ever built.
+  if (kind === "rfc" || kind === "arc") {
+    const st = { ...((row && row.state) || {}), ...(leaf || {}) };
+    const rejected = String(st.verdict || "").toLowerCase() === "rejected" || current === "rejected";
+    if (current === "retired" && rejected) return { steps: ["draft", "rejected", "retired"], alt: [] };
+    return { steps: forkedAtApproval(TRAILS[kind]), alt: ["rejected"] };
+  }
   if (kind === "gap") {
     // THE SHAPE NEVER CHANGES ON AN ENDING — the drawing is the kind's whole lifecycle, and the
     // accent says which road was taken (his: "the bar is supposed to just light up on rejected —

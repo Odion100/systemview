@@ -65,13 +65,17 @@ describe("the trail — read, never invented", () => {
     expect(container.querySelector(".sv-trail")).toBeNull();
   });
 
-  it("a rejected RFC shows its real ending — draft → rejected, nothing after", async () => {
+  // A REJECTED RFC KEEPS ITS SHAPE and marks the ending it took — the drawing used to swap to two
+  // stations, so the whole lifecycle vanished under the press that rejected it.
+  it("a rejected RFC marks the dead end and keeps the rest of its lifecycle drawn", async () => {
     withRegistry([{ id: "RFC-050", state: { verdict: "rejected" } }]);
     mount("rfc", "RFC-050");
     const dead = await screen.findByText("rejected");
     expect(dead.closest(".sv-trail__st").className).toContain("sv-trail__st--dead");
-    expect(screen.queryByText("approved")).toBeNull();
-    expect(screen.queryByText("built")).toBeNull();
+    // the fork shares the column it leaves, which is what draws the dive
+    expect(dead.closest(".sv-trail__col").className).toContain("sv-trail__col--split");
+    expect(screen.getByText("approved")).toBeTruthy();
+    expect(screen.getByText("settled")).toBeTruthy();
   });
 });
 

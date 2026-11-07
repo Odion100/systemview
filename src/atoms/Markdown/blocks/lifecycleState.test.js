@@ -432,9 +432,42 @@ describe("stepsFor — a trail never draws a station the document cannot reach",
     // Cancelled straight from open: there is no middle, and drawing one would invent a step.
     expect(stepsFor("gap", "retired", { state: {} }).steps).toEqual(["open", "retired"]);
   });
-  it("a rejected RFC still shows its real ending and nothing after it", () => {
-    expect(stepsFor("rfc", "rejected").steps).toEqual(["draft", "rejected"]);
-    expect(stepsFor("rfc", "built").steps).toEqual(TRAILS.rfc);
+  // THE SHAPE NEVER CHANGES ON AN ENDING, for an rfc exactly as for a gap: the verdict forks at the
+  // approval station and the lifecycle behind it stands where it was. The press used to swap the
+  // drawing to two stations, so the document changed shape under his hand — and a fork nobody has
+  // taken yet is drawn grey rather than hidden, which is the only place the lifecycle admits a
+  // design can end in no.
+  const RFC_FORKED = ["draft", "approved", "rejected", "built", "settled", "retired"];
+  it("an rfc and an arc draw the rejected fork at approval, whatever state they stand in", () => {
+    expect(stepsFor("rfc", "draft").steps).toEqual(RFC_FORKED);
+    expect(stepsFor("rfc", "built").steps).toEqual(RFC_FORKED);
+    expect(stepsFor("rfc", "rejected").steps).toEqual(RFC_FORKED);
+    expect(stepsFor("rfc", "rejected").alt).toEqual(["rejected"]);
+    expect(stepsFor("arc", "draft").steps).toEqual([
+      "draft",
+      "approved",
+      "rejected",
+      "inProgress",
+      "settled",
+      "retired",
+    ]);
+  });
+  // The fork is a DRAWING. `pressTo` clears everything past its target off `TRAILS`, so a station
+  // between `approved` and `built` in that order would make a press to approved unwrite the STATUS
+  // heading that means built.
+  it("the fork never enters the pressable order", () => {
+    expect(TRAILS.rfc).toEqual(["draft", "approved", "built", "settled", "retired"]);
+    expect(TRAILS.arc).not.toContain("rejected");
+  });
+  // A rejected design that is then retired: the whole trail would wear `built` and `settled` as
+  // walked on something nobody ever built.
+  it("retired after a rejected verdict draws the road out of the dead end", () => {
+    expect(stepsFor("rfc", "retired", { state: { verdict: "rejected" } }).steps).toEqual([
+      "draft",
+      "rejected",
+      "retired",
+    ]);
+    expect(stepsFor("rfc", "retired", { state: { verdict: "approved" } }).steps).toEqual(RFC_FORKED);
   });
   // Every station a trail can draw must be one `stateOf` can actually return, or the lit station
   // would never match and the trail would read as un-started forever.
