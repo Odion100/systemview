@@ -764,14 +764,20 @@
 // TWO COLOURS, NOT A DIM. Disabled used to be half-opacity on the row's identity, and opacity on a
 // container dims every descendant — the editor that expands inside the row was being read at half
 // strength. Now the state is a colour on the whole card and nothing is dimmed.
-// A hook this agent does not carry keeps the row's ORIGINAL look (the indigo edge, full ink);
-// the carried one wears the enabled colour on its edge AND its card, so the state is the whole
-// row and not a line.
+//
+// THE FILL CARRIES THE STATE AND THE BORDERS ARE LEFT ALONE — his ruling, 2026-11-07, reached by
+// trying it in the browser: *"the trick is to not change the borders, change the fill."* The row's
+// indigo edge is its identity and it reads as the same kind of row whether or not this agent
+// carries it; moving three things at once made the carried rows look like a different component.
+//
+// TWO STRENGTHS, because the same tint is not the same contrast: against the near-white light inset
+// a 9% mix is invisible (*"light mode is too light to see"*), while against the dark card it is
+// plenty. The percentage is the only thing that differs.
 .agent-profile__hook--on {
-  border-left-color: #63b98a;
-  border-color: rgba(99, 185, 138, 0.45);
-  border-left-color: #63b98a;
-  background: color-mix(in srgb, #63b98a 9%, var(--sv-inset));
+  background: color-mix(in srgb, #63b98a 22%, var(--sv-inset));
+  :root.sv-dark & {
+    background: color-mix(in srgb, #63b98a 10%, var(--sv-inset));
+  }
 }
 .agent-profile__hook-btn--open { color: var(--sv-text); border-color: var(--sv-text-muted); }
 .agent-profile__hook-main {
