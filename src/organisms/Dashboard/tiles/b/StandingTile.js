@@ -1,12 +1,21 @@
 import React, { useState } from "react";
 import Bead from "./Bead";
+import { docKey } from "../../../AgentChat/owed";
 import { KINDS } from "../../../DashboardB/dashboardB.data";
-import { Ctx, HUES, Reading, floorOf, openBead, stationWord } from "./floor";
+import { Ctx, HUES, Reading, floorOf, openBead, stationWord, trackForArc } from "./floor";
 
 // ─── WHERE EVERYTHING IS STANDING ──────────────────────────────────────────────────────────────
 //
-// THE SECTION HE NAMED AS THE ONE HE LIKES, so nothing about it moved: same markup, same classes,
-// same order, same words.
+// THE SECTION HE NAMED AS THE ONE HE LIKES — same markup per track, and two deliberate moves on
+// top of it, both his (2026-11-06):
+//
+//   THE ORDER: arcs on top, then RFCs — *"they're a pair"* — then gaps. The data module still
+//   hands tracks in its own order; the pairing is this section's reading of them.
+//
+//   THE ARC IS A FILTER: *"you should be able to click on arcs and it should filter all the RFCs
+//   for that arc."* An arc bead's body publishes `arc` to the stack — everything BELOW this tile
+//   narrows — and the RFC track right here narrows with it, because the RFCs are the pair he
+//   named and they are standing directly under the arc he pressed.
 //
 // A DOCUMENT IS NOT A ROW, IT IS A THING STANDING SOMEWHERE. Eleven RFCs parked at `draft` and
 // eleven parked at `built` are the same number and completely different situations: one means
@@ -16,12 +25,23 @@ import { Ctx, HUES, Reading, floorOf, openBead, stationWord } from "./floor";
 //
 // THE EMPTY STATION IS THE WHOLE VALUE OF THE PICTURE: the distance between a crowded `draft` and
 // an empty `settled` is the sentence "nothing is finishing", and no count says it.
-export default function StandingTile({ data }) {
+
+// Arcs, then RFCs (they're a pair), then gaps — his order, stated as data.
+const TRACK_ORDER = ["arc", "rfc", "gap"];
+
+export default function StandingTile({ data, filter }) {
   const [openTrack, setOpenTrack] = useState("");
   const floor = floorOf(data);
   if (!floor) return <Reading />;
-  const { tracks, beads } = floor;
+  const { beads } = floor;
   const open = (bead) => openBead(bead, data && data.open);
+  // THE HELD ARC — this tile's own selection, a docKey so two projects' ARC-001s stay two arcs.
+  const heldArc = (filter && (filter.mine || {}).arc) || "";
+  const heldArcId = heldArc ? heldArc.split("\u0000")[1] || "" : "";
+  const pickArc = filter ? (b) => filter.set("arc", docKey(b)) : null;
+  const tracks = TRACK_ORDER.map((k) => floor.tracks.find((t) => t.kind === k))
+    .filter(Boolean)
+    .map((t) => trackForArc(t, heldArcId));
   return (
     <Ctx>
       <section className="dbb-flow">
@@ -53,7 +73,15 @@ export default function StandingTile({ data }) {
                     </div>
                     <div className="dbb-station__beads">
                       {s.beads.map((b) => (
-                        <Bead key={b.key} bead={b} onOpen={open} />
+                        <Bead
+                          key={b.key}
+                          bead={b}
+                          onOpen={open}
+                          // AN ARC BEAD IS THE FILTER — press it and the RFCs for that arc are
+                          // what is left, here and below. Other kinds' beads publish nothing.
+                          onPick={t.kind === "arc" && pickArc ? pickArc : undefined}
+                          picked={t.kind === "arc" && !!heldArc && heldArc === docKey(b)}
+                        />
                       ))}
                     </div>
                   </div>

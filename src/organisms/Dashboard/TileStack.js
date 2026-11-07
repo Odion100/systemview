@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DashboardDataProvider, useDashboardData } from "./dashboardData";
+import { mergeAbove, filterKey, narrowData } from "./filters";
 import { resolveTile, tileKinds } from "./tileRegistry";
 import PageLegend from "./PageLegend";
 import "./tiles"; // registering the inventory is a side effect of importing it, once
@@ -150,20 +151,6 @@ const AddTile = ({ onAdd }) => {
   );
 };
 
-/** The filter banner — the one thing the SHELL owns rather than any head. */
-const Narrowed = ({ data }) => {
-  if (!data || !data.filtering) return null;
-  return (
-    <div className="tilestack__narrowed">
-      <b>showing only {(data.segment || {}).text || "a selection"}</b>
-      <span>every tile on this page is narrowed to it</span>
-      <button type="button" onClick={() => data.setOnly(data.only)}>
-        show everything
-      </button>
-    </div>
-  );
-};
-
 const Stack = ({ page, onChange }) => {
   const data = useDashboardData();
   const [drag, setDrag] = useState(-1);
@@ -173,8 +160,35 @@ const Stack = ({ page, onChange }) => {
   // WHERE THE LINE IS: the index the carried tile would land at. Null while nothing is being
   // dragged, which is also what hides the line.
   const [at, setAt] = useState(null);
-  const tiles = page.tiles || [];
+  // Memoised because `seen` below keys on it — `page.tiles || []` fresh each render would make
+  // the per-tile narrowing recompute on every render for a page with no tiles yet.
+  const tiles = useMemo(() => page.tiles || [], [page.tiles]);
   const write = (next) => onChange({ ...page, tiles: next });
+
+  // WHAT EACH TILE HOLDS — index-aligned with the tiles, because the ruling is POSITIONAL: *"They
+  // should be filtering everything below them."* A selection is `{ dimension: value }` or null,
+  // and it travels WITH its tile through a drag (it is the tile's selection, not the slot's),
+  // leaves with a removed tile, and clears when the slot is swapped for something else — a
+  // selection the new tile never made must not keep narrowing the page under it.
+  const [held, setHeld] = useState([]);
+  const holdAt = (i, dim, val) =>
+    setHeld((h) => {
+      const next = h.slice();
+      const mine = { ...(next[i] || {}) };
+      // PRESSING THE HELD THING AGAIN LETS GO. A filter you cannot get out of is a trap.
+      if (mine[dim] === val || val === null) delete mine[dim];
+      else mine[dim] = val;
+      next[i] = Object.keys(mine).length ? mine : null;
+      return next;
+    });
+  const moveHeld = (from, to) =>
+    setHeld((h) => {
+      const next = h.slice();
+      while (next.length < tiles.length) next.push(null);
+      const [carried] = next.splice(from, 1);
+      next.splice(to > from ? to - 1 : to, 0, carried);
+      return next;
+    });
 
   const drop = (to) => {
     const from = drag;
@@ -185,6 +199,7 @@ const Stack = ({ page, onChange }) => {
     const [carried] = next.splice(from, 1);
     // Landing after its own old position shifts by one once it is lifted out.
     next.splice(to > from ? to - 1 : to, 0, carried);
+    moveHeld(from, to);
     write(next);
   };
 
@@ -225,6 +240,22 @@ const Stack = ({ page, onChange }) => {
     return null;
   };
 
+  // WHAT EACH TILE SEES — the world, narrowed by everything held ABOVE it (`mergeAbove`), so a
+  // tile's press reaches every tile under it and never the one over it. Tiles standing under the
+  // SAME merged filters share one narrowed object, which is what keeps the identity-keyed
+  // derivation caches in the variants (floor.js, surface.js) warm — an unfiltered page is still
+  // one object and one pass.
+  const seen = useMemo(() => {
+    const share = new Map();
+    return tiles.map((_, i) => {
+      const above = mergeAbove(held, i);
+      const k = filterKey(above);
+      if (!share.has(k)) share.set(k, narrowData(data, above));
+      return { above, data: share.get(k) };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, held, tiles]);
+
   const edge = (e) => {
     const box = scroller.current;
     if (!box) return;
@@ -249,7 +280,6 @@ const Stack = ({ page, onChange }) => {
         drop(at);
       }}
     >
-      <Narrowed data={data} />
       {tiles.map((entry, i) => {
         const t = resolveTile(entry.kind, entry.variant);
         return (
@@ -281,7 +311,10 @@ const Stack = ({ page, onChange }) => {
                       setDrag(-1);
                       setAt(null);
                     }}
-                    onRemove={() => write(tiles.filter((_, j) => j !== i))}
+                    onRemove={() => {
+                      setHeld((h) => h.filter((_, j) => j !== i));
+                      write(tiles.filter((_, j) => j !== i));
+                    }}
                   />
                   {/* RENDERED BY THE TILE, not inside the corner's little box — the corner is a
                       20px-wide absolute element and a menu anchored to it could only ever be a
@@ -297,11 +330,26 @@ const Stack = ({ page, onChange }) => {
                       // every kind, so what comes back may be a different thing entirely.
                       onPick={(next) => {
                         setSwap(-1);
+                        // The selection was the OLD tile's — the new one never made it, and a
+                        // filter nobody visibly holds must not keep narrowing the page under it.
+                        setHeld((h) => {
+                          const n = h.slice();
+                          n[i] = null;
+                          return n;
+                        });
                         write(tiles.map((x, j) => (j === i ? next : x)));
                       }}
                     />
                   ) : null}
-                  <t.Component data={data} />
+                  {/* THE FILTER CONTRACT, positional: `above` is what every tile higher in the
+                      stack holds, merged (nearest wins per dimension); `mine` is this tile's own
+                      selection; `set(dimension, value)` publishes — same value again, or null,
+                      lets go. A tile that offers no filter simply ignores the prop, and is still
+                      narrowed by what stands above it, because `data` arrives already cut. */}
+                  <t.Component
+                    data={seen[i].data}
+                    filter={{ above: seen[i].above, mine: held[i] || {}, set: (dim, val) => holdAt(i, dim, val) }}
+                  />
                 </>
               ) : (
                 // THE KIND ITSELF IS GONE — the only case a layout cannot be honoured at all. It

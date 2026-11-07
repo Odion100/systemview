@@ -142,6 +142,10 @@ export function beadFor({ row, text }, owedByDoc = {}, now = Date.now()) {
     project: row.project || "",
     path: row.path,
     title: row.title || "",
+    // WHICH ARC THIS DOCUMENT IS PLANNED INTO — the leaf's own address (`arc=ARC-001-O6`),
+    // carried, not parsed: `parseAddress` owns what an address is and reads it where it is
+    // needed. It is what lets a held arc narrow the RFC track to the plans that serve it.
+    arc: String(row.arc || ""),
     station: stateOf(row.kind, row),
     at: Number(row.at) || 0,
     stale: !!row.stale,

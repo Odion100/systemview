@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import RetainClock from "../../../AgentChat/RetainClock";
 import { KINDS, KIND_PLURAL, KIND_WORD } from "../../../DashboardC/dashboardC.data";
-import { Ctx, FLAG, open, useShelves } from "./surface";
+import { Ctx, FLAG, Go, useShelves } from "./surface";
 
 // ═══ THE SHELVES, ONE PER PROJECT ══════════════════════════════════════════════════════════════
 //
@@ -37,22 +37,23 @@ const Meter = ({ meter, kind }) => {
 };
 
 /**
- * ONE CARD — a document's face on the shelf. It opens the document and does nothing else: see
- * `open` in surface.js for the one door, and the reason there is only one.
+ * ONE CARD — a document's face on the shelf. Its body is for READING now: his ruling, 2026-11-06,
+ * *"Nothing should actually be clicked to travel, except an explicit symbol, like an arrow"* — so
+ * the card is no longer a button, and the arrow in its corner is the one thing that takes the
+ * window to the document.
  */
 const Card = ({ card }) => (
-  <button
-    type="button"
+  <div
     className={`dbc-card dbc-card--${card.kind}${card.press ? " is-press" : ""}${card.work ? " is-work" : ""}${
       card.unread || card.missing ? " is-blind" : ""
     }${card.fixture ? " is-fixture" : ""}`}
-    onClick={() => open(card)}
     title={`${card.id} — ${card.path}`}
   >
     <span className="dbc-card__top">
       <span className="dbc-card__id">{card.id}</span>
       {card.station ? <span className="dbc-card__station">{card.station}</span> : <span className="dbc-card__station is-none">not parsed</span>}
       {markOf(card) ? <span className={`dbc-card__mark${card.meter && card.meter.urgent ? " is-urgent" : ""}`}>{markOf(card)}</span> : null}
+      <Go className="dbc-card__go" to={card} />
     </span>
     <span className="dbc-card__title">{card.title || card.path}</span>
     <Meter meter={card.meter} kind={card.kind} />
@@ -71,7 +72,7 @@ const Card = ({ card }) => (
         rather than quietly being wrong about where a document stands. */}
     {card.stale ? <span className="dbc-card__stale">the file has moved on since this was read</span> : null}
     {card.fixture ? <span className="dbc-card__stale">a proof fixture — owed.js counts it out of his obligations</span> : null}
-  </button>
+  </div>
 );
 
 /**
@@ -129,13 +130,19 @@ const Stack = ({ kind, cards, fanned, onToggle }) => {
   );
 };
 
-export default function ProjectsTileC({ data }) {
+export default function ProjectsTileC({ data, filter }) {
   const d = useShelves(data);
   // WHICH STACKS ARE FANNED — per project-and-kind, so opening the RFCs on one project leaves
   // every other shelf exactly as it was. Nothing is open by default: a page that opens every
   // stack is the table this is not.
   const [fanned, setFanned] = useState({});
   const toggle = (key) => setFanned((f) => ({ ...f, [key]: !f[key] }));
+  // THE PROJECT NAME IS A FILTER — his ruling, 2026-11-06: *"you should be able to click on those
+  // and filter everything per project."* The press publishes `project` to the stack and narrows
+  // every tile BELOW this one; pressing the held name again lets go. Standing outside a stack
+  // there is nothing to publish to, so the name stays the plain word it always was.
+  const heldProject = (filter && (filter.mine || {}).project) || "";
+  const pick = filter ? (code) => filter.set("project", code) : null;
   if (!d.shelves.length) return null;
   return (
     <Ctx>
@@ -146,7 +153,23 @@ export default function ProjectsTileC({ data }) {
         {d.shelves.map((s) => (
           <div className="dbc-shelf" key={s.project || "(no project)"}>
             <div className="dbc-shelf__name">
-              <b>{s.project || "no project on the row"}</b>
+              {pick && s.project ? (
+                <button
+                  type="button"
+                  className={`dbc-shelf__pick${heldProject === s.project ? " is-on" : ""}`}
+                  aria-pressed={heldProject === s.project}
+                  title={
+                    heldProject === s.project
+                      ? "showing only this project below — press to show everything"
+                      : `show only ${s.project}, below this tile`
+                  }
+                  onClick={() => pick(s.project)}
+                >
+                  <b>{s.project}</b>
+                </button>
+              ) : (
+                <b>{s.project || "no project on the row"}</b>
+              )}
               <span className="dbc-shelf__owed">
                 {s.press ? <em className="is-press">⚑ {s.press} to press</em> : null}
                 {s.work ? <em className="is-work">{s.work} outstanding</em> : null}

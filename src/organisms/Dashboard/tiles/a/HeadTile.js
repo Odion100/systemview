@@ -33,8 +33,13 @@ import { useFold } from "./fold";
 // THE HELD STATE IS FILLED, IN THE SEGMENT'S OWN COLOUR. A surface-wide filter you cannot tell is
 // on means reading a narrowed dashboard as the whole world — so held is not a hairline or a tint,
 // it is the box inverted, and it keeps the press/outstanding hue so he can still see WHICH one.
-export const HeadTileA = ({ data }) => {
-  const { all, fixtures, setFixtures, only, setOnly } = useFold(data);
+export const HeadTileA = ({ data, filter }) => {
+  const fold = useFold(data);
+  const { all, fixtures, setFixtures } = fold;
+  // THE PRESS PUBLISHES TO THE STACK when one is there — his ruling, 2026-11-06: a tile filters
+  // everything BELOW it, never the whole page. The fold's surface pair is the standalone fallback.
+  const only = filter ? (filter.mine || {}).kind || null : fold.only;
+  const setOnly = filter ? (key) => filter.set("kind", key) : fold.setOnly;
   const read = !!(data && data.read);
   const error = (data && data.error) || "";
   const { totals, head } = all;

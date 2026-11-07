@@ -179,10 +179,38 @@ const same = (Component, selector) => {
   expect(mine.outerHTML).toBe(theirs.outerHTML);
 };
 
-// ─── THE ONE HE NAMED ──────────────────────────────────────────────────────────────────────────
+// ─── THE ONE HE NAMED — AND THEN MOVED ON, TWICE, BOTH HIS (2026-11-06) ────────────────────────
+//
+// The page is the frozen record of what the tile came FROM; the tile has since taken two rulings
+// the page never heard: the ORDER (*"arcs on top, then RFCs — they're a pair"*, then gaps) and
+// the DOOR (*"nothing should actually be clicked to travel, except an explicit symbol, like an
+// arrow"* — so a bead's body is a selection or plain reading, and the arrow is the one thing that
+// opens). Everything else still has to match: the same tracks, the same stations in the same
+// trail order, the same beads at the same stations with the same ids.
+describe("the standing tile matches the page except where it deliberately moved on", () => {
+  const mine = () => tileSection(StandingTile, ".dbb-flow");
 
-it("the standing tile is the page's .dbb-flow, element for element", () => {
-  same(StandingTile, ".dbb-flow");
+  it("holds the same tracks and stations, reordered arcs → RFCs → gaps", () => {
+    const kinds = (el) =>
+      [...el.querySelectorAll(".dbb-track")].map((t) => [...t.classList].find((c) => c.startsWith("dbb-track--")));
+    expect(kinds(pageSection(".dbb-flow"))).toEqual(["dbb-track--rfc", "dbb-track--arc", "dbb-track--gap"]);
+    expect(kinds(mine())).toEqual(["dbb-track--arc", "dbb-track--rfc", "dbb-track--gap"]);
+    // per kind, the stations and the beads standing at them are untouched by the reorder
+    for (const kind of ["rfc", "arc", "gap"]) {
+      const words = (el) => [...el.querySelectorAll(`.dbb-track--${kind} .dbb-station__word`)].map((n) => n.textContent);
+      const ids = (el) => [...el.querySelectorAll(`.dbb-track--${kind} .dbb-bead__id`)].map((n) => n.textContent);
+      expect(words(mine())).toEqual(words(pageSection(".dbb-flow")));
+      expect(ids(mine())).toEqual(ids(pageSection(".dbb-flow")));
+    }
+  });
+
+  it("every bead grew the arrow — the page's bead was the door, the tile's arrow is", () => {
+    const tile = mine();
+    const beads = tile.querySelectorAll(".dbb-bead");
+    expect(beads.length).toBeGreaterThan(0);
+    expect(tile.querySelectorAll(".dbb-bead .dbb-bead__go")).toHaveLength(beads.length);
+    expect(pageSection(".dbb-flow").querySelectorAll(".dbb-bead__go")).toHaveLength(0);
+  });
 });
 
 // ─── AND THE REST OF THE PAGE ──────────────────────────────────────────────────────────────────

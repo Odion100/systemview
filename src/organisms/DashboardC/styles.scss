@@ -815,3 +815,64 @@ $dbc-foot: 30px;
   > span { font-size: 12px; color: var(--sv-text); }
   > em { font-style: normal; font-size: 10.5px; color: var(--sv-text-faint); }
 }
+
+// ─── THE ARROW TRAVELS, AND ONLY THE ARROW — his ruling, 2026-11-06 ─────────────────────────────
+// "Nothing should actually be clicked to travel, except an explicit symbol, like an arrow." Rows
+// and cards are for reading and for selections now; this symbol is the one door, and it goes —
+// the window travels to the Code page rather than opening a panel on the side.
+.dbc-go {
+  flex: 0 0 auto;
+  padding: 0 3px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--sv-text-faint);
+  cursor: pointer;
+  border-radius: 3px;
+  &:hover { color: var(--sv-blue); background: var(--sv-hover); }
+}
+
+// The owed row's arrow sits in the corner the row cannot reach from inside itself — the foldable
+// row is a button and the arrow may not nest in it, so it is the group's child, positioned.
+.dbc-owed__g {
+  position: relative;
+  > .dbc-owed { padding-right: 32px; }
+  > .dbc-owed__go { position: absolute; top: 9px; right: 9px; }
+}
+// A single-obligation row is a DIV now — its body goes nowhere, so no hand cursor promising a
+// door that is not there. The fold rows keep theirs: a fold is a press that moves nothing.
+div.dbc-owed { cursor: default; }
+.dbc-owed__item {
+  position: relative;
+  cursor: default;
+  padding-right: 30px;
+  > .dbc-go { position: absolute; top: 6px; right: 8px; }
+}
+
+// The card is a face to read; the arrow in its top line is the door.
+div.dbc-card { cursor: default; }
+.dbc-card__go { margin-left: auto; }
+.dbc-card__mark + .dbc-card__go { margin-left: 6px; }
+
+// ─── THE PROJECT NAME IS A FILTER — "filter everything per project" ────────────────────────────
+// Held is a FILL, the same costume the head's segments wear, so one look says which project the
+// tiles below are narrowed to.
+.dbc-shelf__pick {
+  padding: 1px 8px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  > b { font-size: 14px; color: var(--sv-text-strong); }
+  &:hover { background: var(--sv-hover); }
+  &.is-on {
+    background: var(--sv-text-strong);
+    > b { color: var(--sv-surface); }
+  }
+}
+:root.sv-dark .dbc-shelf__pick.is-on > b { color: var(--sv-bg); }

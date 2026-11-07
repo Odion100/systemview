@@ -43,7 +43,7 @@ import { pctStyle } from "../../../../atoms/meterWidth";
  */
 export const toneOf = (s) => (s.keys ? (s.key === "clear" ? "clear" : s.flag ? "press" : "work") : s.key);
 
-export default function HeadTile({ data }) {
+export default function HeadTile({ data, filter }) {
   const floor = floorOfAll(data);
   if (!floor) return <Reading />;
   const { tide } = floor;
@@ -69,8 +69,10 @@ export default function HeadTile({ data }) {
   // AN ERROR IS SAID OUT LOUD IN THE HEAD, beside the reach, rather than replacing the page: the
   // counts below are still the last honest thing we have and hiding them teaches nothing.
   const trouble = (data && data.error) || "";
-  const only = (data && data.only) || null;
-  const setOnly = data && data.setOnly;
+  // THE PRESS PUBLISHES TO THE STACK when one is there — his ruling, 2026-11-06: a tile filters
+  // everything BELOW it, never the whole page. The old surface pair is the standalone fallback.
+  const only = (filter ? (filter.mine || {}).kind : data && data.only) || null;
+  const setOnly = filter ? (key) => filter.set("kind", key) : data && data.setOnly;
 
   return (
     <Ctx>
@@ -106,7 +108,7 @@ export default function HeadTile({ data }) {
                 type="button"
                 className={`${cls} is-able${on ? " is-on" : ""}`}
                 aria-pressed={on}
-                title={on ? "showing only these — press to show everything again" : "show only these, everywhere on this surface"}
+                title={on ? "showing only these below — press to show everything again" : "show only these, below this tile"}
                 onClick={() => setOnly(s.key)}
               >
                 {body}

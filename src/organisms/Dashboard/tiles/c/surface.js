@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import "../../../DashboardC/styles.scss";
-import { openAddress } from "../../../../atoms/Markdown/openRef";
+import { openDoc } from "../../dashboardData";
 import { currentFrom, shelvesFrom } from "../../../DashboardC/dashboardC.data";
 
 // ═══ THE SHELVES, AS TILES ══════════════════════════════════════════════════════════════════════
@@ -13,9 +13,10 @@ import { currentFrom, shelvesFrom } from "../../../DashboardC/dashboardC.data";
 //                `dashboardData.js`, so four tiles on one surface cannot disagree about what is
 //                owed. `data.docs` / `data.owed` are what an ordinary tile reads; `data.allDocs` /
 //                `data.allOwed` are the unnarrowed truth, and only a HEAD reads those.
-//   the FILTER   `data.only` / `data.setOnly` / `data.filtering`. The press lands on the surface
-//                and narrows the documents, so every tile narrows together without any tile but
-//                the head knowing a filter exists.
+//   the FILTER   the `filter` prop from the stack — `{ above, mine, set }` (TileStack.js,
+//                filters.js). A press publishes with `set(dimension, value)` and narrows every
+//                tile BELOW this one; `data.docs` / `data.owed` arrive already cut by whatever is
+//                held above, so a tile that never touches `filter` is still narrowed for free.
 //   the CONTEXT  `.dbc-ctx` (see styles.scss). The sections are styled flat, so a section lifted
 //                out of `.dbc` keeps its own rules and loses everything it INHERITED: the type,
 //                the eight custom properties every hue resolves through, and the `h2` every
@@ -73,26 +74,42 @@ export function useTracks(shelves) {
 }
 
 /**
- * THE ONE OPENER (openRef.js): *"every surface that opens a file address calls THIS, and nothing
- * else dispatches sv:openFileInNav."* A document is a markdown file, so it rides the door files
- * already ride — the Code page's own listener (pages/SystemView) and every other page's doc panel
- * (useOpenedFile) both answer it, which is why there is no second branch here and no navigation
- * fallback: throwing the window over to another page to read one card would undo the thing these
- * tiles are for. `lines` carries the obligation's own line, so a card marked by an unsigned
- * approval lands him ON the approval rather than at the top of a forty-page RFC.
+ * THE DOOR TRAVELS NOW — `openDoc` in dashboardData.js, which takes the window to the Code page's
+ * own file route. His ruling, 2026-11-06: *"Nothing should actually be clicked to travel, except
+ * an explicit symbol, like an arrow, to open the next page. And it actually should travel — not
+ * open it up on the side."* So nothing on a C tile calls this from a row's own body any more; the
+ * arrow (`Go`, below) is the one thing that does.
  *
- * ONE DOOR FOR BOTH SHAPES. A card carries the line as `at` (its `line` is the row's SENTENCE); an
- * owed item carries it as `line`, a number, straight from `owedFrom`. Both are accepted here so
- * there is one opener rather than two — and `Number` on a sentence is NaN, which is falsy, so a
- * card's words can never be mistaken for a line number.
+ * ONE DOOR FOR BOTH SHAPES, still. A card carries the line as `at` (its `line` is the row's
+ * SENTENCE); an owed item carries it as `line`, a number, straight from `owedFrom`. `Number` on a
+ * sentence is NaN, which is falsy, so a card's words can never be mistaken for a line number.
  */
 export const open = (t) =>
-  openAddress({
-    projectCode: t.project || "",
+  openDoc({
+    project: t.project || "",
     path: t.path,
-    language: "markdown",
-    lines: Number(t.at) ? [Number(t.at)] : Number(t.line) ? [Number(t.line)] : null,
+    line: Number(t.at) || Number(t.line) || 0,
   });
+
+/**
+ * THE ARROW — the explicit symbol that travels, and the only thing that does. It stops the click
+ * where it stands so the row under it (a fold, a selection) never fires too: the symbol is the
+ * whole gesture.
+ */
+export const Go = ({ to, className = "" }) => (
+  <button
+    type="button"
+    className={`dbc-go${className ? ` ${className}` : ""}`}
+    title={`open ${to.id || to.path}`}
+    aria-label={`open ${to.id || to.path}`}
+    onClick={(e) => {
+      e.stopPropagation();
+      open(to);
+    }}
+  >
+    →
+  </button>
+);
 
 /** The mark on a card and on a stack's face. ⚑ is "a decision is waiting on you"; a press that is
  *  a CLOCK carries ⧗ instead, because a deadline is not a decision — nothing he presses makes it

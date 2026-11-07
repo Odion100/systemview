@@ -1,7 +1,7 @@
 import React from "react";
 import "../../../DashboardB/styles.scss";
 import { floorFrom } from "../../../DashboardB/dashboardB.data";
-import { onCodePage } from "../../../../atoms/Markdown/openRef";
+import { parseAddress } from "../../../../atoms/Markdown/objectives";
 import { openDoc } from "../../dashboardData";
 
 // ─── WHAT EVERY B TILE SHARES ──────────────────────────────────────────────────────────────────
@@ -41,16 +41,17 @@ export const EVERY = 30000;
 // stays honest between polls, and a cached floor that ignored it would still be saying "retires in
 // 4 hours" tomorrow.
 //
-// TWO SLOTS, BECAUSE THE SURFACE HOLDS TWO WORLDS when a head segment is held: the narrowed set
-// every ordinary tile derives from, and the whole set the head counts. Unheld they are the same
-// array and the same key, so the second slot never fills and the whole surface still costs one
-// pass.
+// FOUR SLOTS, BECAUSE THE SURFACE HOLDS SEVERAL WORLDS NOW. Filtering went POSITIONAL (his
+// ruling, 2026-11-06: a tile narrows everything BELOW it), so one page can legitimately hold the
+// whole set the heads count plus a different narrowed set per band of tiles under each held
+// selection. Unheld they all collapse to one array and one key, so the extra slots cost nothing
+// until something is actually held.
 let slots = [];
 const derive = (docs, roots, beat) => {
   const hit = slots.find((s) => s.docs === docs && s.roots === roots && s.beat === beat);
   if (hit) return hit.floor;
   const floor = floorFrom({ docs: docs || [], projects: roots || {}, now: Date.now() });
-  slots = [{ docs, roots, beat, floor }, ...slots].slice(0, 2);
+  slots = [{ docs, roots, beat, floor }, ...slots].slice(0, 4);
   return floor;
 };
 
@@ -90,29 +91,34 @@ export const forgetFloor = () => {
 // ─── OPENING A DOCUMENT ────────────────────────────────────────────────────────────────────────
 
 /**
- * THE ONE OPENER (openRef.js), offered first to whatever document display the tile is mounted in,
- * and navigated only if nothing answered — the rule that file already writes. `data.open` IS that
- * opener; it is taken as an argument so a tile never reaches past the surface for a door.
- *
- * The last-resort route is B's own and it has to survive the move: when no panel hosts the address
- * and we are not already on the Code page, pushing the Code page's file door beats leaving a dead
- * click. Nothing here PRESSES anything — opening the document is the whole interaction B offers,
- * because the control lives in the document.
+ * THE DOOR TRAVELS — `openDoc` pushes the Code page's own file route and fires popstate, which is
+ * the route this function used to keep as a last resort and is now the WHOLE door. His ruling,
+ * 2026-11-06: *"it actually should travel — not open it up on the side."* `data.open` IS that
+ * opener; it is still taken as an argument so a tile never reaches past the surface for a door,
+ * and so a test can hand in a spy. Nothing here PRESSES anything — opening the document is the
+ * whole interaction, because the control lives in the document — and nothing but the ARROW calls
+ * it any more.
  */
 export function openBead(bead, open = openDoc) {
   if (!bead) return;
-  const d = open({ project: bead.project, path: bead.path, line: bead.line }) || {};
-  if (d.handled || onCodePage()) return;
-  const q = new URLSearchParams();
-  q.set("tab", "docs");
-  q.set("file", bead.path);
-  q.set("fproj", bead.project);
-  q.set("flang", "markdown");
-  if (bead.line > 1) q.set("flines", `${bead.line}-${bead.line}`);
-  window.history.pushState({}, "", `/specs/${bead.project}?${q.toString()}`);
-  // the router listens to popstate — this is how a pushed URL reaches it without a reload, which
-  // is never on the table here (his standing rule: never suggest a page reload to him again)
-  window.dispatchEvent(new PopStateEvent("popstate"));
+  open({ project: bead.project, path: bead.path, line: bead.line });
+}
+
+/**
+ * ONE TRACK, NARROWED TO ONE ARC — the RFCs planned into it, by the address on their own leaf
+ * (`arc=ARC-001-O6`, the same address `plansByObjective` resolves by, matched on the arc id the
+ * same way because a cross-repo plan carries no project prefix). His ruling, 2026-11-06: *"you
+ * should be able to click on arcs and it should filter all the RFCs for that arc."* A pure
+ * function of the track and the held arc's id, so the claim is provable without a mount.
+ */
+export function trackForArc(track, arcId) {
+  if (!track || !arcId || track.kind !== "rfc") return track;
+  const mine = (b) => {
+    const a = parseAddress(b.arc);
+    return !!a && a.arc === arcId;
+  };
+  const stations = track.stations.map((s) => ({ ...s, beads: s.beads.filter(mine) }));
+  return { ...track, stations, total: stations.reduce((n, s) => n + s.beads.length, 0), narrowedTo: arcId };
 }
 
 // ─── THE WRAPPER EVERY TILE WEARS ──────────────────────────────────────────────────────────────

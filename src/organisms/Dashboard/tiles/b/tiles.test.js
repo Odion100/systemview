@@ -1,6 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { owedFrom, owedHead } from "../../../AgentChat/owed";
+import { docKey, owedFrom, owedHead } from "../../../AgentChat/owed";
 import { forgetFloor } from "./floor";
 import HeadTile from "./HeadTile";
 import OwedTile from "./OwedTile";
@@ -234,12 +234,63 @@ describe("the tracks are the trails, empty stations and all", () => {
     expect(rfc.querySelectorAll(".dbb-station.is-empty").length).toBeGreaterThan(0);
   });
 
-  // A bead OPENS its document and presses nothing — the control lives in the document.
-  it("a bead opens its document through the surface's one opener", () => {
+  // THE ARROW IS THE DOOR NOW — his ruling, 2026-11-06: *"Nothing should actually be clicked to
+  // travel, except an explicit symbol, like an arrow."* The bead's body goes nowhere; the arrow
+  // opens the document through the surface's one opener.
+  it("a bead's body does not open; its arrow does, through the surface's one opener", () => {
     const data = mk();
     const { container } = render(<StandingTile data={data} />);
-    fireEvent.click(container.querySelector(".dbb-bead"));
+    fireEvent.click(container.querySelector(".dbb-bead .dbb-bead__body") || container.querySelector(".dbb-bead"));
+    expect(data.open).not.toHaveBeenCalled();
+    fireEvent.click(container.querySelector(".dbb-bead__go"));
     expect(data.open).toHaveBeenCalledWith(expect.objectContaining({ project: "p" }));
+  });
+
+  // HIS REORDER, 2026-11-06: *"arcs on top, then RFCs — they're a pair — then gaps."*
+  it("stacks the tracks arcs first, then RFCs, then gaps", () => {
+    const { container } = render(<StandingTile data={mk()} />);
+    const kinds = [...container.querySelectorAll(".dbb-track")].map((t) =>
+      [...t.classList].find((c) => c.startsWith("dbb-track--")),
+    );
+    expect(kinds).toEqual(["dbb-track--arc", "dbb-track--rfc", "dbb-track--gap"]);
+  });
+
+  // HIS RULING, 2026-11-06: *"you should be able to click on arcs and it should filter all the
+  // RFCs for that arc."* The arc bead publishes to the stack; the RFC track in this very tile
+  // narrows with it, because the RFCs are the pair standing right under the arc he pressed.
+  describe("an arc bead is a filter", () => {
+    // An RFC planned INTO the arc (its leaf carries the address) and one that is not.
+    const PLANNED = doc(
+      { id: "RFC-009", kind: "rfc", path: "RFCs/RFC-009-planned.md", arc: "ARC-001-O1", state: { verdict: "approved" } },
+      "::rfc{id=RFC-009 arc=ARC-001-O1}\n",
+    );
+    const docs = [WAITING, ARC, PLANNED];
+
+    const up = (filter) => render(<StandingTile data={mk({ docs, allDocs: docs })} filter={filter} />);
+
+    it("publishes the arc to the stack and wears the fill while held", () => {
+      const set = jest.fn();
+      const { container } = up({ above: {}, mine: {}, set });
+      const arcBody = container.querySelector(".dbb-track--arc .dbb-bead__body");
+      expect(arcBody.tagName).toBe("BUTTON");
+      fireEvent.click(arcBody);
+      const hold = docKey({ project: "p", id: "ARC-001" });
+      expect(set).toHaveBeenCalledWith("arc", hold);
+      // held: the fill is on, and the RFC track narrows to the plans that serve the arc
+      const held = up({ above: {}, mine: { arc: hold }, set }).container;
+      expect(held.querySelector(".dbb-track--arc .dbb-bead.is-on")).toBeTruthy();
+      const rfcIds = [...held.querySelectorAll(".dbb-track--rfc .dbb-bead__id")].map((n) => n.textContent);
+      expect(rfcIds).toEqual(["RFC-009"]);
+    });
+
+    it("an rfc or gap bead publishes nothing — its body is not a control", () => {
+      const set = jest.fn();
+      const { container } = up({ above: {}, mine: {}, set });
+      const rfcBody = container.querySelector(".dbb-track--rfc .dbb-bead__body");
+      expect(rfcBody.tagName).not.toBe("BUTTON");
+      fireEvent.click(rfcBody);
+      expect(set).not.toHaveBeenCalled();
+    });
   });
 
   it("dims the other tracks when one is held open", () => {
@@ -279,6 +330,37 @@ describe("the report stacks", () => {
   it("says plainly when no project has filed one", () => {
     render(<ReportsTile data={mk({ docs: [WAITING], allDocs: [WAITING] })} />);
     expect(screen.getByText("no reports are registered in any project.")).toBeInTheDocument();
+  });
+
+  // HIS RULING, 2026-11-06: *"the selection can't change anything about it now, but you need to
+  // be able to click it and show a selection — might have to be just a fill."* A card's plain
+  // press is the selection; the arrow is the door; the body never travels.
+  it("a card's plain press selects (a fill, published to the stack); only the arrow opens", () => {
+    const set = jest.fn();
+    const data = mk();
+    const { container } = render(<ReportsTile data={data} filter={{ above: {}, mine: {}, set }} />);
+    const card = container.querySelector(".dbb-rcard");
+    fireEvent.click(card);
+    expect(set).toHaveBeenCalledWith("reportWindow", expect.stringContaining("r-"));
+    expect(data.open).not.toHaveBeenCalled();
+    fireEvent.click(card.querySelector(".dbb-rcard__go"));
+    expect(data.open).toHaveBeenCalledWith(expect.objectContaining({ path: expect.stringContaining("report") }));
+  });
+
+  it("the held card wears the fill, and says so to a screen reader", () => {
+    const data = mk();
+    const first = render(<ReportsTile data={data} filter={{ above: {}, mine: {}, set: jest.fn() }} />).container;
+    expect(first.querySelector(".dbb-rcard.is-on")).toBe(null);
+    forgetFloor();
+    const heldKey = docKey({ project: "q", id: "r-two" });
+    const { container } = render(
+      <ReportsTile data={mk()} filter={{ above: {}, mine: { reportWindow: heldKey }, set: jest.fn() }} />,
+    );
+    const on = container.querySelector(".dbb-rcard.is-on");
+    expect(on).toBeTruthy();
+    expect(on.textContent).toContain("r-two");
+    expect(on).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelectorAll(".dbb-rcard.is-on")).toHaveLength(1);
   });
 });
 

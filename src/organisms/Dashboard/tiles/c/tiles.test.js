@@ -116,47 +116,67 @@ const bothUp = async () => {
   return { page, tiles, of: (view, sel) => view.container.querySelector(sel) };
 };
 
-describe("a tile renders exactly what the page's own section renders", () => {
-  it("what is owed — both columns, the fold, every sentence", async () => {
+// THE TILES HAVE SINCE MOVED ON FROM THE PAGE, BY HIS RULINGS (2026-11-06), and the divergences
+// are NAMED here rather than quietly exempted — the page stays as the frozen record of what the
+// tiles came from:
+//
+//   THE ARROW: *"Nothing should actually be clicked to travel, except an explicit symbol, like
+//   an arrow."* So the tiles' rows and cards grew `.dbc-go` arrows and their bodies stopped being
+//   doors; the page's rows still open on their body.
+//
+//   THE FILTER WENT POSITIONAL: *"They should be filtering everything below them."* The press
+//   lives in the STACK now (TileStack.filters.test.js proves it); a tile standing alone has no
+//   stack to publish to, so its head draws labels, not controls.
+//
+// Everything the extraction carried over still has to SAY the same thing, so the words are
+// compared with the arrows stripped out.
+const saidBy = (el) => (el ? el.textContent.replace(/→/g, "") : "");
+
+describe("a tile says exactly what the page's own section says", () => {
+  it("what is owed — both columns, every sentence; only the arrows are new", async () => {
     const { page, tiles, of } = await bothUp();
-    expect(of(tiles, ".dbc-owes").outerHTML).toBe(of(page, ".dbc-owes").outerHTML);
+    expect(saidBy(of(tiles, ".dbc-owes"))).toBe(saidBy(of(page, ".dbc-owes")));
+    // one arrow per row — the explicit symbol, and the page has none
+    const rows = tiles.container.querySelectorAll(".dbc-owes .dbc-owed__g");
+    expect(rows.length).toBeGreaterThan(0);
+    expect(tiles.container.querySelectorAll(".dbc-owes .dbc-owed__go")).toHaveLength(rows.length);
+    expect(page.container.querySelectorAll(".dbc-owes .dbc-go")).toHaveLength(0);
   });
 
+  // THE ONE SECTION STILL EQUAL WHOLE: standing (c) is not a default variant and was not rewired,
+  // so it must not have drifted by accident.
   it("where everything stands — the heading, the key, every rail and every station count", async () => {
     const { page, tiles, of } = await bothUp();
     expect(of(tiles, ".dbc-current").outerHTML).toBe(of(page, ".dbc-current").outerHTML);
   });
 
-  it("per project — every shelf, every stack, every meter", async () => {
+  it("per project — every shelf, every stack, every meter; the cards' doors became arrows", async () => {
     const { page, tiles, of } = await bothUp();
-    expect(of(tiles, ".dbc-shelves").outerHTML).toBe(of(page, ".dbc-shelves").outerHTML);
+    expect(saidBy(of(tiles, ".dbc-shelves"))).toBe(saidBy(of(page, ".dbc-shelves")));
+    // the card is a face to read now, not a button
+    expect(tiles.container.querySelectorAll(".dbc-shelves button.dbc-card")).toHaveLength(0);
+    expect(page.container.querySelectorAll(".dbc-shelves div.dbc-card")).toHaveLength(0);
   });
 
   // A FAN IS STATE, and state is where a moved component usually loses something. Pressing the
   // same stack on both must leave both showing the same cards in the same order.
-  it("and keeps rendering the same thing once something is pressed open", async () => {
+  it("and keeps saying the same thing once something is pressed open", async () => {
     const { page, tiles, of } = await bothUp();
     fireEvent.click(of(page, ".dbc-stack--arc .dbc-stack__face"));
     fireEvent.click(of(tiles, ".dbc-stack--arc .dbc-stack__face"));
-    expect(of(tiles, ".dbc-shelves").outerHTML).toBe(of(page, ".dbc-shelves").outerHTML);
-
-    fireEvent.click(of(page, ".dbc-owes .dbc-owed"));
-    fireEvent.click(of(tiles, ".dbc-owes .dbc-owed"));
-    expect(of(tiles, ".dbc-owes").outerHTML).toBe(of(page, ".dbc-owes").outerHTML);
+    expect(saidBy(of(tiles, ".dbc-shelves"))).toBe(saidBy(of(page, ".dbc-shelves")));
   });
 
-  // THE HEAD IS THE ONE THAT DIFFERS, AND HERE IS EXACTLY HOW. Everything it SAYS is the same —
-  // the title, the inventory line, the segments and their words, the skipped sentence. What it
-  // does with a press is not, and that is the change: the page narrows the section under it, the
-  // tile narrows the surface.
-  it("the counts — says the same words, and differs only in where the press lands", async () => {
+  // THE HEAD SAYS THE SAME WORDS. What differs: the page's head still owns a page-wide filter, so
+  // its segments are buttons; a tile standing OUTSIDE a stack has nothing to publish to, so it
+  // draws labels — a control that narrows nothing must not look like one. The pressable head
+  // lives in TileStack.filters.test.js, where there is a stack to press into.
+  it("the counts — says the same words; alone it offers no control it cannot honour", async () => {
     const { page, tiles, of } = await bothUp();
     expect(of(tiles, ".dbc-head__top").outerHTML).toBe(of(page, ".dbc-head__top").outerHTML);
     const words = (v) => [...v.container.querySelectorAll(".dbc-head__segs .dbc-seg")].map((e) => e.textContent);
     expect(words(tiles)).toEqual(words(page));
-    const keys = (v) =>
-      [...v.container.querySelectorAll(".dbc-head__segs .dbc-seg")].map((e) => `${e.tagName}:${e.className}`);
-    expect(keys(tiles)).toEqual(keys(page));
+    expect(tiles.container.querySelectorAll(".dbc-head__segs button")).toHaveLength(0);
     // The skipped sentence is `owed.js`'s own either way — a surface that silently omits is the
     // failure this system exists to stop.
     const skipped = (v) => (v.container.querySelector(".dbc-head__skipped") || { textContent: "" }).textContent;
@@ -164,77 +184,62 @@ describe("a tile renders exactly what the page's own section renders", () => {
   });
 });
 
-describe("the head tile presses the surface, not the section under it", () => {
-  const up = async () => {
+// THE HEAD'S PRESS GOES TO THE STACK — his ruling, 2026-11-06: *"They should be filtering
+// everything below them"*, never the whole page. What a held filter DOES to the tiles below is
+// the stack's to prove (TileStack.filters.test.js); what is proved HERE is the tile's half of the
+// contract: it publishes on the `kind` dimension, it wears the fill its `mine` says, and it
+// counts the unnarrowed world whatever arrives narrowed.
+describe("the head tile publishes to the stack and fills while held", () => {
+  const up = async (filter) => {
+    const Harness = () => <HeadTileC data={useDashboardData()} filter={filter} />;
     const view = render(
       wrap(
         <DashboardDataProvider>
-          <Surface />
+          <Harness />
         </DashboardDataProvider>,
       ),
     );
-    await waitFor(() => expect(view.container.querySelector(".dbc-shelves")).toBeTruthy());
+    await waitFor(() => expect(view.container.querySelector(".dbc-seg")).toBeTruthy());
     return view;
   };
-  // THE SEGMENT, BY ITS KEY. By accessible name is ambiguous here and that is not the test's
-  // fault: a dot's title legitimately says "1 blocked" too, because the arc's own row says so.
-  const seg = (view, key) => view.container.querySelector(`.dbc-seg.is-${key}`);
 
-  // HIS RULING: *"especially because they're going to be components, those headers, if they have
-  // filters, need to filter the entire, ALL of the sections."* A head that narrowed only its
-  // neighbour would be reading its own placement as its scope, which stops meaning anything the
-  // moment he can put it on another page.
-  it("narrows the rails and the shelves from one press, not just the owed list", async () => {
-    const view = await up();
-    const waiting = await screen.findByRole("button", { name: /approvals? waiting/ });
-    expect(view.container.querySelector(".dbc-track--arc")).toBeTruthy();
-    expect(view.container.querySelector(".dbc-track--gap")).toBeTruthy();
-
-    fireEvent.click(waiting);
-    // Only the RFC holds an approval, so the arc and the gap leave every section at once.
-    expect(view.container.querySelector(".dbc-track--rfc")).toBeTruthy();
-    expect(view.container.querySelector(".dbc-track--arc")).toBeNull();
-    expect(view.container.querySelector(".dbc-track--gap")).toBeNull();
-    expect(screen.getByText("ship the read path?")).toBeVisible();
-    expect(screen.queryByText(/waiting on the rewrite/)).not.toBeInTheDocument();
-    // AND IT LETS GO. A filter you cannot get out of is a trap.
-    fireEvent.click(waiting);
-    expect(view.container.querySelector(".dbc-track--arc")).toBeTruthy();
-  });
-
-  // IT FILTERS BY OBLIGATION, NOT BY DOCUMENT. *"Of course I want to filter by obligations."*
-  // Pressing "1 blocked" must show the blocked objective and not also the three other things the
-  // same arc happens to owe — the list has to be what the number counted.
-  it("shows exactly the obligations the segment counted, not everything their documents owe", async () => {
-    const view = await up();
-    fireEvent.click(seg(view, "blocked"));
-    expect(screen.getByText(/waiting on the rewrite/)).toBeVisible();
-    expect(screen.queryByText("mine to do")).not.toBeInTheDocument();
-    expect(view.container.querySelectorAll(".dbc-owes .dbc-owed")).toHaveLength(1);
-  });
-
-  // A HEAD COUNTS THE WORLD IT FILTERS FROM. Counting the narrowed set would restate the press
-  // back at itself — "1 of 1" — with no way left to see there had ever been more.
-  it("keeps its own counts unnarrowed while everything else narrows", async () => {
-    const view = await up();
-    const before = view.container.querySelector(".dbc-head").textContent;
+  it("a pressed segment publishes its key on the kind dimension", async () => {
+    const set = jest.fn();
+    await up({ above: {}, mine: {}, set });
     fireEvent.click(await screen.findByRole("button", { name: /approvals? waiting/ }));
-    expect(view.container.querySelector(".dbc-head").textContent).toBe(before);
+    expect(set).toHaveBeenCalledWith("kind", "approval");
   });
 
   // THE HELD STATE HAS TO BE UNMISTAKABLE. *"Those filters need to do a better job in that
   // they're selected if we do that."* The costume is a fill in the segment's own hue, and it
   // hangs off this class — so the class is what is asserted, and that only one carries it.
   it("says which segment is held, and only one at a time", async () => {
-    const view = await up();
-    const waiting = await screen.findByRole("button", { name: /approvals? waiting/ });
-    expect(waiting.className).not.toMatch(/is-on/);
-    fireEvent.click(waiting);
-    expect(waiting.className).toMatch(/\bis-on\b/);
-    expect(waiting).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(seg(view, "blocked"));
-    expect(view.container.querySelectorAll(".dbc-seg.is-on")).toHaveLength(1);
-    expect(waiting.className).not.toMatch(/is-on/);
+    const view = await up({ above: {}, mine: { kind: "approval" }, set: jest.fn() });
+    const on = view.container.querySelectorAll(".dbc-seg.is-on");
+    expect(on).toHaveLength(1);
+    expect(on[0].textContent).toMatch(/approval/);
+    expect(on[0]).toHaveAttribute("aria-pressed", "true");
+  });
+
+  // A HEAD COUNTS THE WORLD IT FILTERS FROM. The stack hands it narrowed `docs` like everyone
+  // else when something is held ABOVE it, and the counts still come off `allDocs` / `allOwed`.
+  it("keeps its own counts unnarrowed when the data arrives narrowed", async () => {
+    const whole = await up({ above: {}, mine: {}, set: jest.fn() });
+    const before = whole.container.querySelector(".dbc-head").textContent;
+    whole.unmount();
+    const Narrowed = () => {
+      const data = useDashboardData();
+      return <HeadTileC data={{ ...data, docs: [] }} filter={{ above: { project: "beta" }, mine: {}, set: jest.fn() }} />;
+    };
+    const view = render(
+      wrap(
+        <DashboardDataProvider>
+          <Narrowed />
+        </DashboardDataProvider>,
+      ),
+    );
+    await waitFor(() => expect(view.container.querySelector(".dbc-seg")).toBeTruthy());
+    expect(view.container.querySelector(".dbc-head").textContent).toBe(before);
   });
 
   // THE SEGMENTS ARE WHATEVER `owedHead` EMITS, never a list this tile knows in advance.
@@ -242,8 +247,7 @@ describe("the head tile presses the surface, not the section under it", () => {
   // switched on the keys it could see would silently drop the next one, and an undercount reads
   // as RESOLVED, which is the one thing this number may never say.
   it("renders a pill per segment the head module returns, whatever they turn out to be", async () => {
-    const view = await up();
-    await waitFor(() => expect(view.container.querySelector(".dbc-seg")).toBeTruthy());
+    const view = await up({ above: {}, mine: {}, set: jest.fn() });
     const pills = [...view.container.querySelectorAll(".dbc-head__segs .dbc-seg")];
     const keys = pills.map((e) => [...e.classList].find((c) => c.startsWith("is-")));
     expect(keys).toContain("is-approval");

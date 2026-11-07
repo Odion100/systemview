@@ -220,15 +220,21 @@ describe("tile over section, with the fixtures shown", () => {
 const { DashboardAFold } = require("./fold");
 const FoldHarness = ({ children }) => <DashboardAFold data={data()}>{children}</DashboardAFold>;
 
-// AND THE TILES PRESS NOTHING, same as the page. The only event this surface may emit is the one
-// opener every file address in this window already rides.
-it("a tile emits the one opener and nothing else, exactly as the page does", async () => {
+// AND THE TILES PRESS NOTHING — opening the document is the whole interaction, because the
+// control lives in the document. THE DOOR TRAVELS NOW (his ruling, 2026-11-06: *"it actually
+// should travel — not open it up on the side"*): `openDoc` pushes the Code page's own file route
+// and fires popstate, and nothing on this surface dispatches the side-panel event any more.
+it("a tile's open travels to the Code page's file route, and opens nothing on the side", async () => {
   const seen = [];
   const listen = (e) => seen.push(e.detail);
   window.addEventListener("sv:openFileInNav", listen);
   render(<OwedTileA data={{ ...data(), open: undefined }} />);
   screen.getByRole("button", { name: /ship the read path\?/ }).click();
   window.removeEventListener("sv:openFileInNav", listen);
-  expect(seen).toHaveLength(1);
-  expect(seen[0]).toMatchObject({ projectCode: "alpha", path: "RFCs/RFC-071-read-path.md", language: "markdown" });
+  expect(seen).toHaveLength(0);
+  expect(window.location.pathname).toBe("/specs/alpha");
+  const q = new URLSearchParams(window.location.search);
+  expect(q.get("tab")).toBe("docs");
+  expect(q.get("file")).toBe("RFCs/RFC-071-read-path.md");
+  expect(q.get("fproj")).toBe("alpha");
 });

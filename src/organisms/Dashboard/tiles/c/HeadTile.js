@@ -24,7 +24,7 @@ const EMPTY = {
  * away would restate the press back at itself: press "4 approvals waiting" and it becomes "4 of
  * 4", with no way left to see there had ever been more. The counts are the thing you filter FROM.
  */
-export default function HeadTileC({ data }) {
+export default function HeadTileC({ data, filter }) {
   const d = data || {};
   const allDocs = d.allDocs || d.docs || EMPTY_DOCS;
   const roots = d.roots || EMPTY_ROOTS;
@@ -37,10 +37,14 @@ export default function HeadTileC({ data }) {
   const owed = d.allOwed || { ...all.owed, head: all.head };
   const head = owed.head || { segs: [], unread: 0 };
   const skipped = skippedLine(owed.skipped || {});
-  const only = d.only || "";
+  // THE PRESS PUBLISHES TO THE STACK — his ruling, 2026-11-06: *"They should be filtering
+  // everything below them"*, never the whole page. The stack's `filter` carries `mine` (this
+  // tile's own held segment) and `set`; standing outside a stack the old surface-wide pair is the
+  // fallback, so a head mounted alone still presses SOMETHING rather than drawing a dead control.
+  const only = (filter ? (filter.mine || {}).kind : d.only) || "";
   // NO SETTER, NO CONTROL. A tile handed data with nothing to press into must not draw a button
   // that quietly does nothing — the same rule as a segment with no items behind it.
-  const setOnly = typeof d.setOnly === "function" ? d.setOnly : null;
+  const setOnly = filter ? (key) => filter.set("kind", key) : typeof d.setOnly === "function" ? d.setOnly : null;
 
   return (
     <Ctx>
@@ -57,14 +61,11 @@ export default function HeadTileC({ data }) {
             numbers on the page with nothing behind them, so reading "4 approvals waiting" left
             him to go and find which four.
 
-            AND THEY FILTER THE WHOLE SURFACE, not the section under them — his ruling once these
-            became components: *"especially because they're going to be components, those headers,
-            if they have filters, need to filter the entire, ALL of the sections."* A head that
-            narrowed only its neighbour would be reading its own placement as its scope, which
-            stops meaning anything the moment he can put it on another page. So the press goes up
-            to the surface, which narrows the DOCUMENTS every tile derives from, and the rails,
-            the shelves and the owed lists all narrow together without one of them knowing a
-            filter exists.
+            AND THEY FILTER EVERYTHING BELOW THIS TILE — his ruling, 2026-11-06: *"They should be
+            filtering everything below them."* Placement is scope now: the press publishes to the
+            stack, which narrows the DOCUMENTS every tile UNDER this one derives from, and the
+            rails, the shelves and the owed lists down there all narrow together without one of
+            them knowing a filter exists. A tile standing above this head is untouched.
 
             THE SEGMENT CARRIES THE ITEMS IT COUNTED (`owedHead`), so pressing one shows exactly
             the rows the number came from — the list cannot drift from the count, because they
@@ -78,7 +79,7 @@ export default function HeadTileC({ data }) {
                 key={s.key}
                 className={`dbc-seg is-${s.key}${only === s.key ? " is-on" : ""}`}
                 aria-pressed={only === s.key}
-                title={only === s.key ? "showing only these — press to show everything" : `show only ${s.text}`}
+                title={only === s.key ? "showing only these below — press to show everything" : `show only ${s.text}, below this tile`}
                 onClick={() => setOnly(s.key)}
               >
                 {s.flag ? <b>{s.flag}</b> : null}

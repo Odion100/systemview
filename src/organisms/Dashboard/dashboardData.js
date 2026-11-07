@@ -1,8 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import ServiceContext from "../../ServiceContext";
 import { hostFiles } from "../../utils/hostFiles";
-import { openAddress } from "../../atoms/Markdown/openRef";
-import { owedFrom, owedHead, docKey } from "../AgentChat/owed";
+import { owedFrom, owedHead } from "../AgentChat/owed";
 
 // ONE READ, ONE DERIVATION, FOR EVERY TILE ON THE SURFACE.
 //
@@ -101,21 +100,24 @@ export function useRegistryRead(SystemViewService, { every = 30000 } = {}) {
 const DashboardDataContext = createContext(null);
 
 /**
- * THE ONE OPENER (openRef.js): every surface that opens a file address calls this, and nothing
- * else dispatches `sv:openFileInNav`. An arc, an RFC, a gap and a report are all markdown files,
- * so they ride the door files already ride. A tile never navigates on its own — a second rule
- * about where a document lands is exactly what openRef exists to prevent.
+ * THE DOOR IS TRAVEL NOW. His ruling, 2026-11-06: *"Nothing should actually be clicked to travel,
+ * except an explicit symbol, like an arrow, to open the next page. And it actually should travel —
+ * not open it up on the side."* So the side-opening `openAddress` door is gone from this surface:
+ * the one thing that opens a document is the arrow, and the arrow takes the WINDOW there — the
+ * Code page's own file door, the same URL shape `SystemView.openFile` writes (`?tab=docs&file=…`),
+ * reached by pushState + popstate because the router listens to popstate and a reload is never on
+ * the table here (his standing rule: never suggest a page reload to him again).
  */
-export const openDoc = ({ project, path, line } = {}) =>
-  openAddress({
-    projectCode: project || "",
-    path,
-    language: "markdown",
-    lines: line > 1 ? [line, line] : undefined,
-    // BESIDE, because the dashboard is in the centre and he is reading it. His ask: *"stop taking
-    // you to the new page and just add a tab right next door to the dashboard tab."*
-    beside: true,
-  });
+export const openDoc = ({ project, path, line } = {}) => {
+  const q = new URLSearchParams();
+  q.set("tab", "docs");
+  q.set("file", path || "");
+  q.set("fproj", project || "");
+  q.set("flang", "markdown");
+  if (Number(line) > 1) q.set("flines", `${line}-${line}`);
+  window.history.pushState({}, "", `/specs/${project || ""}?${q.toString()}`);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+};
 
 /**
  * Wrap the surface in this once. Every tile that shows registry state reads it with
@@ -135,24 +137,15 @@ export function DashboardDataProvider({ children, every }) {
     return () => clearInterval(t);
   }, []);
 
-  // THE FILTER BELONGS TO THE SURFACE, NOT TO A TILE. His ruling: *"especially because they're
-  // going to be components, those headers, if they have filters, need to filter the entire, all
-  // of the sections."* A head that narrowed only the section under it was reading its own
-  // placement as scope — which stops meaning anything the moment he can drag it to another page.
+  // THE FILTER BELONGS TO THE STACK NOW, NOT TO THIS PROVIDER. His ruling, 2026-11-06: *"They
+  // should be filtering everything below them"* — a selection narrows the tiles BELOW the tile
+  // that holds it, never the whole page, so placement is scope and only the stack knows position.
+  // The narrowing itself (what a held segment, project, arc or report MEANS) lives in
+  // `filters.js`, where it is testable without a mount; `TileStack` merges what stands above each
+  // tile and hands the narrowed data down. This provider hands over the whole world, once.
   //
-  // AND WHAT IT FILTERS BY IS OBLIGATIONS, not documents. His correction: *"of course I want to
-  // filter by obligations."* The head counts obligations and the press has to mean exactly the
-  // ones it counted — press "4 approvals waiting" and you see four approvals, not every
-  // obligation carried by the four documents that happen to hold them. Deriving the narrowed set
-  // by re-running `owedFrom` over the surviving documents gets that wrong in a way that looks
-  // right: a document with one approval and three blocked objectives comes back with all four.
-  //
-  // So there are two narrowings off ONE press, and tiles take whichever they show:
-  //   owed  the obligations the segment counted, exactly — for the lists
-  //   docs  the documents those obligations sit on — for the rails, the shelves, the tracks,
-  //         which draw documents and have no idea what an obligation is
-  const [only, setOnly] = useState(null);
-
+  // WHAT A PRESS ON A SEGMENT FILTERS BY IS STILL OBLIGATIONS, not documents — his correction
+  // (*"of course I want to filter by obligations"*) moved into `filters.js` with the rest.
   const unfiltered = useMemo(() => {
     const o = owedFrom({ docs: allDocs, now: Date.now() });
     return { ...o, head: owedHead(o) };
@@ -160,39 +153,26 @@ export function DashboardDataProvider({ children, every }) {
   }, [allDocs, beat]);
 
   const value = useMemo(() => {
-    // `owedHead` hands every segment the keys of the obligations it counted, so this is a lookup
-    // and never a second predicate. A `why ===` test written here would agree with the head today
-    // and drift the first time either side learns a new kind of obligation.
-    const seg = only && (unfiltered.head.segs || []).find((x) => x.key === only);
-    const wanted = seg ? new Set(seg.keys || []) : null;
-    const keep = (list) => (list || []).filter((o) => wanted.has(o.key));
-    const press = wanted ? keep(unfiltered.press) : unfiltered.press;
-    const work = wanted ? keep(unfiltered.work) : unfiltered.work;
-    const onDoc = wanted ? new Set([...press, ...work].map(docKey)) : null;
-    const docs = onDoc ? allDocs.filter((d) => onDoc.has(docKey(d.row))) : allDocs;
     return {
       read,
       error,
       roots,
       beat,
       open: openDoc,
-      // WHAT AN ORDINARY TILE READS — both narrowed when a segment is held, and narrowed from the
-      // same press, so a list and a rail standing side by side can never disagree about scope.
-      docs,
-      owed: { ...unfiltered, press, work, head: undefined },
-      // WHAT A HEAD READS, ALWAYS UNNARROWED. A head counting the filtered set would restate its
-      // own press back at itself — press "4 approvals waiting" and it becomes "4 of 4", with no
-      // way left to see there were ever more. The counts are the thing you filter FROM.
+      // WHAT A TILE READS when nothing above it holds a selection — the stack substitutes a
+      // narrowed pair when something does. `head` is stripped off `owed` exactly as before: only
+      // a head draws the head.
+      docs: allDocs,
+      owed: { ...unfiltered, head: undefined },
+      // WHAT A HEAD READS, ALWAYS UNNARROWED — and what `filters.js` narrows FROM. A head counting
+      // the filtered set would restate its own press back at itself — press "4 approvals waiting"
+      // and it becomes "4 of 4", with no way left to see there were ever more.
       allDocs,
       allOwed: unfiltered,
-      // The held segment and the press. A tile that offers no filter ignores both.
-      only,
-      segment: seg || null,
-      setOnly: (key) => setOnly((o) => (o === key ? null : key)),
-      filtering: !!wanted,
+      filtering: false,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [read, error, allDocs, roots, beat, only, unfiltered]);
+  }, [read, error, allDocs, roots, beat, unfiltered]);
 
   return <DashboardDataContext.Provider value={value}>{children}</DashboardDataContext.Provider>;
 }
