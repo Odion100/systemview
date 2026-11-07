@@ -2,7 +2,91 @@
 
 ::members{who=systemview-test}
 
-Written BEFORE the first commit, which is the practice this file's own trailer problem earned
-earlier today: a report's id has to exist in the tree before anything can serve it.
+A use-pass on `commitLinks` reported two commits serving a document nothing had registered. The
+document was a report filed two hours earlier. **The janitor had deleted it**, and what it was
+about was the janitor.
 
-## The finding is being written as the work happens; sections follow.
+## How it surfaced, which is the part worth copying
+
+Nothing announced the loss. What announced it was a **DANGLING** finding:
+
+```
+commitLinks({projectCode: "systemview-test", since: 30})
+→ DANGLING — serves an id nothing registered (1)
+   feff2869 serves The fixture that could not survive a hub boot now rests torn down
+```
+
+`feff2869` is the commit that FILED that report. So the trailer was right, the document was gone,
+and the only reason anybody noticed is that two directions were being compared. A report deleted
+without a trace is invisible; a report deleted while a commit still points at it is a finding.
+
+## The cause, read out of the log rather than guessed
+
+```
+[janitor] systemview-test: collected 1 retired — .systemview/report.systemview-test.the-fixture-that-could-not-survive-a-hub-boot.md
+```
+
+The leaf as committed was `::report{id="…" as=account retain=24h}` — **no `retired=` on it**. And it
+had never been opened: `~/.autobot/documents-opened.json` holds no entry for its id, and the
+retention sweep skips an unread report by design, so the sweep provably did not stamp it.
+
+`isRetired` was the whole of it — it read the first 2048 bytes and tested them for ANY line matching
+a registration leaf with `retired=`:
+
+```js
+const RETIRED_RE = /^\s*::(?:report|rfc|gap|arc)\{[^}]*\bretired=/m;
+```
+
+Line 36 of that report quoted the fixture's own leaf as its example. Run the janitor's expression
+against the committed text and it answers `true`: the document was collected for explaining a
+retirement.
+
+**THE LESSON WAS ALREADY WRITTEN ONE FILE OVER.** autobot's `retention.cjs`, which stamps the
+expiry, says in as many words: *"the leaf edit is surgical — the first `::report{…}` whose attrs
+carry the row's id — so an example leaf later in a document is never the one that gets stamped."*
+The sweep learned this; the janitor never did, and nothing in the system compares the two. One
+abstraction, several offices — and a rule one office earned did not reach the other.
+
+::commit{sha=3a9a6bdf}
+
+`isRetired` now takes the registry row's id and tests the leaf carrying it. With no id — an older
+caller — the document's FIRST leaf decides, which is what a leaf IS under RFC-073, and never a
+later line.
+
+## The eaten account is back
+
+::file[.systemview/report.systemview-test.the-fixture-that-could-not-survive-a-hub-boot.md]
+
+Restored out of `feff2869`, and nothing is faked by doing it: its 24h clock never started, because
+the ledger has no open for it. It reads today exactly as it was filed.
+
+## Where the tests stand
+
+| what ran | where | result |
+|---|---|---|
+| `node --test api/janitor.test.js` | the hub's suite | 22 pass — **4 new** |
+| `yarn verify` | window + hub + cli + build | 2314 · **351** · 12 · green |
+
+**Mutation-verified twice, because one pass was not enough.** Restoring the any-leaf test kills two
+claims. Pinning the id lookup to `null` — so the first-leaf fallback answers everything — killed
+only one, and that one exists because the first mutation revealed the id path was otherwise dead
+code that read as a rule.
+
+**What a green suite does not cover:** the fix is in `api/`, so it is absent from the running hub
+until it restarts. The next hourly pass still runs Monday's code, which means any document that
+quotes a retired leaf in its first 2048 bytes is still collectable right now.
+
+## Walk it yourself
+
+:::cmd
+kill $(pgrep -f "systemview start 3000") && systemview start 3000
+:::
+
+- [ ] the restored account is still there after the boot pass — it was not, twice, before this
+- [ ] `commitLinks({projectCode: "systemview-test", since: 30})` → the DANGLING line is gone
+- [ ] `grep -n "retired=" .systemview/report.systemview-test.the-janitor-ate-the-account.md` → this
+      very report quotes a retired leaf and survives, which is the claim in the place it matters
+
+## This account's own commit
+
+::commit{sha=7797aaa3}
