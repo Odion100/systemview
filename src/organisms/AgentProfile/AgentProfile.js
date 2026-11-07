@@ -24,13 +24,6 @@ import {
 } from "../../utils/hostAgents";
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
 import { groupSkillsBySource, sourceCountLabel, skillDoc } from "./skillSources";
-import {
-  blankRow as hookFormBlankRow,
-  condFields as hookFormCondFields,
-  eventNamed as hookFormEventNamed,
-  offersFor as hookFormOffersFor,
-  valuesFor as hookFormValuesFor,
-} from "./hookForm";
 import { listJobs, jobRuns, rateJobRun, hasHostJobs, saveJob } from "../../utils/hostJobs";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
 import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
@@ -471,13 +464,18 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
       setDef({ hooks: [...carried] }); // put it back — a switch that lies is worse than one that fails
     }
   };
-  // WHAT THE FORM OFFERS IS `hookForm`'s, and every answer comes off the harness's own event
-  // catalog — an event declares its fields, the values worth offering, and the units they are in.
-  const eventNamed = (n) => hookFormEventNamed(hookEvents, n);
-  const condFields = (on) => hookFormCondFields(hookEvents, hookAmbient, on);
-  const valuesFor = (on, field) => hookFormValuesFor(hookEvents, on, field);
-  const offersFor = (on, field, op, current) => hookFormOffersFor(hookEvents, on, field, op, current);
-  const blankRow = (on) => hookFormBlankRow(hookEvents, hookAmbient, on);
+  const eventNamed = (n) => hookEvents.find((e) => e.name === n) || null;
+  // every field a `when` may use on this event: its own, then the ambient set — and the preset
+  // values a field declares, so the surface OFFERS them instead of asking anyone to type from memory
+  const condFields = (on) => [
+    ...(((eventNamed(on) || {}).fields) || []).map((f) => ({ value: f, label: f })),
+    ...hookAmbient.map((a) => ({ value: a.name, label: `${a.name} · ambient` })),
+  ];
+  const valuesFor = (on, field) => {
+    const ev = eventNamed(on);
+    const v = ev && ev.values && ev.values[field];
+    return Array.isArray(v) ? v : null;
+  };
   // `when` is stored as an object; the editor works in ROWS because that is what a human edits.
   // The two shapes convert here and nowhere else.
   const whenRows = (when) =>
@@ -966,11 +964,11 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                             ]}
                           />
                           {r.op !== "exists" &&
-                            (offersFor(hookDraft.on, r.field, r.op, r.val) ? (
+                            (valuesFor(hookDraft.on, r.field) && r.op === "equals" ? (
                               <SvSelect
                                 value={r.val}
                                 onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, val: v } : x)) })}
-                                options={offersFor(hookDraft.on, r.field, r.op, r.val)}
+                                options={valuesFor(hookDraft.on, r.field).map((v) => ({ value: String(v), label: String(v) }))}
                               />
                             ) : (
                               <input
@@ -994,7 +992,14 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                         className="agent-profile__hook-btn"
                         disabled={!condFields(hookDraft.on).length}
                         title="Narrow this hook to events that match"
-                        onClick={() => setHd({ rows: [...hookDraft.rows, blankRow(hookDraft.on)] })}
+                        onClick={() =>
+                          setHd({
+                            rows: [
+                              ...hookDraft.rows,
+                              { field: (condFields(hookDraft.on)[0] || {}).value || "", op: "contains", val: "" },
+                            ],
+                          })
+                        }
                       >
                         + condition
                       </button>
