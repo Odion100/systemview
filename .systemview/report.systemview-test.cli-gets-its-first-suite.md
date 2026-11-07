@@ -79,3 +79,7 @@ cd ~/Systemly/systemview && yarn test:cli
 handlers that print and exit, so each needs either a seam or a child-process wrap — and the worked
 example of the second already exists in this project as `TestService.CLI`, which shells out
 precisely because the runner cannot reach inside a command.
+
+## This account's own commit
+
+::commit{sha=0410d5f2}
