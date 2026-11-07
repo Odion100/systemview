@@ -63,10 +63,14 @@ is down: it should take a minute per hung spec and say so, instead of hanging th
 
 ## Walk it yourself
 
-The runner is the hub's, so this needs the hub restarted before any of it is live:
+The runner is the hub's, so none of it is live until the hub restarts — and the arming step is NOT
+`yarn start`, which would stand up a SECOND hub on this repo's code. Measured 2026-11-07: the hub
+you are running is `/usr/local/bin/systemview`, a yarn link into this very repo
+(`cli/index.js`), and it has been up since Monday — so every `api/` change since then is on disk
+and not in that process. It also serves the window, which is why the restart is yours and not mine:
 
 :::cmd
-cd ~/Systemly/systemview && yarn start
+kill $(pgrep -f "systemview start 3000") && systemview start 3000
 :::
 
 - [ ] `node --test api/runTests.test.js` — 14 pass, including "a hung spec fails with the timeout,
