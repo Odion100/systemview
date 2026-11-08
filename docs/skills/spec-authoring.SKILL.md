@@ -95,6 +95,25 @@ subject.** That matters for one reason and it is not aesthetics — **purity bou
 can MEAN.** Every rung is legitimate. Take the highest one the subject allows, and when you cannot,
 say in the spec why.
 
+**PROVE RUNG 1 BEFORE YOU LEAVE IT, and prove it by CONNECTING — never by a probe refusal.** A
+subject is already a service if its process calls `.module()` on it anywhere: grep for that before
+building a thing. `probe` resolves the REGISTRY, so its refusal is a fact about registration, not
+about the service — and it even tells you the move ("connect it first"):
+`mcp__systemview__connect(url)` registers anything live, after which probe, `runTests` and
+`runProofs` all reach it. The hub itself is the canonical case — a service at
+`:3000/systemview/api`, hosting `Agent`/`SystemView`/`CLI`, connectable to itself. Measured
+2026-11-07: a probe refusal got read as "not a service" and a SECOND instance of an existing
+service was stood up to test the first. **That is forbidden by what a spec is: standing up a copy
+proves your stand-up, not the system.** The tell reads in one glance — a `Test`-side door whose
+subject already lives in a named service.
+
+**AND REGISTRATION IS THE PRECONDITION FOR EVERYTHING HERE, in general and not per-scenario:** a
+SystemLynx service has to be CONNECTED to SystemView, via the systemview-plugin, under a project,
+before `runTests` can reach it — saved tests are collected from each service's `Plugin` module,
+which only the plugin mounts. A bare `connect(url)` buys *callable* (probe, run blocks); the plugin
+(`App.use(SystemViewPlugin({ connection, projectCode, serviceId, specs }))`) buys *testable* — the
+`specs` folder in that config IS the spec store a saved spec needs.
+
 | | the route | what it is | what a RED can mean |
 |---|---|---|---|
 | **1** | **it is already a service** | a SystemLynx module in the system under test. There is no door to build — the method the client calls is the method you call | the subject is wrong. There is nothing of yours in the path at all |
@@ -145,7 +164,12 @@ needs no defence. Just do not write a wrapper for something you could have mount
 Name every wrapper `Test`, so `Test.<Module>.<method>` reads as *no door existed, so I made one* and
 the pile stays countable. **A door is TRANSCRIPTION** — it may call, read, count and hand back what
 it saw, and may not decide whether the answer is good, because the moment it does the judgment has
-moved inside the thing being judged. **Test-side logic goes in a `Plugin` module**, never in a door.
+moved inside the thing being judged. **Test-side logic goes in the `Plugin` module — EXTENDED, never
+declared.** Hand your functions to the systemview-plugin's `module` option, which assigns them onto
+the `Plugin` module every decorated service already publishes (that is how `Plugin.createMockUsers`
+exists anywhere). Declaring a second module named `Plugin` publishes BOTH while the built client
+resolves only the plugin's — the method is declared, registered, and uncallable, surfacing as a
+registry-mismatch refusal that reads like a stale record and is not one.
 Why each one, and the shapes: `context("name every wrapper Test and keep the door dumb")`.
 
 **In a repo that is already all services you will never write a wrapper at all.** One reference
@@ -207,6 +231,12 @@ spec exercises the system the way a caller does.
 
 Nothing a spec touches may be a thing you cannot depend on being up. Both of these are mounted on
 the service under test and come up with it, which is what makes them safe to build a world out of.
+
+**THE SPEC CALLS THE REAL DOOR; ISOLATION LIVES IN THE DATA, NEVER IN A COPY OF THE SERVICE.** His
+rule, 2026-11-07: writes are fine when they ride a DISPOSABLE SCOPE — a fake project, a spec-only
+name (the board named `spec` is a separate file from his board) — and `After` clears exactly what
+`Before` made. What is never the answer is pointing the spec at a copy of the subject so the writes
+feel safe: then green proves the copy.
 
 **`After` IS REQUIRED, and the reason is that a spec without one passes exactly once.** It creates its
 fixtures every run and then counts them, so its own history becomes its answer — a real case asserting
@@ -343,6 +373,14 @@ tested things rather than a cheaper test of untested ones.
 | this, whatever it is — an order of calls, a mix of services, something with no single owner | a **`:::run` block where the claim is written**, because there is no namespace to file it under |
 | this order broke, and here is the proof it is fixed | **both** — the run block in the gap reproduces the break; the saved spec carries the contract the fix established |
 
+**AND LIFETIME DECIDES TOO, which the subject question alone misses: A RUN BLOCK LIVES AND DIES WITH
+ITS DOCUMENT.** A `:::run` in a report retiring at `retain=30d` is a proof with an expiry date
+nobody chose — the janitor takes the document and the contract goes with it. A saved spec is a file
+in the repo at the method's namespace, found by the change loop forever. His catch, 2026-11-07: a
+method's contract had been written as run blocks in a 30-day report, so the proof would have
+quietly outlived nothing. A contract that must outlive the conversation is a saved spec, or its
+document is `retain=permanent` — choosing by subject alone can pick a proof with a retirement date.
+
 **The difference is the SUBJECT, and the question that settles it is: WHICH METHOD IS THE SUBJECT?**
 Name one and the spec goes at that namespace however many steps it takes — a 14-step spec that signs
 two users in and out is still about `getShelf`. **Length is not the test; ownership is.** Find
@@ -359,7 +397,8 @@ are yours:
   AND the `::test` chips living in an RFC, arc, plan, gap or report and runs them, results in the
   same shape `runTests` gives. Scope it with `document`, `objective`, `arc`, or none for the whole
   project; `dryRun` lists what WOULD run, and it names any spec it could not build rather than
-  dropping it. A `:::cmd` is never collected — it is a command for a human, not a spec.
+  dropping it. A `:::cmd` is never collected — it can run anything at any level, so it asserts no
+  contract; and a headless pass would execute shell nobody pressed.
 
 Then put the result in the account **with its scope**. A green suite is evidence only about what it
 covers, and the sentence that makes a report believable is the one saying what it does not: *"the

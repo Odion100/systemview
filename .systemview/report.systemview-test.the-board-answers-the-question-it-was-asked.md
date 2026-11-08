@@ -51,26 +51,31 @@ place requires the route to stop deciding — so it forwards what it does not re
 
 ::claims
 
-**The proof is one saved spec at the door's own namespace** — `TestService.Board.board`, four setup
-steps and six assertions, mounted so that the method it calls is the method the hub calls. Press any
-chip below and it runs here.
+**The proof is ONE SAVED SPEC AT THE REAL DOOR'S OWN ADDRESS — `Hub.Agent.board`.** The rule it took
+all night to learn, stated once: a SystemLynx service has to be CONNECTED to SystemView, through the
+plugin, under a project, before anything can be tested on it — and the hub's own service never was.
+So the hub now registers with itself the way every real service registers (`api/index.js`, serviceId
+`Hub`, project `systemview-test`, spec store `api/specs/`), and the spec lives there: four setup
+steps, six assertions, cleanup through the plugin's own fixture door, everything calling the exact
+method your window calls.
 
-::::claim[`at` with no write reads that one card whole, instead of answering with the whole board]{id=b1 state=met by=systemview-test note="the step addresses it by PART of a title, asserts the body comes back whole, and asserts `cards` is absent — the fallthrough's signature" told=systemview-test}
-::test[TestService.Board.board]{project=systemview-test}
+::::claim[`at` with no write reads that one card whole, instead of answering with the whole board]{id=b1 state=met by=systemview-test note="addressed by PART of a title among three cards, two of which share a substring; the body and the how come back; `cards` is asserted absent — the fallthrough's signature"}
+::test[Hub.Agent.board]{project=systemview-test}
 ::::
 
-::::claim[`brief` hands back the index and never the bodies]{id=b2 state=met by=systemview-test note="two index rows asserted field by field — title, state, declaration, body size — and an untitled card marked untitled rather than silently named" told=systemview-test}
-::test[TestService.Board.board]{project=systemview-test}
+::::claim[`brief` hands back the index and never the bodies]{id=b2 state=met by=systemview-test note="three index rows asserted field by field — the untitled one says so instead of being silently named, the titled one carries its declaration and its 22-char body SIZE, and `cards` is absent"}
+::test[Hub.Agent.board]{project=systemview-test}
 ::::
 
-::::claim[a parameter the door does not understand is refused by name, and writes nothing]{id=b3 state=met by=systemview-test note="the refusal names `stat` and hands back the vocabulary; the step after it re-reads the board and finds the same three cards, so a refused call cannot have half-happened" told=systemview-test}
-::test[TestService.Board.board]{project=systemview-test}
+::::claim[a parameter the door does not understand is refused by name, and writes nothing]{id=b3 state=met by=systemview-test note="the refusal names `stat` and hands back the vocabulary; the read after it finds the same three cards, so a refused call cannot have half-happened; an ambiguous address is likewise refused with its candidates"}
+::test[Hub.Agent.board]{project=systemview-test}
 ::::
 
-**Each claim has been SEEN to fail, not merely seen to pass.** Neutralising the refusal — one line,
-`const spare = []` — turned exactly one step red and named the consequence rather than the symptom:
-`results.cards → expected "undefined", got "array"`. That is the whole board coming back, which is
-the behaviour the card was filed about.
+**TODAY THESE CHIPS RESOLVE TO NOTHING, AND THAT IS THE LIVE HUB SAYING SO.** The registration is
+code in `api/`, and `api/` rides your restart — the hub you are running has no `Hub` service and the
+old board door besides. After the restart the chips resolve, the spec runs here, and the eight node
+assertions that mutation-proved the behaviour (all eight red against the old door) stop being the
+only runnable evidence.
 
 ## What ran
 

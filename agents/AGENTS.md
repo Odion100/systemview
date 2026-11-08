@@ -120,6 +120,32 @@ stamps every call, `exclude` drops a module from observation, `hosted` is for th
 
 ---
 
+## 1.65 · Getting a handle on anything running — from inside a session
+
+The procedure, in the order the questions come, because every step of it was fumbled once while
+every piece was already known (2026-11-07 — a second instance of a live service got built because a
+probe refusal was read as "not a service"):
+
+1. **"Is it available?" → `projects`.** One call, every project the hub knows, every service under
+   each with its URL. That is the live registry — the processes answering right now.
+2. **"Call it" → `probe({namespace: "Service.Module.method"})`.** Fuzzy resolution, the project's
+   headers riding along. If `projects` lists it, probe reaches it.
+3. **Running but NOT listed → `connect(url)`.** One call with the service's own URL and it is
+   registered: probe reaches it, and so do `runTests` and `runProofs` — **connected is what makes a
+   thing testable**, because specs resolve against a project's connected services and nothing else.
+4. **A probe refusal saying "connect it first" IS the procedure, not a dead end.** A refusal from
+   probe is a fact about the registry, never about the service.
+
+**Two grades of registration, and they buy different things.** Bare `connect(url)` buys *callable* —
+a plugin-less service lands under the catch-all project `connected-services`, reachable by probe and
+run blocks, with **no spec store**: `runTests` collects saved tests from each service's `Plugin`
+module, which only the systemview-plugin mounts. The plugin (§1.6) buys *testable* — a project of
+its own, the `specs` folder, docs, logs, stats. **The hub itself is a service** at
+`:3000/systemview/api` (modules `Agent` · `SystemView` · `CLI`) and registers with itself through
+the same plugin, which is what gives its own doors a spec store (`api/specs/`).
+
+---
+
 ## 1.7 · What a service owes — a spec folder beside it
 
 **One service, one `specs/` folder, beside the service it belongs to** — placement is the coupling

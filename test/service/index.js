@@ -3,8 +3,6 @@ const Math = require("./Math");
 const CLI = require("./CLI");
 const Files = require("./Files");
 const makeAuth = require("./Auth");
-const Board = require("./Board");
-const fixtures = require("./fixtures");
 
 // ── PLAIN service `TestService` @ :5555 — its OWN process ──────────────────────────────────────
 // The baseline fixture: default SystemLynx server (wildcard CORS), NO plugin headers, NO custom
@@ -23,10 +21,6 @@ App.startService({ route: "test/api", port: PORT })
   .module("Files", Files)
   .module("CLI", CLI)
   .module("Auth", auth)
-  // RUNG 2 — `api/board.js` publishes one factory taking its file layer, so this is a MOUNT and not
-  // a wrapper: the method a spec calls is the method the hub calls. The test-side half
-  // (the board a spec is allowed to write to, and clearing it), kept out of the door on purpose.
-  .module("Board", Board)
   .before("Auth.getSession", (req, res, next) => {
     // Report whatever Cookie actually rode to THIS origin — the cross-service cookie test signs in on
     // the gated service (:5556) and then reads here (:5555) to prove the cookie does NOT cross origins.
@@ -43,9 +37,6 @@ if (SYSTEMVIEW_HOST) {
     // No `headers` here on purpose — this is the plain baseline. It must connect and run in the
     // browser with zero header/CORS configuration.
     trace: (req) => ({ svtest_ctx: "u123", svtest_fn: req.fn }),
-    // Test-side logic rides the plugin's `module` option onto the `Plugin` module it already
-    // publishes — the same door `Plugin.createMockUsers` arrives through in other projects.
-    module: fixtures,
     redact: ["[0].password"],
     exclude: ["CLI"],
   });

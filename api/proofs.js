@@ -172,7 +172,11 @@ function bodyOf(lines, spec) {
  *   the block: the contract keeps answering long after the document settles.
  */
 async function runProofs({ projectCode, document, arc, objective, headers = {}, bail = false, dryRun = false } = {}, deps = {}) {
-  const { registry, rootOf, connections = [] } = deps;
+  // `collectTests` is injectable for the same reason the registry is: it CALLS every service in the
+  // pool to gather saved tests, so a suite that hands this function stub connections and not a stub
+  // collector is a suite that makes real network calls — measured as a two-minute hang on a URL
+  // that resolved and never answered.
+  const { registry, rootOf, connections = [], collectTests: collect = collectTests } = deps;
   const collected = collectProofs({ projectCode, document, arc, objective }, { registry, rootOf });
   if (collected.error) return collected;
 
@@ -224,10 +228,27 @@ async function runProofs({ projectCode, document, arc, objective, headers = {}, 
         else problems.push({ document: doc.id, line: spec.line, problem: "a ::test with no namespace names nothing" });
         continue;
       }
+      // THE POOL FOLLOWS THE BLOCK'S DECLARED PROJECT, exactly as the scope beside it already does.
+      // A block can say `{project=connected-services}` — the window honours it (RunBlock.js picks
+      // its pool off `attrs.project`), and this runner read the same attribute into SCOPE while
+      // handing specFromRun a pool filtered to the DOCUMENT's project, so every step in such a
+      // block resolved to nothing. Measured 2026-11-07: a report's blocks against the hub's own
+      // door (`connected-services/systemview`, the hub connected to itself) built zero steps, and
+      // the old runner then counted the empty case as PASSED. One project's pool either way —
+      // declared beats implied, and a serviceId is never matched across projects.
+      const declared = (spec.attrs && spec.attrs.project) || doc.project || projectCode;
+      const pool = declared === projectCode ? services : connections.filter((c) => c.projectCode === declared);
+      if (declared !== projectCode && !pool.length) {
+        // AND THE BLOCK IS NOT BUILT. A fully-qualified step carries its serviceId from parsing, so
+        // it would "build" against an empty pool and list in a dry run as something that would run —
+        // the vacuous shape again, one layer later. The named problem is the whole record.
+        problems.push({ document: doc.id, line: spec.line, problem: `no connected services for "${declared}", which this block names` });
+        continue;
+      }
       const built = specFromRun(
         { src: bodyOf(lines, spec), label: spec.label, attrs: spec.attrs || {}, kind: spec.end > spec.line ? "container" : "leaf" },
-        { projectCode: (spec.attrs && spec.attrs.project) || doc.project || projectCode },
-        services,
+        { projectCode: declared },
+        pool,
       );
       (built.problems || []).forEach((p) => problems.push({ document: doc.id, line: spec.line, problem: p }));
       // A run block whose every step failed to resolve has nothing to execute. Counting it as a spec
@@ -241,7 +262,7 @@ async function runProofs({ projectCode, document, arc, objective, headers = {}, 
   // by using the door: 27 collectable proofs died on one stale method reference.
   const mismatched = [];
   const client = verifiedClientFor([], mismatched);
-  const { lists } = await collectTests(services, client);
+  const { lists } = await collect(services, client);
   const saved = lists.flat();
   for (const want of namespaces) {
     const hit = saved.filter((t) => matchNamespace(nsStringOf(t), want.ns));

@@ -1,0 +1,141 @@
+[
+  {
+    "title": "The board answers the question it was asked: one card when you name one, an index when you want to choose, and a refusal when it does not understand you",
+    "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+    "Before": [
+      {
+        "title": "clear the spec board, so this spec counts its own fixtures and not every run before it",
+        "namespace": { "serviceId": "Hub", "moduleName": "Plugin", "methodName": "resetSpecBoard" },
+        "args": [],
+        "savedEvaluations": [
+          { "namespace": "results.ok", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      },
+      {
+        "title": "add a card the way a reviewer leaves one — titled, and declaring what its work owes",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "add": "the first fixture card", "title": "a titled fixture", "report": "spec", "as": "spec-writer" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.ok", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.board", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "spec" }], "save": true },
+          { "namespace": "results.title", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "a titled fixture" }], "save": true }
+        ]
+      },
+      {
+        "title": "add a card the way HE leaves one — raw off a voice recorder, with no title and no declaration",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "add": "raw, the way he drops one in by voice", "as": "spec-writer" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.ok", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      },
+      {
+        "title": "add a SECOND titled card, so one address can genuinely match two — ambiguity cannot be tested with one",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "add": "the second fixture card", "title": "a second titled fixture", "as": "spec-writer" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.ok", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.title", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "a second titled fixture" }], "save": true }
+        ]
+      }
+    ],
+    "Main": [
+      {
+        "title": "ASKED FOR THE INDEX: three rows carrying title, state, declaration and body SIZE — and no card body at all, which is the whole cost of reading a board to choose from it",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "brief": true }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.brief", "expected_type": "array", "validations": [{ "name": "lengthEquals", "value": 3 }], "save": true },
+          { "namespace": "results.of", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 3 }], "save": true },
+          { "namespace": "results.brief[2].title", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "a titled fixture" }], "save": true },
+          { "namespace": "results.brief[2].report", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "spec" }], "save": true },
+          { "namespace": "results.brief[2].state", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "open" }], "save": true },
+          { "namespace": "results.brief[2].chars", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 22 }], "save": true },
+          { "namespace": "results.cards", "expected_type": "undefined", "validations": [], "save": true }
+        ]
+      },
+      {
+        "title": "AN UNTITLED CARD IS STILL NAMEABLE, and says nobody has titled it — inferring one would hide that no reviewer has been near it",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "brief": true }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.brief[1].title", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "raw, the way he drops one in by voice" }], "save": true },
+          { "namespace": "results.brief[1].untitled", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.brief[1].state", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "open" }], "save": true }
+        ]
+      },
+      {
+        "title": "ASKED FOR ONE CARD BY PART OF ITS TITLE: that card comes back WHOLE, and the answer says HOW it was addressed — this used to answer with the entire board",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "at": "a titled" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.how", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "part of the title" }], "save": true },
+          { "namespace": "results.card.title", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "a titled fixture" }], "save": true },
+          { "namespace": "results.card.text", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "the first fixture card" }], "save": true },
+          { "namespace": "results.of", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 3 }], "save": true },
+          { "namespace": "results.cards", "expected_type": "undefined", "validations": [], "save": true }
+        ]
+      },
+      {
+        "title": "AN AMBIGUOUS ADDRESS IS REFUSED WITH THE CANDIDATES rather than resolved to the first — and never answered with everything",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "at": "titled fixture" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.error", "expected_type": "string", "validations": [{ "name": "isLike", "value": "matches 2 cards" }], "save": true },
+          { "namespace": "results.matches", "expected_type": "array", "validations": [{ "name": "lengthEquals", "value": 2 }], "save": true },
+          { "namespace": "results.card", "expected_type": "undefined", "validations": [], "save": true },
+          { "namespace": "results.cards", "expected_type": "undefined", "validations": [], "save": true }
+        ]
+      },
+      {
+        "title": "REFUSAL: a parameter the door does not understand is named back, with the vocabulary it does understand — a dropped parameter used to look exactly like a successful read",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "stat": "open", "as": "spec-writer" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.error", "expected_type": "string", "validations": [{ "name": "isLike", "value": "does not understand" }], "save": true },
+          { "namespace": "results.understands", "expected_type": "array", "validations": [{ "name": "includes", "value": "brief" }], "save": true },
+          { "namespace": "results.brief", "expected_type": "undefined", "validations": [], "save": true },
+          { "namespace": "results.cards", "expected_type": "undefined", "validations": [], "save": true }
+        ]
+      },
+      {
+        "title": "AND THE REFUSAL WROTE NOTHING: the board still holds exactly the three cards it held before it, so a refused call cannot have half-happened",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "board" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "name": "spec", "brief": true }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.brief", "expected_type": "array", "validations": [{ "name": "lengthEquals", "value": 3 }], "save": true },
+          { "namespace": "results.of", "expected_type": "number", "validations": [{ "name": "numEquals", "value": 3 }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": [
+      {
+        "title": "clear the spec board — without this the spec passes exactly once and is then permanently red",
+        "namespace": { "serviceId": "Hub", "moduleName": "Plugin", "methodName": "resetSpecBoard" },
+        "args": [],
+        "savedEvaluations": [
+          { "namespace": "results.cleared", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      }
+    ]
+  }
+]

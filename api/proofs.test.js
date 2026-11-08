@@ -343,3 +343,66 @@ describe("runSpec — the headless builder matches the window's grammar", () => 
 });
 
 process.on("exit", () => fs.rmSync(root, { recursive: true, force: true }));
+
+// ── THE POOL FOLLOWS THE BLOCK'S DECLARED PROJECT ────────────────────────────────────────────────
+// MEASURED 2026-11-07. A report in one project proved the hub's own board door — the hub connected
+// to ITSELF, registering as `connected-services/systemview` — and its run blocks carried
+// `{project=connected-services}`. The window honours that attribute when it picks a service pool;
+// this runner read the same attribute into the step SCOPE while handing the builder a pool filtered
+// to the DOCUMENT's project. Every step resolved to nothing, and the then-live runner counted the
+// empty case as passed: three green checks over zero executed calls.
+//
+// One project's pool either way — the declared one beats the implied one, and a serviceId is never
+// matched across projects, because `Test` already exists in two of them.
+describe("runProofs — a block that names a project resolves against THAT project's services", () => {
+  const { runProofs } = require("./proofs");
+
+  const docRel = write(
+    "r/report.cross.md",
+    [
+      '::report{id="cross" as=spec retain=30d}',
+      "",
+      ":::run{title=\"through the hub's own door\" project=hubworld}",
+      '- systemview.Agent.board({ "projectCode": "sv-test", "brief": true })',
+      "  ✓ results.of = 0",
+      ":::",
+      "",
+    ].join("\n"),
+  );
+
+  const registry = () => [
+    {
+      id: "cross", kind: "report", project: "sv-test", path: docRel,
+      specs: [{ kind: "run", line: 3, end: 6, title: "through the hub's own door", attrs: { project: "hubworld" } }],
+    },
+  ];
+  const service = (projectCode, serviceId) => ({
+    projectCode,
+    serviceId,
+    // 127.0.0.1:1 REFUSES INSTANTLY — the runner still calls every service in the document's pool to
+    // collect saved tests, and a stub URL that merely resolves nowhere hangs the suite for two
+    // minutes. Unreachable-fast is the honest stub: the runner marks it and moves on.
+    system: { connectionData: { serviceUrl: `http://127.0.0.1:1/${serviceId}`, serviceId, modules: [{ name: "Agent", methods: [{ fn: "board" }] }] } },
+  });
+
+  test("the declared project's service resolves the step — the document's own pool never saw it", async () => {
+    const out = await runProofs(
+      { projectCode: "sv-test", document: "cross", dryRun: true },
+      { registry, rootOf: () => root, connections: [service("sv-test", "TestService"), service("hubworld", "systemview")], collectTests: async () => ({ lists: [] }) },
+    );
+    assert.ok(!out.error, JSON.stringify(out));
+    assert.strictEqual((out.tests || []).length, 1, "the block BUILT — its step found the hub's service");
+    assert.strictEqual(out.tests[0].namespace.serviceId, "systemview");
+    assert.ok(!(out.problems || []).length, JSON.stringify(out.problems || []));
+  });
+
+  test("a declared project with nothing connected is a NAMED problem, never a quiet empty pass", async () => {
+    const out = await runProofs(
+      { projectCode: "sv-test", document: "cross", dryRun: true },
+      { registry, rootOf: () => root, connections: [service("sv-test", "TestService")], collectTests: async () => ({ lists: [] }) },
+    );
+    assert.strictEqual((out.tests || []).length, 0, "nothing built — and that is said, not passed");
+    const said = (out.problems || []).map((x) => x.problem).join(" | ");
+    assert.match(said, /no connected services for "hubworld", which this block names/);
+  });
+});
