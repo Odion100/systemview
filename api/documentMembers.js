@@ -125,11 +125,13 @@ function threadsOf(content, docWho = []) {
 // it got sharper the day the delivery message started telling members *"you are on it because the
 // document says so"* and sending them here to check.
 //
-// DOCUMENT MEMBERSHIP MEANS ALL THREADS (his rule, 2026-10-20). The document's hash is the whole
-// source, so a member current on the document has been told about every thread in it by
-// construction — they are behind on nothing, and they are not re-listed under each thread. A
-// member BEHIND on the document still appears per thread, which keeps his older rule working:
-// *"I might have you subscribed on multiple levels, but only want to send you the thread update."*
+// WHAT THIS ANSWER NO LONGER CARRIES (his ruling, 2026-11-06): the edit channel. "Behind" used to
+// be the document's prose hash against a per-member `sent=` stamp — general text sends no updates,
+// period, so that whole question is gone from this answer at both levels. Blocks are the only
+// senders now, a fire's receipt is `told=` on the block's own line, and who is OWED a fire is the
+// shell's fires engine's to say — the hub answering it off hashes was a second copy of a rule that
+// had already been retired where the first copy lived. This verb answers membership: who is on the
+// document, who is on each thread, nothing about who has been told what.
 function membersOf(content) {
   const m = LINE.exec(String(content || ""));
   const who = m ? listOf(attrOf(m[1], "who")) : [];
@@ -137,28 +139,13 @@ function membersOf(content) {
   const threads = threadsOf(content, who);
   // NOT A DOCUMENT ONLY WHEN NEITHER LEVEL NAMES ANYBODY. A thread-only document is a document.
   if (!who.length && !threads.length) return null;
-  const sent = m ? sentOf(attrOf(m[1], "sent")) : {};
-  const now = hashOf(content);
-  const behind = who.filter((p) => sent[p] !== now);
-  const current = (p) => sent[p] === now;
   return {
     who,
-    sent,
-    // Behind = has not been told about THIS version. Never sent to counts as behind: they are on
-    // the document and have heard nothing, which is the loudest case, not an exempt one.
-    behind,
     // AUTO IS PER MEMBER (his correction): the attribute is a list of who is told automatically,
-    // not a switch on the whole document.
+    // not a switch on the whole document. It still matters without the edit channel — it is the
+    // fires gate's split between a copy sent now and a copy held for his press.
     auto: m ? listOf(attrOf(m[1], "auto")) : [],
-    threads: threads.map((t) => {
-      const bodyHash = hashOf(t.body);
-      return {
-        id: t.id,
-        who: t.who,
-        // A document member current on the document is covered here too.
-        behind: t.who.filter((p) => !current(p) && t.sent[p] !== bodyHash),
-      };
-    }),
+    threads: threads.map((t) => ({ id: t.id, who: t.who })),
     // EVERYONE AT ANY LEVEL, counted once — what "is this project on this document?" actually asks.
     everyone: [...new Set([...who, ...threads.flatMap((t) => t.who)])],
   };
@@ -193,17 +180,16 @@ function documentMembersOn({ listFiles, readFile }) {
       const m = membersOf(res.content);
       if (!m) continue;
       if (member && !m.everyone.includes(member)) continue;
-      docs.push({ path, who: m.who, behind: m.behind, auto: m.auto, threads: m.threads, everyone: m.everyone });
+      docs.push({ path, who: m.who, auto: m.auto, threads: m.threads, everyone: m.everyone });
     }
     return {
       project: projectCode,
       ...(member ? { member } : {}),
       documents: docs,
-      // The two numbers the band asks for, so it never has to re-walk this answer.
+      // One count, so a consumer never has to re-walk this answer. `withUpdates` is gone with the
+      // edit channel (his ruling, 2026-11-06): "who has not been sent this version" was a hash
+      // question, and hash questions died with it.
       withMembers: docs.length,
-      // ANYBODY BEHIND, AT EITHER LEVEL. Counting only the document's own line reported "nothing
-      // waiting" for a document whose thread had somebody waiting on it.
-      withUpdates: docs.filter((d) => d.behind.length || d.threads.some((t) => t.behind.length)).length,
     };
   };
 }

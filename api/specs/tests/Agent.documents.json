@@ -1,0 +1,37 @@
+[
+  {
+    "title": "The documents answer is membership and nothing else — the edit channel's fields are gone from the row, the thread and the summary (his ruling, 2026-11-06: general text in the document sends no updates)",
+    "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "documents" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "WHAT AM I ON: rows carry who/auto/threads/everyone — and no `behind`, no `sent`, against a live tree whose documents still WEAR old sent= stamps, which is exactly the case that used to answer in the dead channel's language",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "documents" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test", "member": "systemview-test" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.project", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "systemview-test" }], "save": true },
+          { "namespace": "results.member", "expected_type": "string", "validations": [{ "name": "strEquals", "value": "systemview-test" }], "save": true },
+          { "namespace": "results.documents", "expected_type": "array", "validations": [{ "name": "minLength", "value": 1 }], "save": true },
+          { "namespace": "results.documents[0].who", "expected_type": "array", "validations": [{ "name": "minLength", "value": 1 }], "save": true },
+          { "namespace": "results.documents[0].behind", "expected_type": "undefined", "validations": [], "save": true },
+          { "namespace": "results.documents[0].sent", "expected_type": "undefined", "validations": [], "save": true }
+        ]
+      },
+      {
+        "title": "AND THE FOLDER SUMMARY: withMembers still counts, withUpdates is not a field — the number the band used to read off prose hashes cannot be read at all",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "documents" },
+        "args": [
+          { "name": "argument:", "input": { "projectCode": "systemview-test" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.withMembers", "expected_type": "number", "validations": [{ "name": "min", "value": 1 }], "save": true },
+          { "namespace": "results.withUpdates", "expected_type": "undefined", "validations": [], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

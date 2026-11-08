@@ -1,7 +1,9 @@
-// RFC-071 — WHAT IS buAPI ON, and how many documents have updates nobody has sent. The claims that
-// matter are the two that keep this honest across a folder: a document with no members is not a
-// row, and "behind" is computed the SAME way the window computes it or the band's number argues
-// with the chip the user is looking at.
+// RFC-071 — WHAT IS buAPI ON. The claims that keep this honest across a folder: a document with no
+// members is not a row, membership is read at BOTH levels, and — since his 2026-11-06 ruling killed
+// the edit channel ("general text in the document should send no updates, period point blank") —
+// the answer carries NO edit-channel fields: no `behind`, no `sent`, no `withUpdates`. Who is owed
+// a fire is the shell's fires engine's question, and the hub answering it off prose hashes was a
+// second copy of a rule retired where the first copy lived.
 const assert = require("node:assert");
 const { test } = require("node:test");
 const { documentMembersOn, membersOf, hashOf } = require("./documentMembers");
@@ -41,30 +43,34 @@ test("asking for one member answers only their documents — what is buAPI on", 
   assert.equal(r.member, "buapi");
 });
 
-test("behind means not told about THIS version, and never-sent counts as behind", async () => {
+// THE CUT ITSELF (his ruling, 2026-11-06). A document wearing the old channel's stamps answers with
+// membership only — no field in the row or the summary speaks the hash language. The stamps in the
+// file are not an error; they are receipts of a channel that no longer exists, read by nothing.
+test("the answer carries no edit-channel fields, even when the document carries stamps", async () => {
   const body = "# a plan\n\nprose\n";
-  const stamp = hashOf(DOC("buapi", "", body));
   const api = fake({
-    "told.md": DOC("buapi|systemlynx", `buapi:${stamp}`, body),
+    "stamped.md": DOC("buapi|systemlynx", "buapi:deadbeef", body),
     "never.md": DOC("buapi", "", body),
   });
   const r = await api({ projectCode: "p" });
-  const told = r.documents.find((d) => d.path === "told.md");
-  assert.deepEqual(told.behind, ["systemlynx"], "the one who was told is not behind; the other is");
-  assert.deepEqual(r.documents.find((d) => d.path === "never.md").behind, ["buapi"]);
-  assert.equal(r.withUpdates, 2);
+  assert.equal(r.documents.length, 2);
+  for (const d of r.documents) {
+    assert.equal("behind" in d, false, `${d.path} answers in the dead channel's language`);
+    assert.equal("sent" in d, false, `${d.path} hands the stamps back`);
+    for (const t of d.threads) assert.equal("behind" in t, false, `${d.path}'s thread does`);
+  }
+  assert.equal("withUpdates" in r, false, "the folder summary still counts unsent updates");
+  assert.equal(r.withMembers, 2);
 });
 
 // The hash ignores the members line, or recording a send would instantly make the document dirty
-// again — the same trap the window's copy is pinned against, and the two must agree.
-test("the hash ignores the members line, so a send settles the document", () => {
+// again — still pinned, because stampDocSent hashes with it and a stamp must not move the value it
+// just recorded.
+test("the hash ignores the members line, so a stamp settles rather than re-dirties", () => {
   const body = "# a plan\n";
   const plain = hashOf(body);
   assert.equal(hashOf(`::members{who=a}\n${body}`), plain);
   assert.equal(hashOf(`::members{who=a sent=a:${plain}}\n${body}`), plain);
-  const m = membersOf(`::members{who=a sent=a:${plain}}\n${body}`);
-  assert.deepEqual(m.behind, [], "told about this version");
-  assert.deepEqual(membersOf(`::members{who=a}\n${body}`).behind, ["a"]);
 });
 
 test("a file that cannot be read is skipped rather than failing the whole walk", async () => {
@@ -104,7 +110,6 @@ test("a thread-only member is visible — the case that was invisible", () => {
   assert.deepEqual(m.everyone, ["systemview-test", "buapi"]);
   assert.deepEqual(m.threads.map((t) => t.id), ["t1"]);
   assert.deepEqual(m.threads[0].who, ["buapi"]);
-  assert.deepEqual(m.threads[0].behind, ["buapi"]);
 });
 
 test("a document whose membership lives only on its threads is still a document", () => {
@@ -118,17 +123,6 @@ test("a document whose membership lives only on its threads is still a document"
 test("a file with no membership anywhere is still not a document", () => {
   assert.equal(membersOf("# just prose\n\nnothing here\n"), null);
   assert.equal(membersOf(""), null);
-});
-
-// HIS RULE: document membership means all threads. The document's hash is the whole source, so
-// being current on it covers every thread by construction.
-test("a member current on the document is behind on no thread", () => {
-  // Built the way the window builds it: stamp the hash of the finished document. `hashOf` ignores
-  // the ::members line, so writing the stamp cannot change the value being stamped.
-  const shape = ["::members{who=sv sent=sv:HASH}", "# a", "::::thread{id=t1 members=sv}", "x", "::::"].join("\n");
-  const doc = shape.replace("HASH", hashOf(shape));
-  assert.deepEqual(membersOf(doc).behind, [], "the stamp did not take — check hashOf ignores ::members");
-  assert.deepEqual(membersOf(doc).threads[0].behind, []);
 });
 
 // TELLING SOMEBODY IS NOT A CHANGE TO THE DOCUMENT. Stamping `sent=` on a thread opener used to
@@ -159,13 +153,6 @@ test("and so does editing what a thread says", () => {
   assert.notEqual(hashOf(before), hashOf(before.replace("\nx\n", "\nx CHANGED\n")));
 });
 
-// HIS OLDER RULE SURVIVES: behind on the document, still reachable thread by thread.
-test("a member behind on the document still appears under each thread", () => {
-  const m = membersOf(["::members{who=sv}", "# a", "::::thread{id=t1 members=sv}", "x", "::::"].join("\n"));
-  assert.deepEqual(m.behind, ["sv"]);
-  assert.deepEqual(m.threads[0].behind, ["sv"]);
-});
-
 // THE FENCE AND THE ID — the two rules the window learned the hard way, copied deliberately.
 test("finds a thread at a deeper fence and reads the id as the FIRST attribute", () => {
   const deep = [":::::thread{id=t2 members=a|b sent=a:zz}", "body", ":::::"].join("\n");
@@ -193,13 +180,12 @@ test("the member filter matches a thread-only membership", async () => {
   assert.equal(theirs.documents.length, 0);
 });
 
-test("withUpdates counts somebody waiting on a THREAD, not only on the document", async () => {
-  const src = ["::members{who=sv sent=sv:H}", "# a", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
-  const api = fake({ "a.md": src.replace("H", hashOf(src.replace("H", hashOf(src)))) });
+test("a thread row is its audience and its id — nothing else travels", async () => {
+  const src = ["::members{who=sv sent=sv:deadbeef}", "# a", "::::thread{id=t1 members=buapi}", "x", "::::"].join("\n");
+  const api = fake({ "a.md": src });
   const r = await api({ projectCode: "p" });
   assert.equal(r.documents.length, 1);
-  assert.ok(r.documents[0].threads[0].behind.includes("buapi"));
-  assert.equal(r.withUpdates, 1, "a thread with somebody waiting read as nothing waiting");
+  assert.deepEqual(r.documents[0].threads, [{ id: "t1", who: ["buapi"] }]);
 });
 
 // ── PARITY WITH THE WINDOW ──────────────────────────────────────────────────────────────────
@@ -253,31 +239,29 @@ test("ONE definition of what counts as a change — and the window carries NONE"
   assert.equal(/0x811c9dc5/.test(THREAD_SRC), false, "the hub has grown its own hash again");
 });
 
-test("THE RULE ITSELF, behaviourally: re-addressing a thread owes nobody an update", () => {
-  // His case, exactly: he took a project off a thread's audience and the DOCUMENT reported an
-  // update for an argument nobody had touched.
-  const docOf = (audience) =>
+test("THE RULE ITSELF, behaviourally: no edit to any part of the document owes anybody an update here", () => {
+  // The 2026-11-06 ruling, one layer down from where it was first enforced: the window stopped
+  // deriving "behind" from prose, and now the hub cannot, because the field does not exist to
+  // derive. Re-address a thread, edit the prose — the membership answer is the same answer.
+  const docOf = (audience, prose) =>
     [
       "# a meeting",
       "",
-      "::members{who=odion sent=odion:PLACEHOLDER}",
+      "::members{who=odion sent=odion:deadbeef}",
       "",
-      "the argument so far",
+      prose,
       "",
       `::::thread{id=t1 subscribe=${audience}}`,
       "what is being argued",
       "::::",
     ].join("\n");
-  const both = docOf("odion|autobot");
-  const stamped = both.replace("PLACEHOLDER", hashOf(both));
-  // His case exactly: autobot is on the THREAD and not on the document, which is where he started.
-  assert.deepEqual(membersOf(stamped).behind, [], "a member told about this version reads as behind");
-  // take autobot off the thread — the document's own prose has not moved
-  const narrowed = stamped.replace("subscribe=odion|autobot", "subscribe=odion");
-  assert.deepEqual(membersOf(narrowed).behind, [], "re-addressing a thread put the document's member behind");
-  // and an actual edit still does owe one
-  const edited = narrowed.replace("the argument so far", "the argument, moved on");
-  assert.deepEqual(membersOf(edited).behind, ["odion"], "an edit to the prose owes nobody an update");
+  const before = membersOf(docOf("odion|autobot", "the argument so far"));
+  const narrowed = membersOf(docOf("odion", "the argument so far"));
+  const edited = membersOf(docOf("odion", "the argument, moved on"));
+  assert.equal("behind" in before, false, "the field grew back");
+  assert.deepEqual(narrowed.who, before.who);
+  assert.deepEqual(edited.who, before.who);
+  assert.deepEqual(edited.threads, narrowed.threads);
 });
 
 test("a thread that names NOBODY is about the document's people", () => {
@@ -298,6 +282,21 @@ test("a thread that names NOBODY is about the document's people", () => {
 
 const { stampDocSent } = require("./documentMembers");
 
+// membersOf no longer hands the stamps back — nothing reads them — so these tests read the receipt
+// off the written line itself, which is where a receipt lives.
+const sentMapOf = (content) => {
+  const line = String(content).split("\n").find((l) => l.includes("::members")) || "";
+  const m = /\bsent=("[^"]*"|[^\s}]*)/.exec(line);
+  return (m ? m[1].replace(/^"|"$/g, "") : "")
+    .split("|")
+    .filter(Boolean)
+    .reduce((acc, p) => {
+      const i = p.lastIndexOf(":");
+      if (i > 0) acc[p.slice(0, i)] = p.slice(i + 1);
+      return acc;
+    }, {});
+};
+
 const doc = (sent = "") =>
   [
     "# A document with people on it",
@@ -313,8 +312,7 @@ const doc = (sent = "") =>
 test("the author is recorded against the version they just wrote", () => {
   const out = stampDocSent(doc(), "odion");
   assert.equal(out.error, undefined);
-  const after = membersOf(out.content);
-  assert.equal(after.sent.odion, hashOf(out.content));
+  assert.equal(sentMapOf(out.content).odion, hashOf(out.content));
 });
 
 test("stamping the members line does not re-dirty the document it just settled", () => {
@@ -325,18 +323,18 @@ test("stamping the members line does not re-dirty the document it just settled",
   assert.equal(hashOf(out.content), before);
 });
 
-test("everyone else stays behind — a stamp is one person's state, never a broadcast", () => {
+test("a stamp is one person's state, never a broadcast", () => {
   const out = stampDocSent(doc(), "odion");
-  const after = membersOf(out.content);
-  assert.equal(after.sent.autobot, undefined);
-  assert.ok(after.behind.includes("autobot"));
+  const after = sentMapOf(out.content);
+  assert.equal(after.autobot, undefined);
+  assert.ok(after.odion);
 });
 
 test("another member's existing stamp survives — merge, never replace", () => {
   const out = stampDocSent(doc("autobot:deadbeef"), "odion");
-  const after = membersOf(out.content);
-  assert.equal(after.sent.autobot, "deadbeef");
-  assert.ok(after.sent.odion);
+  const after = sentMapOf(out.content);
+  assert.equal(after.autobot, "deadbeef");
+  assert.ok(after.odion);
 });
 
 test("a second reply re-stamps in place rather than duplicating the entry", () => {
@@ -361,13 +359,16 @@ test("it refuses with no member named rather than stamping an empty name", () =>
   assert.match(stampDocSent(doc(), "").error, /needs the member/);
 });
 
-// THE PHANTOM, END TO END. One member, one document: after their own reply they should owe nothing.
-test("a solo-member document owes zero updates after its own author replies", () => {
+// THE PHANTOM CANNOT GROW BACK. "In a document where I am the only member that is where your
+// '1 update owed' keeps coming from" — the old end-to-end case. The stamp still writes (it is the
+// reply route's bookkeeping), and the answer still cannot owe anybody anything, because the field
+// that carried the debt is gone.
+test("a solo-member document cannot owe its own author an update", () => {
   const solo = ["::members{who=odion}", "", "::::thread{id=a}", "hi", "::::", ""].join("\n");
   const replied = solo.replace("hi", "hi\n:::reply{author=odion ts=1}\nmore\n:::");
-  assert.ok(membersOf(replied).behind.includes("odion"), "behind before the stamp");
+  assert.equal("behind" in membersOf(replied), false);
   const out = stampDocSent(replied, "odion");
-  assert.deepEqual(membersOf(out.content).behind, []);
+  assert.equal(sentMapOf(out.content).odion, hashOf(out.content));
 });
 
 test("the members line match stops at the end of its own line", () => {

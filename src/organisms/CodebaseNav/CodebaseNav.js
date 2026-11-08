@@ -1566,7 +1566,9 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // through a door meant for one file at a time. Re-asked when the tree refreshes, because a send
   // or an edit changes the answer and a stale pill would filter to a world that moved.
   const { SystemViewService } = useContext(ServiceContext);
-  const [memberDocs, setMemberDocs] = useState({ byPath: {}, members: [], behind: new Set() });
+  // No `behind` here any more: the hub's answer stopped carrying the edit channel (his ruling,
+  // 2026-11-06 — blocks are the only senders), and the Set this built from it was read by nothing.
+  const [memberDocs, setMemberDocs] = useState({ byPath: {}, members: [] });
   useEffect(() => {
     let dead = false;
     (async () => {
@@ -1577,15 +1579,13 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         if (dead) return;
         const byPath = {};
         const members = new Set();
-        const behind = new Set();
         ((r && r.documents) || []).forEach((d) => {
           byPath[d.path] = d;
           (d.who || []).forEach((m) => members.add(m));
-          if ((d.behind || []).length) behind.add(d.path);
         });
-        setMemberDocs({ byPath, members: [...members].sort(), behind });
+        setMemberDocs({ byPath, members: [...members].sort() });
       } catch {
-        if (!dead) setMemberDocs({ byPath: {}, members: [], behind: new Set() });
+        if (!dead) setMemberDocs({ byPath: {}, members: [] });
       }
     })();
     return () => { dead = true; };

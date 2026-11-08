@@ -3457,9 +3457,9 @@ module.exports = function launchSystemView(port = 3000) {
         }
         return r;
       },
-      // RFC-071 — the documents in this project that carry membership, and which of them have
-      // updates nobody has sent. One door, two consumers: the navigator filters by `member`, the
-      // band counts `withUpdates`.
+      // RFC-071 — the documents in this project that carry membership. The navigator filters by
+      // `member`. It used to also answer "who is behind" off prose hashes — gone with the edit
+      // channel (his ruling, 2026-11-06): who is owed a fire is the shell's fires engine's to say.
       documents: async ({ projectCode, member, root } = {}) => DocumentMembers({ projectCode, member, root }),
       // RFC-073 — the registered documents: identity + what the last parse saw, with staleness
       // visible. The read the band's tabs and the drawer's counts move onto as slice 2 lands.
