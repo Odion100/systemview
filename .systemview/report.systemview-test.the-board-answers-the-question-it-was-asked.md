@@ -127,6 +127,13 @@ it. Until both, the doors below answer as they did before.
 
 ::commit{sha=cb3d8e16}
 
+::commit{sha=090dd537}
+
+**The last one is recorded by a commit carrying no `Serves:` trailer, and that is the convention
+rather than an omission.** A commit that adds its own sha cannot contain that sha, so a trailer on
+it is `oneWay` forever and a third commit to fix it inherits the same problem. A bookkeeping commit
+that serves nothing reads as `unlinked`, which is what it is, and the chain terminates.
+
 **One commit of this sitting carries no `Serves:` trailer and I am not going to quietly fix it.**
 `04b0c86f` — the band drawing the session's plan twice — was work he asked for directly before this
 job fired, committed before any report existed to name. It reads as `unlinked` and that is accurate:
