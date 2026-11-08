@@ -68,6 +68,13 @@
   --sv-inset: #eef1f7; // pale blue-gray inset — section bodies, empty states, story canvas
   --sv-hover: #f1f3fa; // quiet hover fill — rows, tool buttons, list items
 
+  // THE TWO THAT WERE PHANTOMS — consumed in three stylesheets, defined nowhere, each use carrying
+  // its own fallback. 13 undefined names were swept 2026-11-08: eleven were second names for ramp
+  // concepts and were repointed; these two are real concepts. THE VALUES ARE THE FALLBACKS THEY
+  // REPLACE, exactly — same rule as the reds above: naming a colour is not the moment to change one.
+  --sv-amber: #c88a2e;  // a WARNING-ish state: pending, held, attention without failure
+  --sv-accent: #6a74c4; // the quiet indigo accent chips and rails were already wearing
+
   // THE pane header band — one look for every doc-ish pane header (code, doc, story panes).
   // LIGHT keeps the original quiet inset band; DARK wears the plum (the override below).
   --sv-pane-header: #eef1f7;
@@ -111,6 +118,11 @@
 
   --sv-inset: #21252b;
   --sv-hover: #313640;
+
+  // A notch lighter on dark, like the blues — and these exact values were already in use as the
+  // dark-leaning fallbacks at a minority of the call sites, so nothing here is a new colour.
+  --sv-amber: #d89a2b;
+  --sv-accent: #6c74dd;
 
   --sv-pane-header: #2e3347; // HIS color, second pass (2026-09-07) — a bluer slate. One token, every document header follows
   --sv-on-header: #f2eff6;

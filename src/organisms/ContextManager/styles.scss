@@ -542,7 +542,7 @@
 
 // RFC-013 — the revealed note: the same two-second flash the nav's reveal uses.
 .ctx-mgr__note--revealed {
-  outline: 2px solid var(--sv-accent, #6c74dd);
+  outline: 2px solid var(--sv-accent);
   outline-offset: 1px;
   transition: outline-color 0.4s ease;
 }

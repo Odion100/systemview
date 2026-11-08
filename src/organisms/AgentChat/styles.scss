@@ -578,7 +578,7 @@ $sv-board-states: (
     word-break: break-word;
     border-radius: 8px;
     padding: 4px 7px;
-    background: var(--sv-surface-soft, rgba(127, 127, 127, 0.1));
+    background: var(--sv-inset);
   }
   // Close it without opening anything. Sits in the corner OVER the messages rather than in a bar
   // above them — a whole row of chrome for one button is more furniture than the thing it serves.
@@ -992,7 +992,7 @@ $sv-board-states: (
     cursor: text;
     &--none {
       font-weight: 500;
-      color: var(--sv-dim, #a9afbd);
+      color: var(--sv-text-muted);
       opacity: 0.45;
     }
   }
@@ -1138,8 +1138,8 @@ $sv-board-states: (
     animation: agent-chat-compaction-up 0.18s ease-out;
 
     &--hard {
-      border-color: var(--sv-amber, #d89a2b);
-      background: color-mix(in srgb, var(--sv-amber, #d89a2b) 14%, transparent);
+      border-color: var(--sv-amber);
+      background: color-mix(in srgb, var(--sv-amber) 14%, transparent);
     }
   }
 
@@ -1163,7 +1163,7 @@ $sv-board-states: (
 
   &__compaction-forced {
     flex: none;
-    color: var(--sv-amber, #d89a2b);
+    color: var(--sv-amber);
     font-weight: 600;
     text-transform: uppercase;
     font-size: 0.68rem;
@@ -3724,7 +3724,7 @@ $sv-board-states: (
   font-size: 12px;
   // WHERE ONE LIST BEGINS — his ask, after clicking a header he could not see the edge of:
   // a subtle rule at the top of each list, so stacked lists read as separate things.
-  border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));
+  border-top: 1px solid var(--sv-border-soft);
 }
 // THE SESSION'S OWN PLAN wears a FILLED "default" badge (his revision, 2026-10-26 — the first cut
 // was a background wash on the row and he swapped it: "get rid of the color and put a badge…
@@ -3755,7 +3755,7 @@ $sv-board-states: (
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  color: var(--sv-text-soft, #8a8f98);
+  color: var(--sv-text-muted);
   opacity: 0.6;
   &:hover { opacity: 1; color: var(--sv-text); }
 }
@@ -3769,7 +3769,7 @@ $sv-board-states: (
   background: none;
   padding: 2px 0;
   cursor: pointer;
-  color: var(--sv-text-soft, #8a8f98);
+  color: var(--sv-text-muted);
   font: inherit;
   text-align: left;
   &:hover { color: var(--sv-text); }
@@ -3839,7 +3839,7 @@ $sv-board-states: (
   // is not yet checked off. No markdown, no interactivity — the whiteboard took that job.
   padding: 3px 0;
   line-height: 1.35;
-  color: var(--sv-text-soft, #8a8f98);
+  color: var(--sv-text-muted);
   &--active { color: var(--sv-text); font-weight: 600; }
   // HIS CRITIQUE, verbatim: the strike goes through THE ENTIRE LINE, check included — the
   // decoration was on the text only, so the ✓ sat outside the strike and the row read half-done.
@@ -4457,7 +4457,7 @@ $sv-board-states: (
   flex: none;
   padding: 2px 8px;
   font-size: 12px;
-  border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));
+  border-top: 1px solid var(--sv-border-soft);
   // OWN INK (his catch: black-on-black in dark mode) — these surfaces inherited whatever the
   // container had, which bottoms out at the body default. The token flips with the theme.
   color: var(--sv-text, #46506a);
@@ -4486,7 +4486,7 @@ $sv-board-states: (
   display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
   padding: 3px 4px 2px 22px;
   font-size: 11px;
-  color: var(--sv-text-soft, #8a8f98);
+  color: var(--sv-text-muted);
   button {
     border: 1px solid currentColor; background: none; color: inherit;
     border-radius: 4px; padding: 0 7px; font: inherit; font-size: 11px; cursor: pointer;
@@ -4514,7 +4514,7 @@ $sv-board-states: (
 }
 .agent-chat__lane-fill { display: block; height: 100%; background: #7fb069; border-radius: 3px; transition: width 240ms ease; }
 .agent-chat__lane--done .agent-chat__lane-fill { background: #00c408; }
-.agent-chat__lane-count { flex: none; font-variant-numeric: tabular-nums; font-size: 11px; color: var(--sv-text-soft, #8a8f98); }
+.agent-chat__lane-count { flex: none; font-variant-numeric: tabular-nums; font-size: 11px; color: var(--sv-text-muted); }
 // the disk's word that the lane's work is in the tree — the row-level "safe to delete".
 // green = committed, nothing can be lost; amber = in files only, the tree is the other copy.
 .agent-chat__lane-in { flex: none; font-size: 10px; color: #3fb950; border: 1px solid rgba(63, 185, 80, 0.35); border-radius: 9px; padding: 1px 7px; white-space: nowrap; }
@@ -4524,12 +4524,12 @@ $sv-board-states: (
 // noted = a receipt answering what derivation cannot — a record, so it reads quieter than proof.
 .agent-chat__lane-in--ok { color: #3fb950; border-color: rgba(63, 185, 80, 0.35); }
 .agent-chat__lane-in--warn { color: #d29922; border-color: rgba(210, 153, 34, 0.4); }
-.agent-chat__lane-in--unknown { color: var(--sv-text-soft, #8a8f98); border-color: rgba(138, 143, 152, 0.4); border-style: dashed; }
+.agent-chat__lane-in--unknown { color: var(--sv-text-muted); border-color: rgba(138, 143, 152, 0.4); border-style: dashed; }
 .agent-chat__lane-in--noted { color: #58a6ff; border-color: rgba(88, 166, 255, 0.35); border-style: dashed; }
 .agent-chat__lane-doing {
   flex: 0 1 40%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 11px; color: var(--sv-text-soft, #8a8f98);
+  font-size: 11px; color: var(--sv-text-muted);
 }
 
 // FLOATING, the lane panel is a side panel like the others: the `__tv` wrapper is the surface,
@@ -4539,7 +4539,7 @@ $sv-board-states: (
 .agent-chat__lanepanel {
   flex: none;
   margin: 2px 8px 4px;
-  border: 1px solid var(--sv-line, rgba(128, 128, 128, 0.3));
+  border: 1px solid var(--sv-border-soft);
   border-radius: 6px;
   font-size: 12px;
   max-height: 46vh;
@@ -4552,7 +4552,7 @@ $sv-board-states: (
 .agent-chat__lanepanel-head {
   display: flex; align-items: center; gap: 8px;
   padding: 5px 9px;
-  border-bottom: 1px solid var(--sv-line, rgba(128, 128, 128, 0.2));
+  border-bottom: 1px solid var(--sv-border-soft);
 }
 .agent-chat__lanepanel-name { font-family: ui-monospace, Menlo, monospace; font-weight: 700; }
 // SHRINKS, NEVER GROWS. This was the header's spacer — `flex: 1 1 auto`, there to push the ✕ out
@@ -4562,13 +4562,13 @@ $sv-board-states: (
 // paid for once, in a different header.
 // THE BAR IS NEVER GIVEN A SIZE. It takes what the line leaves, which is why it is short on a busy
 // lane and long on a quiet one — if it should be shorter, put something on the line beside it.
-.agent-chat__lanepanel-run { flex: 0 1 auto; font-size: 11px; color: var(--sv-text-soft, #8a8f98); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-chat__lanepanel-run { flex: 0 1 auto; font-size: 11px; color: var(--sv-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-chat__lanepanel-x {
   flex: none; border: none; background: none; color: inherit; font-size: 15px;
   cursor: pointer; opacity: 0.6; padding: 0 3px;
   &:hover { opacity: 1; }
 }
-.agent-chat__lanepanel-brief { flex: none; padding: 2px 9px; border-bottom: 1px solid var(--sv-line, rgba(128,128,128,0.2)); }
+.agent-chat__lanepanel-brief { flex: none; padding: 2px 9px; border-bottom: 1px solid var(--sv-border-soft); }
 .agent-chat__lanepanel-brieftoggle {
   border: none; background: none; padding: 2px 0; cursor: pointer; color: inherit;
   font: inherit; font-size: 11px; opacity: 0.75;
@@ -4577,14 +4577,14 @@ $sv-board-states: (
 .agent-chat__lanepanel-brieftext {
   margin: 2px 0 6px; max-height: 30vh; overflow-y: auto;
   font-size: 11px; line-height: 1.5; white-space: pre-wrap;
-  color: var(--sv-text-soft, #8a8f98);
+  color: var(--sv-text-muted);
 }
 .agent-chat__lanepanel-arts {
   display: flex; gap: 12px; flex-wrap: wrap;
   padding: 4px 9px; font-size: 11px;
-  border-bottom: 1px solid var(--sv-line, rgba(128, 128, 128, 0.15));
+  border-bottom: 1px solid var(--sv-border-soft);
 }
-.agent-chat__lanepanel-art { color: var(--sv-text-soft, #8a8f98); }
+.agent-chat__lanepanel-art { color: var(--sv-text-muted); }
 .agent-chat__lanepanel-art--left { color: #d0a24a; } // a leftover asks for attention, gently
 .agent-chat__lanepanel-review { flex: none; padding: 0 6px; max-height: 34%; overflow-y: auto; }
 // THE ROWS NEED RHYTHM, AND `Feed` DOES NOT CARRY IT. Feed returns a bare list of rows — no
@@ -4606,12 +4606,12 @@ $sv-board-states: (
 // THE COOKING LINE SITS BELOW THE SCROLL, pinned, so a long log cannot carry it out of view — the
 // same arrangement the conversation's own line has. `flex: none` is the whole of it: the log keeps
 // the stretch, this keeps its height.
-.agent-chat__lanepanel > .agent-chat__cooking { flex: none; margin: 0; padding: 3px 9px 5px; border-top: 1px solid var(--sv-line, rgba(128,128,128,0.2)); }
+.agent-chat__lanepanel > .agent-chat__cooking { flex: none; margin: 0; padding: 3px 9px 5px; border-top: 1px solid var(--sv-border-soft); }
 .agent-chat__lanepanel-logtitle {
   font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
   opacity: 0.6; margin: 6px 0 2px;
 }
-.agent-chat__lanepanel-empty { font-size: 11.5px; color: var(--sv-text-soft, #8a8f98); padding: 4px 0 8px; }
+.agent-chat__lanepanel-empty { font-size: 11.5px; color: var(--sv-text-muted); padding: 4px 0 8px; }
 // the lane name is a button now — keep it reading like the label it was
 .agent-chat__lane-name { border: none; background: none; color: inherit; padding: 0; cursor: pointer; &:hover { text-decoration: underline; } }
 
@@ -4934,7 +4934,7 @@ $sv-board-states: (
 // to find the one thing waiting — so the tab says it before it is opened.
 .agent-chat__bandtab-flag {
   margin-right: 4px;
-  color: var(--sv-amber, #c88a2e);
+  color: var(--sv-amber);
   font-size: 10px;
 }
 
@@ -4945,7 +4945,7 @@ $sv-board-states: (
 // the same amber the ⚑ already wears everywhere in this band, because that is the one colour in
 // here that already means "this is waiting on you".
 .agent-chat__bandtab--document:not(.agent-chat__bandtab--on) { color: var(--sv-blue, #5b8def); }
-.agent-chat__bandtab--owed:not(.agent-chat__bandtab--on) { color: var(--sv-amber, #c88a2e); }
+.agent-chat__bandtab--owed:not(.agent-chat__bandtab--on) { color: var(--sv-amber); }
 
 // THE SPEECH LINE — what is queued behind the reply being read. It hangs in the same corner as the
 // voice pill and, like the pill, adds no row to the chat: the bar is zero-height and its children
@@ -5030,7 +5030,7 @@ $sv-board-states: (
   &:hover { border-color: var(--sv-blue, #5b8def); color: var(--sv-blue, #5b8def); }
 }
 // A STALLED LINE LOOKS STALLED. Paused is the one state where silence is not the absence of work.
-.speech-line__stop.is-paused { border-color: var(--sv-amber, #c88a2e); color: var(--sv-amber, #c88a2e); }
+.speech-line__stop.is-paused { border-color: var(--sv-amber); color: var(--sv-amber); }
 
 // THE QUEUE SITS ABOVE THE PILL, NOT UNDER IT. `__voicebar > *` absolutely positions EVERY child
 // at the same right/bottom, so the speech line and the voice pill were stacked on the one spot and
@@ -5101,8 +5101,8 @@ $sv-board-states: (
   font-size: 10px;
   cursor: pointer;
 
-  &:hover { border-color: var(--sv-amber, #c88a2e); color: var(--sv-amber, #c88a2e); }
-  &.is-paused { border-color: var(--sv-amber, #c88a2e); color: var(--sv-amber, #c88a2e); }
+  &:hover { border-color: var(--sv-amber); color: var(--sv-amber); }
+  &.is-paused { border-color: var(--sv-amber); color: var(--sv-amber); }
 }
 
 // A WAITING ROW'S LABEL MOVES THE READING, and reads as the primary act on the row — the way a row
@@ -5358,7 +5358,7 @@ $sv-board-states: (
   z-index: 40;
   width: 320px;
   padding: 8px 10px 9px;
-  background: var(--sv-bg-raised, var(--sv-bg));
+  background: var(--sv-surface);
   border: 1px solid var(--sv-border);
   border-radius: 6px;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18);
@@ -5442,7 +5442,7 @@ $sv-board-states: (
   align-items: center;
   gap: 2px 8px;
   padding: 5px 0;
-  & + & { border-top: 1px solid var(--sv-border-faint, var(--sv-border)); }
+  & + & { border-top: 1px solid var(--sv-border-soft); }
 }
 .agent-chat__bandcog-label { font-weight: 500; }
 // THE HELP LINE IS NOT A TOOLTIP. Every knob here changes when an agent gets interrupted, and a
@@ -5497,7 +5497,7 @@ $sv-board-states: (
   // bottom of the scrolling body. The background matters: without it the rows scroll through it.
   position: sticky;
   bottom: 0;
-  background: var(--sv-bg-raised, var(--sv-bg));
+  background: var(--sv-surface);
 }
 // ABSENCE STATED, never a panel of knobs that write nowhere.
 .agent-chat__bandcog-absent { color: var(--sv-text-faint); line-height: 1.4; }
@@ -5566,7 +5566,7 @@ $sv-board-states: (
 
 .agent-chat__bandsec {
   padding: 5px 8px 2px;
-  border-top: 1px solid var(--sv-line, rgba(128, 128, 128, 0.18));
+  border-top: 1px solid var(--sv-border-soft);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -5622,7 +5622,7 @@ $sv-board-states: (
 .agent-chat__unseen-last {
   flex: none;
   color: var(--sv-text-muted);
-  font-family: var(--sv-mono, monospace);
+  font-family: "SF Mono", Menlo, monospace;
   font-size: 10px;
 }
 // WHY IT HAS NO ROW, on the row. The two causes need different answers, so neither is implied.
@@ -5686,7 +5686,7 @@ button.agent-chat__jobrun-state {
   padding: 3px;
   border-radius: 7px;
   border: 1px solid var(--sv-border);
-  background: var(--sv-panel, #1b1d24);
+  background: var(--sv-surface);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
 }
 .agent-chat__jobrun-stateopt {

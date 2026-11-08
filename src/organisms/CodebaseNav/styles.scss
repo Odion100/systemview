@@ -385,7 +385,7 @@
     color: var(--sv-text-muted);
     background: var(--sv-hover, rgba(127, 127, 127, 0.1));
     &:hover {
-      background: var(--sv-hover-strong, rgba(127, 127, 127, 0.18));
+      background: var(--sv-hover);
     }
   }
   &__code-git-branch {
@@ -858,7 +858,7 @@
   // A LOG ROW OPENS IN PLACE — his ask. The row still clips its subject to one line (forty rows
   // that each wrap would stop being scannable); the DRAWER is where nothing is clipped.
   &__logrow[role="button"] { cursor: pointer; }
-  &__logrow--open { background: var(--sv-row-hover, rgba(127, 127, 127, 0.08)); }
+  &__logrow--open { background: var(--sv-hover); }
 
   &__logdetail {
     padding: 6px 10px 8px 10px;
@@ -917,7 +917,7 @@
     padding: 2px 4px;
     border-radius: 3px;
     cursor: pointer;
-    &:hover { background: var(--sv-row-hover, rgba(127, 127, 127, 0.12)); }
+    &:hover { background: var(--sv-hover); }
   }
   // The path ellipsises from the LEFT: with `src/organisms/CodebaseNav/styles.scss`, the end is
   // the part that identifies it and the start is the part every sibling shares.
@@ -1700,7 +1700,7 @@
   border: none;
   background: none;
   font-size: 11.5px;
-  color: var(--sv-text-soft, #8a8f98);
+  color: var(--sv-text-muted);
   cursor: pointer;
   padding: 1px 2px;
   &:hover { color: var(--sv-text); }
@@ -1717,7 +1717,7 @@
   align-items: center;
   width: 100%;
   font-size: 12px;
-  color: var(--sv-text-soft, #8a8f98);
+  color: var(--sv-text-muted);
   border-radius: 4px;
   &:hover { background: color-mix(in srgb, currentColor 7%, transparent); color: var(--sv-text); }
   // the × appears with the row's hover, armed it stays put and says so
@@ -1767,7 +1767,7 @@
   display: flex;
   flex-direction: column;
   margin: 2px 0 4px;
-  border: 1px solid var(--sv-line, rgba(128, 128, 128, 0.3));
+  border: 1px solid var(--sv-border-soft);
   border-radius: 5px;
   overflow: hidden;
 }

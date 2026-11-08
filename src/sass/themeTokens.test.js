@@ -3,7 +3,7 @@ import path from "path";
 
 // A THEME TOKEN THAT DOES NOT EXIST FAILS SILENTLY, WHICH IS WHY THIS IS A TEST AND NOT A REVIEW.
 //
-// `var(--sv-text-dim, #5a6378)` renders perfectly: the token is undefined, so the fallback is
+// `var(--sv-text-muted)` renders perfectly: the token is undefined, so the fallback is
 // used, and the fallback was written in light mode. In dark mode that is dark text on a dark
 // surface — found 2026-11-01 when an expanded commit's body could not be read without selecting
 // it, and the token turned out never to have existed. Sixteen more were in the same state.
@@ -32,15 +32,19 @@ for (const file of scss) {
   }
 }
 
-// THE KNOWN DEBT, NAMED IN FULL. Sixteen tokens that are referenced and never defined, each
-// rendering a hardcoded fallback instead. They are listed rather than quietly tolerated because a
-// cap nobody can see reads as coverage — the point of the list is that it may only SHRINK, and the
-// assertion below is what makes a new one impossible to add by accident.
-const KNOWN_PHANTOM = [
-  "--sv-accent", "--sv-amber", "--sv-bg-raised", "--sv-border-faint", "--sv-buffered",
-  "--sv-dim", "--sv-hover-strong", "--sv-line", "--sv-mono", "--sv-panel",
-  "--sv-row-hover", "--sv-surface-soft", "--sv-text-soft", "--sv-tree-max",
-];
+// THE DEBT IS PAID — what remains is not debt. The sixteen phantoms this list once carried were
+// swept 2026-11-08: eleven were second names for ramp concepts and were repointed (--sv-dim,
+// --sv-text-soft and --sv-text-dim to --sv-text-muted; --sv-line and --sv-border-faint to
+// --sv-border-soft; --sv-row-hover and --sv-hover-strong to --sv-hover; --sv-surface-soft to
+// --sv-inset; --sv-bg-raised and --sv-panel to --sv-surface; --sv-mono to the literal stack), and
+// --sv-amber / --sv-accent were real concepts, defined in BOTH halves at the values their fallbacks
+// already rendered.
+//
+// These two are DYNAMIC ELEMENT VARIABLES, not theme tokens and not debt: a component sets each
+// inline per element (SpeakReply writes --sv-buffered as a percent; CodebaseNav writes --sv-tree-max
+// as a pixel height) and the stylesheet's var() default is the at-rest state. The theme must NOT
+// define them — a :root value would leak one element's state to every sibling.
+const DYNAMIC = ["--sv-buffered", "--sv-tree-max"];
 
 // ── THE REDS, WHICH WERE THE WORST OF THE DEBT ─────────────────────────────────────────────────
 //
@@ -89,20 +93,53 @@ describe("the theme owns every red", () => {
   });
 });
 
+// THE TWO THAT STOPPED BEING PHANTOMS — pinned the way the reds are, and for a reason this very
+// suite measured: the phantom check collects definitions from EVERY stylesheet, so the markdown
+// scope's redeclaration of these two SHIELDS the theme's own definition from it — delete them from
+// theme.scss and the phantom claim stays green. And nothing pinned the values: both mutations were
+// run (a drifted hex, a deleted light-half line) and the suite produced no error at all. These
+// claims are what made each go red.
+describe("amber and accent are the theme's, in both halves, at the values their fallbacks rendered", () => {
+  const theme = fs.readFileSync(path.join(SRC, "sass", "theme.scss"), "utf8");
+  const lightHalf = theme.slice(0, theme.indexOf(":root.sv-dark"));
+  const darkHalf = theme.slice(theme.indexOf(":root.sv-dark"));
+  const PAIR = {
+    "--sv-amber": { light: "#c88a2e", dark: "#d89a2b" },
+    "--sv-accent": { light: "#6a74c4", dark: "#6c74dd" },
+  };
+
+  it("each is defined in the light :root and again in the dark override", () => {
+    for (const [token, v] of Object.entries(PAIR)) {
+      expect(lightHalf).toContain(`${token}: ${v.light};`);
+      expect(darkHalf).toContain(`${token}: ${v.dark};`);
+    }
+  });
+
+  it("and no stylesheet still carries a fallback for either — a fallback on a defined token is the old bug waiting", () => {
+    const offenders = [];
+    for (const file of scss) {
+      const text = fs.readFileSync(file, "utf8");
+      for (const m of text.matchAll(/var\(\s*--sv-(amber|accent)\s*,/g)) offenders.push(`${path.relative(SRC, file)}: ${m[0]}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
 describe("every --sv- token a stylesheet asks for", () => {
   const phantom = [...used.keys()].filter((t) => !defined.has(t)).sort();
 
-  it("is defined in the theme, or is one of the sixteen already known", () => {
-    const fresh = phantom.filter((t) => !KNOWN_PHANTOM.includes(t));
+  it("is defined in the theme, or is a dynamic element variable a component sets inline", () => {
+    const fresh = phantom.filter((t) => !DYNAMIC.includes(t));
     expect(
       fresh.map((t) => `${t} — used in ${[...used.get(t)].join(", ")}`),
     ).toEqual([]);
   });
 
-  // The list is a debt, not a licence: a token that gets defined or repointed must leave it, or
-  // the list stops describing anything and starts excusing everything.
-  it("and the known list carries nothing that has since been fixed", () => {
-    expect(KNOWN_PHANTOM.filter((t) => !phantom.includes(t))).toEqual([]);
+  // The allowlist is exact, both directions: a dynamic var that stops being used leaves it, and a
+  // theme definition for one of these would be a bug (one element's state leaking to every sibling).
+  it("and the dynamic list carries exactly the element variables still in use", () => {
+    expect(DYNAMIC.filter((t) => !phantom.includes(t))).toEqual([]);
+    expect(DYNAMIC.filter((t) => defined.has(t))).toEqual([]);
   });
 
   // THE ONE THAT WAS ACTUALLY UNREADABLE. `inherit` as a fallback is worse than a bad hex: the

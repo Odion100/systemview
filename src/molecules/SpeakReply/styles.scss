@@ -678,7 +678,7 @@
   color: var(--sv-text-muted);
 
   &.is-paused .speech-line__mark {
-    color: var(--sv-amber, #c88a2e);
+    color: var(--sv-amber);
   }
 }
 
@@ -784,7 +784,7 @@
   // the transport is the full line's own — `.speech-line__pause`, `__skip`, `__stop` — styled where
   // the full line styles them; nothing of its own here
   .speech-line__pause, .speech-line__skip, .speech-line__stop { flex: none; }
-  &.is-paused .speech-line__word { color: var(--sv-amber, #c88a2e); }
+  &.is-paused .speech-line__word { color: var(--sv-amber); }
 }
 
 // "elsewhere: wait / pop out & read" — the one switch beside the modes, same pill family
