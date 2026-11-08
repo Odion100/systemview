@@ -3593,24 +3593,29 @@ module.exports = function launchSystemView(port = 3000) {
       // it doesn't need to take the regular path."* The regular path is the plugin phoning the hub
       // over HTTP; here `connect` is a local function and the ready payload is exactly what the
       // plugin would have sent. One call, no wire, no second service, nothing to wedge.
-      try {
+      (async () => {
         const { getSpecList } = require("../systemview-plugin/utils");
+        // FROM THE SERVICE'S OWN SELF-DESCRIPTION, not the ready payload. The payload's module list
+        // aggregates everything this process hosts — measured 2026-11-07: six modules including a
+        // second `SystemView` (the plugin's log module from a hosted sibling) and `SystemViewChat`,
+        // and the duplicate name overwrote the hub's real 93-method module in every client built
+        // from the record, so the runner read the hub as "did not answer". The service's own answer
+        // at its URL is the clean four. Worse, the dirty record wrote itself into the launch cwd's
+        // manifest and REPLAYED on every boot — registering from the fetched truth is what breaks
+        // that loop.
+        const own = `http://${host}:${port}/${route}`;
+        const connectionData = await httpClient.request({ url: own });
         connect({
-          system: {
-            connectionData: system && system.connectionData,
-            modules: system && system.modules,
-            routing: system && system.routing,
-            services: system && system.services,
-          },
+          system: { connectionData, modules: connectionData.modules, routing: system && system.routing, services: system && system.services },
           projectCode: "systemview-test",
           serviceId: "Hub",
           specList: getSpecList(path.resolve(__dirname, "specs")),
         });
-      } catch (e) {
+      })().catch((e) => {
         // Registration is a citizenship upgrade, never a boot condition: the hub serves every
         // window and agent without it, and says why instead of dying.
         console.warn(`[systemview] the hub could not register its own service: ${(e && e.message) || e}`);
-      }
+      });
       server.get("*", (req, res) => {
         res.setHeader("Cache-Control", "no-store");
         res.sendFile(indexPath);

@@ -71,14 +71,14 @@ method your window calls.
 ::test[Hub.Agent.board]{project=systemview-test}
 ::::
 
-**THE WHOLE CHAIN HAS BEEN RUN, on a throwaway hub, and seen to fail.** Boot → in-process
-self-registration (`Hub` under systemview-test — *"since the hub is hosting itself, it doesn't need
-to take the regular path"*) → the engine lists the saved spec from `api/specs/` → runs it against
-`Agent.board` → **1 passed**. Then the guard came out (`const spare = []`), the run went red on
-exactly the refusal step, and the restore went green again. The first attempt at registration used
-the plugin's regular path and wedged your boot — that is reverted, and the in-process shape above is
-what replaced it. Your hub still predates all of it: one more restart arms the board door, the
-registration, and these chips together.
+**LIVE, GREEN, AND SEEN TO FAIL.** On your hub, through the MCP: `Hub.Agent.board` — 1 passed.
+On the way there the spec caught two real things it was built to catch: eight leftover fixture
+cards answering a spec that planted three (the reset door had been reverted away), and the hub's
+self-registration record carrying SIX modules — the ready payload aggregates everything the boot
+hosts, a second `SystemView` overwrote the real one in every built client, and the dirty record
+replayed itself through the launch cwd's manifest on every boot. Registration now reads the
+service's OWN self-description, which is the clean four. The mutation pass ran on a throwaway hub:
+guard out, red on exactly the refusal step; guard back, green.
 
 ## What ran
 
@@ -106,8 +106,9 @@ Nothing to arm in the window — this is `api/` and `electron/`, so:
 systemview stop
 :::
 
-Then start it from the Hub's apps page. The autobot half rides your **shell** restart; no press arms
-it. Until both, the doors below answer as they did before.
+**Already armed** — you ordered the restart and I did it (stop, then start from ~/autobot, twice:
+once for the board door, once more for the clean registration). The autobot half rode your shell
+restart earlier tonight. The doors below answer the new way now.
 
 - [ ] `board({projectCode: "systemview-test", brief: true})` → one line per card, 125 of them, and
       the last line telling you how to read one whole
