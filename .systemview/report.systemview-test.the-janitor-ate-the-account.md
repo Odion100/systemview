@@ -127,8 +127,12 @@ quotes a retired leaf in its first 2048 bytes is still collectable right now.
 ## Walk it yourself
 
 :::cmd
-kill $(pgrep -f "systemview start 3000") && systemview start 3000
+systemview stop
 :::
+
+Then START it from the Hub's apps page — both halves yours. A `pkill` + `nohup` line skips the
+clean shutdown and REPARENTS the hub outside the harness's supervision, so the apps page stops
+owning it; the note that says so predates this report and I handed you the wrong recipe anyway.
 
 - [ ] the restored account is still there after the boot pass — it was not, twice, before this
 - [ ] `commitLinks({projectCode: "systemview-test", since: 30})` → the DANGLING line is gone

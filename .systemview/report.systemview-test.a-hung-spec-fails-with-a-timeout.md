@@ -70,8 +70,12 @@ you are running is `/usr/local/bin/systemview`, a yarn link into this very repo
 and not in that process. It also serves the window, which is why the restart is yours and not mine:
 
 :::cmd
-kill $(pgrep -f "systemview start 3000") && systemview start 3000
+systemview stop
 :::
+
+Then START it from the Hub's apps page — both halves yours. A `pkill` + `nohup` line skips the
+clean shutdown and REPARENTS the hub outside the harness's supervision, so the apps page stops
+owning it; the note that says so predates this report and I handed you the wrong recipe anyway.
 
 - [ ] `node --test api/runTests.test.js` — 14 pass, including "a hung spec fails with the timeout,
       asserts nothing, and the run continues past it"

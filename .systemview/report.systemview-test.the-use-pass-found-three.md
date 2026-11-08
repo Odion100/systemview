@@ -80,8 +80,12 @@ refusals; only your restart can prove the run survives.
 ## Walk it yourself
 
 :::cmd
-kill $(pgrep -f "systemview start 3000") && systemview start 3000
+systemview stop
 :::
+
+Then START it from the Hub's apps page — both halves yours. A `pkill` + `nohup` line skips the
+clean shutdown and REPARENTS the hub outside the harness's supervision, so the apps page stops
+owning it; the note that says so predates this report and I handed you the wrong recipe anyway.
 
 - [ ] then `runProofs({projectCode: "systemview-test", document: "RFC-075"})` → rows instead of one
       error string, with a `mismatched` line naming `Plugin.fixturesRunning`
