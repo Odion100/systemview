@@ -100,7 +100,7 @@ on mount; it does not. It reads when it is TOLD, and it was told too early:
 Either fix alone closes it. Both are done deliberately, because they land in processes that restart
 on different hands — the window has the fix now, the host has it on your next shell restart.
 
-The predicate also moved out of the hook into `laneTick.js`, where it can be claimed. Its rule is
+The predicate also moved out of the hook into `laneTick.js`, where a suite can reach it. Its rule is
 one sentence: **`source` is what opens a run, so a sourced write has touched a record the strip
 reads** — and a write with no source is the session's own plan, which has no record, so re-reading
 disk for it asks a question the disk cannot answer.
@@ -109,16 +109,16 @@ disk for it asks a question the disk cannot answer.
 
 | what ran | where | result |
 |---|---|---|
-| `node --test api/janitor.test.js` | the hub's suite | 22 pass — **4 new** |
-| `node --test api/commitLinks.test.js` | the hub's suite | 20 pass — **4 new** |
-| `laneTick.test.js` | the window suite | 6 pass — **new**, mutation-verified |
+| `node --test api/janitor.test.js` | the hub's suite | 22 assertions pass — **4 new** |
+| `node --test api/commitLinks.test.js` | the hub's suite | 20 assertions pass — **4 new** |
+| `laneTick.test.js` | the window suite | 6 assertions pass — **new**, mutation-verified |
 | `smoke:worklist` · `run-slots` · `nudge` | autobot | 73 · 7 · 24 green |
 | `yarn verify` | window + hub + cli + build | **159 suites / 2320** · 355 · 12 · green |
 
 **Mutation-verified twice, because one pass was not enough.** Restoring the any-leaf test kills two
-claims. Pinning the id lookup to `null` — so the first-leaf fallback answers everything — killed
-only one, and that one exists because the first mutation revealed the id path was otherwise dead
-code that read as a rule.
+assertions. Pinning the id lookup to `null` — so the first-leaf fallback answers everything —
+killed only one, and that one exists because the first mutation revealed the id path was otherwise
+dead code that read as a rule.
 
 **What a green suite does not cover:** the fix is in `api/`, so it is absent from the running hub
 until it restarts. The next hourly pass still runs Monday's code, which means any document that
@@ -133,7 +133,7 @@ kill $(pgrep -f "systemview start 3000") && systemview start 3000
 - [ ] the restored account is still there after the boot pass — it was not, twice, before this
 - [ ] `commitLinks({projectCode: "systemview-test", since: 30})` → the DANGLING line is gone
 - [ ] `grep -n "retired=" .systemview/report.systemview-test.the-janitor-ate-the-account.md` → this
-      very report quotes a retired leaf and survives, which is the claim in the place it matters
+      very report quotes a retired leaf and survives, which is the proof in the place it matters
 
 ## This account's own commit
 
