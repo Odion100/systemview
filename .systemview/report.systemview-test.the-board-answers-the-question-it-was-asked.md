@@ -139,6 +139,8 @@ it. Until both, the doors below answer as they did before.
 
 ::commit{sha=090dd537}
 
+::commit{sha=aa125ee7}
+
 **The last one is recorded by a commit carrying no `Serves:` trailer, and that is the convention
 rather than an omission.** A commit that adds its own sha cannot contain that sha, so a trailer on
 it is `oneWay` forever and a third commit to fix it inherits the same problem. A bookkeeping commit
