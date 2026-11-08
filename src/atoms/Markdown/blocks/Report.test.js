@@ -130,4 +130,18 @@ describe("the report leaf", () => {
     expect(screen.queryByText(/retires/)).toBeNull();
     expect(opened).not.toHaveBeenCalled();
   });
+
+  // A QUOTATION IS NOT A READING. A ::file embed of a report's head renders this leaf inside
+  // another document — and `stampOpened` is first-write-wins, so without the guard the quotation
+  // STARTED the real report's retention clock. The embed provider is the same context that keeps a
+  // quoted leaf from claiming the proofs panel.
+  it("a leaf quoted inside an embed stamps nothing — a quotation cannot start the real report's clock", () => {
+    const { InEmbedProvider } = require("../context");
+    mount(
+      <InEmbedProvider>
+        <Report attrs={{ id: "r-quoted", as: "account", retain: "14d" }} line={1} />
+      </InEmbedProvider>
+    );
+    expect(opened).not.toHaveBeenCalled();
+  });
 });

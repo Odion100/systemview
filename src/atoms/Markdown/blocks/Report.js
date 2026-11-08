@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import LifecycleTrail from "./lifecycle";
 import LeafPick from "./LeafPick";
-import { useMarkdownWrite } from "../context";
+import { useMarkdownWrite, useInEmbed } from "../context";
 import { getAgent } from "../../../utils/hub";
 import { parseRetain, retainLine, tickFor } from "./retention";
 
@@ -56,10 +56,18 @@ const Report = ({ attrs = {}, line }) => {
     return () => clearInterval(t);
   }, [every]);
 
+  // A LEAF QUOTED INSIDE A ::file EMBED IS A QUOTATION, NOT A READING. Without this guard the
+  // effect below stamped the REAL report's first open from any document that embedded its head —
+  // first write wins, so a quotation could start a retention clock for a report nobody opened.
+  // Same distinction the proofs panel draws with the same context (a quoted leaf never claims the
+  // panel); a quoted leaf renders identity and fetches nothing.
+  const quoted = useInEmbed();
+
   useEffect(() => {
     // the stamp rides the render because the render is the reading — but never for a retired
-    // report (its clock already spoke) and never without an id (nothing to stamp)
-    if (!attrs.id || retired) return;
+    // report (its clock already spoke), never without an id (nothing to stamp), and never from a
+    // quotation (the guard above)
+    if (!attrs.id || retired || quoted) return;
     const agent = getAgent();
     if (!agent || !agent.documentOpened) return;
     let dead = false;
@@ -75,7 +83,7 @@ const Report = ({ attrs = {}, line }) => {
     return () => {
       dead = true;
     };
-  }, [attrs.id, retired]);
+  }, [attrs.id, retired, quoted]);
 
   const divert = async () => {
     const agent = getAgent();
