@@ -3576,44 +3576,5 @@ module.exports = function launchSystemView(port = 3000) {
         });
     });
 
-  // THE HUB REGISTERS WITH ITSELF, THROUGH THE SAME PLUGIN EVERY REAL SERVICE USES. The rule it
-  // closes is general and was paid for the hard way (2026-11-07): a SystemLynx service has to be
-  // CONNECTED to SystemView — via this plugin, under a project — before runTests can reach it, and
-  // the hub's own modules were callable by every client while being the one surface in the system
-  // with no spec store, no saved tests, and no row in any project. A whole second service got built
-  // to test `Agent.board` before anyone asked why the real door was not simply registered.
-  //
-  // `specs: api/specs` is the spec store this buys — saved specs for the hub's own modules live
-  // beside the modules they prove. `exclude` keeps the giant operational surfaces out of the nav;
-  // the agent-facing contract (Agent.*) is the one being specced.
-  try {
-    const SystemViewPlugin = require("../systemview-plugin")({
-      connection: `http://${host}:${port}/${route}`,
-      specs: path.resolve(__dirname, "specs"),
-      projectCode: "systemview-test",
-      serviceId: "Hub",
-      // TEST-SIDE LOGIC RIDES THE PLUGIN'S `module` OPTION onto the `Plugin` module it publishes —
-      // the convention every other service here follows (`Plugin.createMockUsers` elsewhere). The
-      // one function: the board a spec may scribble on. Specs write to the board NAMED `spec` —
-      // `.systemview/boards/spec.md`, a separate file — never his; this clears it, because a spec
-      // that counts its own leftovers passes exactly once.
-      module: {
-        resetSpecBoard() {
-          const root = rootOf("systemview-test");
-          if (!root) return { ok: false, error: "no folder for systemview-test" };
-          const abs = path.join(root, ".systemview/boards/spec.md");
-          const existed = fsGit.existsSync(abs);
-          if (existed) fsGit.unlinkSync(abs);
-          return { ok: true, cleared: existed, board: "spec" };
-        },
-      },
-    });
-    App.use(SystemViewPlugin);
-  } catch (e) {
-    // Registration is a citizenship upgrade, never a boot condition: a hub that cannot register
-    // with itself still serves every window and every agent, and says why instead of dying.
-    console.warn(`[systemview] the hub could not register its own service: ${(e && e.message) || e}`);
-  }
-
   return new Promise((resolve) => App.on("ready", resolve));
 };
