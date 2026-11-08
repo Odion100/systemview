@@ -139,6 +139,13 @@ owning it; the note that says so predates this report and I handed you the wrong
 - [ ] `grep -n "retired=" .systemview/report.systemview-test.the-janitor-ate-the-account.md` → this
       very report quotes a retired leaf and survives, which is the proof in the place it matters
 
-## This account's own commit
+## This account's own commits
+
+The account was written in three passes as the use-pass turned up each finding, so it carries
+three shas rather than one.
 
 ::commit{sha=23801077}
+
+::commit{sha=448f541a}
+
+::commit{sha=428059fe}
