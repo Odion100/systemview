@@ -4,11 +4,10 @@ import { getAgent } from "../../utils/hub";
 // LISTS and the cards below RUN. While `run` was in scope, the widen control reached for it.
 import { list as listProofs, mark, subscribe, offerRunner, finished, clear as clearMarks } from "../../utils/proofsBus";
 import SavedTests from "../SavedTests/SavedTests";
-import { parseSteps, toStep } from "../../atoms/Markdown/blocks/RunBlock";
 import ServiceContext from "../../ServiceContext";
 import { openAddress } from "../../atoms/Markdown/openRef";
 import useEffectiveProject from "../../utils/effectiveProject";
-import { listRows, summaryOf, scopeLabel } from "./proofRows";
+import { listRows, summaryOf, scopeLabel, buildProofCards } from "./proofRows";
 
 // THE PROOFS TAB — a project's documents run their own specs, outside any document.
 //
@@ -31,12 +30,6 @@ import { listRows, summaryOf, scopeLabel } from "./proofRows";
 // the list it renders. The only difference the proofs need is that a spec lives in a DOCUMENT, so
 // there is no saved slot to edit and no file to delete: `editable={false}` withholds those two
 // handlers and SavedTestItem already draws them only when it is given them.
-// A saved test's namespace as the dotted string a `::test[…]` label is matched against.
-const nsOf = (t) => {
-  const n = (t && t.namespace) || {};
-  return [n.projectCode, n.serviceId, n.moduleName, n.methodName].filter(Boolean).join(".");
-};
-
 // ONE CLICK: OPEN THE DOCUMENT AND GO STRAIGHT TO THE BLOCK.
 //
 // His ask, and the whole of it: "to pull up a claim, to pull up a proof, all you need to do is go
@@ -163,53 +156,15 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
 
   const rows = useMemo(() => listRows(listed), [listed]);
 
-  // EACH COLLECTED SPEC AS A TEST OBJECT — the same shape a saved test has, built with the same
-  // grammar a `:::run` block in a document is built with (`parseSteps` + `toStep`, imported rather
-  // than reimplemented), so the list `SavedTests` renders cannot drift from what the document shows.
-  //
-  // A `::test[ns]` spec is a REFERENCE to a saved test, so it resolves to that saved test itself —
-  // the document is pointing at the library, and the library's own entry is the honest thing to run.
-  const built = useMemo(() => {
-    const out = [];
-    for (const r of rows) {
-      if (r.specKind === "test") {
-        const hit = (savedTests || []).filter((t) => nsOf(t).includes(r.label));
-        hit.forEach((t) => out.push({ ...t, __at: `${r.document}#L${r.line}`, __key: r.at, __doc: r.document, __claim: r.claim || "", __path: r.path, __line: r.line, __end: r.end || r.line, __claimLine: r.claimLine || 0 }));
-        continue;
-      }
-      if (!r.src) continue; // no body yet — the hub answers the inventory before the source
-      const steps = parseSteps(r.src)
-        .filter((p) => !p.use)
-        .map((p) => toStep(p, { projectCode }, services))
-        .filter(Boolean);
-      if (!steps.length) continue;
-      // THE SHAPE RunBlock PROVES, copied rather than invented. An inline run block does NOT put
-      // its steps in `Main`: they go in a NAMED SECTION (`steps`) with `run` naming it, which is
-      // what the runner walks. Built with `Main` instead, every card rendered and nothing ran when
-      // you pressed play — the list looked right and was inert.
-      out.push({
-        title: (r.attrs && r.attrs.title) || r.name,
-        namespace: steps[0].namespace || {},
-        Main: [],
-        sections: { steps },
-        sectionRefs: {},
-        run: ["steps"],
-        __at: `${r.document}#L${r.line}`,
-        // THE JOIN KEY. `__at` is the address a reader sees; this is the one a RESULT is matched
-        // on, and it is the same string `arcPlan` puts on a ledger dot — which is what makes the
-        // two surfaces agree rather than be kept in agreement.
-        __key: r.at,
-        __doc: r.document,
-        __claim: r.claim || "",
-        __path: r.path,
-        __line: r.line,
-        __end: r.end || r.line,
-        __claimLine: r.claimLine || 0,
-      });
-    }
-    return out;
+  // THE BUILDER LIVES IN proofRows (this file's own rule: deciders are testable there) — and it now
+  // answers with ISSUES beside the cards: a spec whose steps resolve to nothing is NAMED instead of
+  // silently skipped, and a block's `{project=…}` picks its pool. Both halves are his catches,
+  // 2026-11-07: "you click it and nothing's happened."
+  const { cards: built, issues } = useMemo(
+    () => buildProofCards(rows, { projectCode, services, allServices: connectedServices, savedTests }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, projectCode, services, savedTests]);
+    [rows, projectCode, services, connectedServices, savedTests],
+  );
 
   // AN ASK WITH NOTHING RUNNABLE IN IT STILL HAS TO SETTLE. A scope whose specs could not be built
   // into cards would otherwise leave every surface saying "running" for the rest of the session.
@@ -293,6 +248,19 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
         </span>
       </div>
 
+      {/* WHAT COULD NOT BE BUILT, SAID WHERE THE CARDS WOULD BE. A spec whose steps resolve to no
+          connected service used to vanish here — the scope said "1 spec", the list showed none of
+          it, and the press ran nothing in silence (his catch, on his own screen). The headless
+          runner names this state; now both doors do. */}
+      {issues.length ? (
+        <div className="test-panel__proofs-issues">
+          {issues.map((line) => (
+            <div key={line} className="test-panel__proofs-issue">
+              {line}
+            </div>
+          ))}
+        </div>
+      ) : null}
       <SavedTests
         savedTests={built}
         connectedServices={services}

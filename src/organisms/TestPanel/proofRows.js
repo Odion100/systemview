@@ -9,6 +9,7 @@
 // `problems` for specs that could not be built. Both come through here.
 
 import { specKeyOf, tallyOf } from "../../utils/specRun";
+import { parseSteps, toStep } from "../../atoms/Markdown/blocks/RunBlock";
 
 /** A spec's address as a human reads it — the document, and the line its block starts on. */
 export const addressOf = (doc, spec) => `${doc.id}#L${spec.line}`;
@@ -138,4 +139,81 @@ export function scopeLabel(scope) {
   if (s.objective) return `objective ${s.objective}`;
   if (s.arc) return `${s.arc} — the arc and its plans`;
   return s.project ? `${s.project} — everything` : "everything";
+}
+
+
+// A saved test's namespace as the dotted string a `::test[…]` label is matched against.
+const nsOf = (t) => {
+  const n = (t && t.namespace) || {};
+  return [n.projectCode, n.serviceId, n.moduleName, n.methodName].filter(Boolean).join(".");
+};
+
+/**
+ * EACH COLLECTED SPEC AS A TEST OBJECT — and EVERY SPEC THAT CANNOT BE ONE, SAID BY NAME.
+ *
+ * This used to live inline in the panel, where it violated this file's own first paragraph — and
+ * it carried the silent shrug HIS use found (2026-11-07, the board card): a listed spec whose steps
+ * all failed to resolve was `continue`d, so the scope said "1 spec" while the list rendered none of
+ * it and a press ran nothing with no reason anywhere. The headless runner names this exact state
+ * (api/proofs.js pushes a problem); the panel now does too, in `issues`.
+ *
+ * AND THE POOL FOLLOWS THE BLOCK'S DECLARED PROJECT — `{project=…}` on a run block picks which
+ * services its steps resolve against, exactly as RunBlock and the headless runner already honour.
+ * Built here with the document's project alone, the very blocks that motivated the attribute
+ * dropped silently.
+ *
+ * Same grammar a `:::run` block is built with (`parseSteps` + `toStep`, imported rather than
+ * reimplemented), so this list cannot drift from what the document shows.
+ */
+export function buildProofCards(rows, { projectCode, services = [], allServices = [], savedTests = [] } = {}) {
+  const cards = [];
+  const issues = [];
+  for (const r of rows || []) {
+    if (r.specKind === "test") {
+      const hit = (savedTests || []).filter((t) => nsOf(t).includes(r.label));
+      if (!hit.length)
+        issues.push(`${r.document}#L${r.line} — no saved test matches "${r.label}"`);
+      hit.forEach((t) => cards.push({ ...t, __at: `${r.document}#L${r.line}`, __key: r.at, __doc: r.document, __claim: r.claim || "", __path: r.path, __line: r.line, __end: r.end || r.line, __claimLine: r.claimLine || 0 }));
+      continue;
+    }
+    if (!r.src) continue; // no body yet — the hub answers the inventory before the source
+    const declared = (r.attrs && r.attrs.project) || projectCode;
+    const pool = declared === projectCode ? services : (allServices || []).filter((s) => s.projectCode === declared);
+    const parsed = parseSteps(r.src).filter((p) => !p.use);
+    // AND AN EXPLICITLY NAMED SERVICE IS CHECKED AGAINST THE POOL TOO. `toStep` consults the pool
+    // only to resolve a SHORT name — a fully-qualified step (`systemview.Agent.board`) builds
+    // whether or not that service is connected, and then dies at PRESS time with nothing on screen,
+    // which is the exact silence his click found. Unresolvable is unresolvable; it is said here,
+    // at build, whichever way the step was spelled.
+    const inPool = (st) =>
+      !st.namespace.serviceId ||
+      pool.some((s) => (s.serviceId || (s.system && s.system.connectionData && s.system.connectionData.serviceId)) === st.namespace.serviceId);
+    const steps = parsed
+      .map((p) => toStep(p, { projectCode: declared }, pool))
+      .filter((st) => st && inPool(st));
+    if (steps.length < parsed.length) {
+      const missing = parsed.length - steps.length;
+      issues.push(
+        `${r.document}#L${r.line} — ${steps.length ? `${missing} of ${parsed.length}` : `0 of ${parsed.length}`} step${parsed.length === 1 ? "" : "s"} resolve${missing === 1 ? "s" : ""} to no connected service in "${declared}"${pool.length ? "" : " — nothing from that project is connected"}`,
+      );
+    }
+    if (!steps.length) continue;
+    cards.push({
+      title: (r.attrs && r.attrs.title) || r.name,
+      namespace: steps[0].namespace || {},
+      Main: [],
+      sections: { steps },
+      sectionRefs: {},
+      run: ["steps"],
+      __at: `${r.document}#L${r.line}`,
+      __key: r.at,
+      __doc: r.document,
+      __claim: r.claim || "",
+      __path: r.path,
+      __line: r.line,
+      __end: r.end || r.line,
+      __claimLine: r.claimLine || 0,
+    });
+  }
+  return { cards, issues };
 }

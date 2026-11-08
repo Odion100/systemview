@@ -465,6 +465,17 @@
     gap: 6px;
     flex: 0 0 auto;
   }
+  /* WHAT COULD NOT BE BUILT — one line per spec the builder had to skip, in the muted danger tone a
+     failed assertion uses: it is a finding about the page, not chrome. */
+  &__proofs-issues {
+    padding: 4px 10px 0;
+  }
+  &__proofs-issue {
+    font-size: 11.5px;
+    color: var(--sv-danger, #c0392b);
+    opacity: 0.85;
+    line-height: 1.5;
+  }
   &__proofs-absent,
   &__proofs-empty {
     font-size: 12.5px;

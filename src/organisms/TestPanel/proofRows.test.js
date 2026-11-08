@@ -223,3 +223,76 @@ describe("the proofs panel lists; the cards run", () => {
     expect(btn[0]).toMatch(/onClick=\{\(\) => go\(\{\}\)\}/);
   });
 });
+
+// ── THE PANEL SAYS WHAT IT COULD NOT BUILD — his catch, on his own screen (2026-11-07) ─────────
+// "The run blocks don't run, they don't say anything. It's just you click it and nothing's
+// happened." The builder lived inline in the panel and `continue`d any spec whose steps all failed
+// to resolve — the scope said "1 spec", the list rendered none of it, and a press ran nothing with
+// no reason anywhere. These claims hold the builder to the two rules that end that: every skip is a
+// NAMED issue, and a block's `{project=…}` picks which services its steps resolve against.
+describe("buildProofCards — nothing is skipped silently", () => {
+  const { buildProofCards } = require("./proofRows");
+  const SVC = (projectCode, serviceId, modules) => ({
+    projectCode,
+    serviceId,
+    system: { connectionData: { serviceId, modules: Object.entries(modules).map(([name, fns]) => ({ name, methods: fns.map((fn) => ({ fn })) })) } },
+  });
+  const ROW = (over = {}) => ({
+    specKind: "run",
+    document: "REP-X",
+    line: 62,
+    at: "path#L62",
+    src: '- systemview.Agent.board({ "projectCode": "p", "brief": true })\n  - results.of = 2',
+    attrs: {},
+    ...over,
+  });
+
+  it("a spec whose steps resolve to nothing becomes a NAMED issue, never a silent skip", () => {
+    const { cards, issues } = buildProofCards([ROW()], { projectCode: "systemview-test", services: [], allServices: [] });
+    expect(cards).toHaveLength(0);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatch(/REP-X#L62/);
+    expect(issues[0]).toMatch(/0 of 1 step/);
+    expect(issues[0]).toMatch(/"systemview-test"/);
+  });
+
+  it("a block's {project=…} picks its pool, exactly as the window block and the headless runner do", () => {
+    const hub = SVC("connected-services", "systemview", { Agent: ["board"] });
+    const { cards, issues } = buildProofCards(
+      [ROW({ attrs: { project: "connected-services" } })],
+      { projectCode: "systemview-test", services: [], allServices: [hub] },
+    );
+    expect(issues).toHaveLength(0);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].sections.steps).toHaveLength(1);
+    expect(cards[0].namespace.serviceId).toBe("systemview");
+  });
+
+  it("a declared project with nothing connected says THAT, which is the reload-era symptom by name", () => {
+    const { cards, issues } = buildProofCards(
+      [ROW({ attrs: { project: "connected-services" } })],
+      { projectCode: "systemview-test", services: [], allServices: [] },
+    );
+    expect(cards).toHaveLength(0);
+    expect(issues[0]).toMatch(/nothing from that project is connected/);
+  });
+
+  it("a partial drop runs the resolved steps AND names the dropped ones — same deal as the block in the document", () => {
+    const math = SVC("systemview-test", "TestService", { Math: ["add"] });
+    const src = '- Math.add({ "a": 1 })\n  - results.sum = 1\n- Gone.Module.method({})\n  - results.ok = true';
+    const { cards, issues } = buildProofCards([ROW({ src })], { projectCode: "systemview-test", services: [math], allServices: [math] });
+    expect(cards).toHaveLength(1);
+    expect(cards[0].sections.steps).toHaveLength(1);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toMatch(/1 of 2/);
+  });
+
+  it("a ::test reference matching no saved test is an issue too — the chip used to point at nothing in silence", () => {
+    const { cards, issues } = buildProofCards(
+      [{ specKind: "test", label: "Hub.Agent.board", document: "REP-X", line: 63, at: "p#L63" }],
+      { projectCode: "systemview-test", savedTests: [] },
+    );
+    expect(cards).toHaveLength(0);
+    expect(issues[0]).toMatch(/no saved test matches "Hub\.Agent\.board"/);
+  });
+});
