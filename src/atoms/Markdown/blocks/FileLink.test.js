@@ -5,6 +5,14 @@ import FileLink from "./FileLink";
 import { MarkdownScopeProvider, InDocumentProvider } from "../context";
 import { _clearResolveCache } from "../../../utils/resolveRef";
 
+// A CHIP THAT CANNOT RESOLVE TELLS THE AGENT THAT WROTE IT — the wiring claim; the hook's rules
+// live in blockFailure.test.js, so here it is a spy.
+const mockReported = jest.fn();
+jest.mock("../blockFailure", () => ({ useBlockFailure: () => mockReported }));
+// CRA resets mock implementations before every test (resetMocks: true), so the promise the
+// blocks .catch() on is re-armed here rather than at the declaration.
+beforeEach(() => mockReported.mockResolvedValue(null));
+
 // A reference into a SIBLING repo is the point of `{project=…}` — BUApp pointing at buAPI from its
 // own room. The chip used to resolve its folder by hunting connected services, so it followed the
 // document's project no matter what the reference said, and clicking it opened the same path in the
@@ -114,6 +122,33 @@ describe("a file chip belongs to the project that really holds it", () => {
     inScope(<FileLink label="" attrs={{}} />, {});
     expect(screen.queryByRole("button")).toBe(null);
     expect(screen.getByText("no path")).toBeTruthy();
+  });
+
+  // THE WRITER HEARS BOTH FAILURES — the empty reference at render, and the hub's refusal at the
+  // press. The reader already saw them in the chip; the agent that wrote the block could not.
+  it("reports an empty reference to the agent that wrote it", () => {
+    mockReported.mockClear();
+    inScope(<FileLink label="" attrs={{}} />, {});
+    expect(mockReported).toHaveBeenCalledWith({ kind: "file", ref: "", reason: "there is no path in this reference" });
+  });
+
+  it("reports the hub's refusal, with the hub's reason", async () => {
+    mockReported.mockClear();
+    hubSays(() => ({ resolved: false, reason: "no project holds that path" }));
+    inScope(<FileLink label="nope/missing.js" attrs={{}} />, {});
+    fireEvent.click(screen.getByRole("button"));
+    await waitFor(() =>
+      expect(mockReported).toHaveBeenCalledWith({ kind: "file", ref: "nope/missing.js", reason: "no project holds that path" })
+    );
+  });
+
+  it("reports nothing when the fallback still opens the file — a hub that is down is not a dead reference", async () => {
+    mockReported.mockClear();
+    hubSays(() => "down");
+    inScope(<FileLink label="cli/index.js" attrs={{}} />, { projectCode: "BUApp" });
+    fireEvent.click(screen.getByRole("button"));
+    await waitFor(() => expect(opened).toHaveLength(1));
+    expect(mockReported).not.toHaveBeenCalled();
   });
 });
 

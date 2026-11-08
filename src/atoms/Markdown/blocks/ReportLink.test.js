@@ -4,6 +4,14 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import ReportLink from "./ReportLink";
 import { MarkdownScopeProvider } from "../context";
 
+// A DEAD CHIP TELLS THE AGENT THAT WROTE IT — the wiring claim; the hook's rules live in
+// blockFailure.test.js, so here it is a spy.
+const mockReported = jest.fn();
+jest.mock("../blockFailure", () => ({ useBlockFailure: () => mockReported }));
+// CRA resets mock implementations before every test (resetMocks: true), so the promise the
+// blocks .catch() on is re-armed here rather than at the declaration.
+beforeEach(() => mockReported.mockResolvedValue(null));
+
 // A REPORT CHIP OPENS A PANEL, IT DOES NOT MOVE THE WINDOW. His words: *"reports and namespaces
 // should not — and this is not just the links panel, in general — they should be using the side
 // panel, they shouldn't be navigating me back to the code tab."* Clicking one from Stats or Agents
@@ -93,5 +101,24 @@ describe("a report chip opens the side panel instead of navigating", () => {
     });
     fireEvent.click(screen.getByRole("link"));
     expect(seen[0].projectCode).toBe("buAPI");
+  });
+
+  // A DEAD CHIP TELLS THE AGENT THAT WROTE IT — the reader sees the grey chip; the writer, who can
+  // fix the path, used to hear nothing.
+  it("reports a chip that names no report file to the agent that wrote it", () => {
+    mockReported.mockClear();
+    inScope(<ReportLink label="" attrs={{ title: "the missing one" }} />, { projectCode: "systemview" });
+    expect(mockReported).toHaveBeenCalledWith({
+      kind: "report",
+      ref: "the missing one",
+      reason: "the chip names no report file",
+    });
+  });
+
+  it("reports nothing about a chip that resolves", () => {
+    mockReported.mockClear();
+    standingOn("/reports/systemview");
+    inScope(<ReportLink label=".systemview/report.systemview.a-fine-one.md" />, { projectCode: "systemview" });
+    expect(mockReported).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import { useMarkdownScope } from "../context";
 import { resolveRef } from "../../../utils/resolveRef";
 import { openAddress } from "../openRef";
 import { useInDocument } from "../context";
+import { useBlockFailure } from "../blockFailure";
 
 // RFC-025 §4.1 — `:file[cli/stage.js#L40-70]`. Codebase connections (RFC-022) made a file reference
 // a real, resolvable thing, so a doc can point AT the code instead of quoting it.
@@ -42,6 +43,13 @@ const FileLink = ({ label, attrs = {} }) => {
   // see resolveRef: a bubble can carry a dozen of these and resolving at render time would be a
   // request per chip per paint.
   const [refused, setRefused] = React.useState("");
+  // A CHIP THAT CANNOT RESOLVE TELLS THE AGENT THAT WROTE IT — same line ::commit carries, same
+  // once-only key. The empty-path case is a render state, so it reports from an effect; the hub's
+  // refusal reports at the moment it arrives.
+  const report = useBlockFailure();
+  React.useEffect(() => {
+    if (!path) report({ kind: "file", ref: raw, reason: "there is no path in this reference" }).catch(() => {});
+  }, [path, raw, report]);
 
   // THE FILE HOST IS THE PROJECT, NOT A SERVICE — the same rule `::file` moved to when files became
   // the shell's (see FileEmbed). This chip was the last holdout: it hunted connected services
@@ -112,7 +120,9 @@ const FileLink = ({ label, attrs = {} }) => {
     resolveRef(path, projectCode || "").then((r) => {
       if (r.resolved) return fire(r.projectCode, r.path, !!r.machine);
       if (projectCode) return fire(projectCode, path);
-      setRefused(r.reason || "cannot resolve that path");
+      const why = r.reason || "cannot resolve that path";
+      setRefused(why);
+      report({ kind: "file", ref: raw, reason: why }).catch(() => {});
     });
   };
 

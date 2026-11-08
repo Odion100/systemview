@@ -4,6 +4,8 @@ import { useContext } from "react";
 import ServiceContext from "../../../ServiceContext";
 import { useMarkdownScope, useDocMembers } from "../context";
 import { routeResult } from "../docSend";
+import { useBlockFailure } from "../blockFailure";
+import { useEffect } from "react";
 
 // RFC-025 §4.2 — `::test{Math.chainUse}` · `::test{GatedService.Auth.getSession}` · `::test{Math.add:1}`
 //
@@ -44,8 +46,21 @@ const TestEmbed = ({ label, attrs = {} }) => {
   const projectCode = attrs.project || scope.projectCode || firstProject;
   const target = parseTarget(label || attrs.of || "", scope);
 
-  if (!target || !projectCode)
-    return <div className="md-embed md-embed--dead">::test — no test named</div>;
+  // A DEAD EMBED TELLS THE AGENT THAT WROTE IT — same line ::commit carries, same once-only key.
+  // The render says "no test named" to the reader; this says it to the writer, who is the one who
+  // can fix the name.
+  const report = useBlockFailure();
+  const dead = !target || !projectCode;
+  useEffect(() => {
+    if (dead)
+      report({
+        kind: "test",
+        ref: String(label || attrs.of || "").trim(),
+        reason: !target ? "no test named — the target did not parse" : "no project in scope to resolve it against",
+      }).catch(() => {});
+  }, [dead, target, label, attrs.of, report]);
+
+  if (dead) return <div className="md-embed md-embed--dead">::test — no test named</div>;
 
   // Resolve the service the same way a `:ns[…]` chip does: an unqualified module can live on any
   // service in the project.

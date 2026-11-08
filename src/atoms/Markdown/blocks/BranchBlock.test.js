@@ -16,6 +16,14 @@ jest.mock("../context", () => ({
   useDocMembers: jest.fn(() => ({})),
   useMarkdownWrite: jest.fn(() => ({})),
 }));
+// A BLOCK THAT CANNOT RESOLVE TELLS THE AGENT THAT WROTE IT — the wiring is per block, so each
+// block's suite asserts its own failure path reaches the hook. The hook itself is tested in
+// blockFailure.test.js; here it is a spy.
+const mockReported = jest.fn();
+jest.mock("../blockFailure", () => ({ useBlockFailure: () => mockReported }));
+// CRA resets mock implementations before every test (resetMocks: true), so the promise the
+// blocks .catch() on is re-armed here rather than at the declaration.
+beforeEach(() => mockReported.mockResolvedValue(null));
 
 const PATCH = [
   "diff --git a/src/a.js b/src/a.js",
@@ -77,6 +85,25 @@ describe("a ::branch block reviews a live branch through the git capability", ()
     useCapabilityState.mockReturnValue("denied");
     render(<BranchBlock label="refine/dead-code" />);
     expect(screen.getByText("version control isn't allowed here")).toBeTruthy();
+  });
+
+  // A BRANCH THAT DOES NOT RESOLVE TELLS THE AGENT THAT WROTE THE BLOCK — the reader sees the
+  // error in place; the writer, who can fix the name, used to hear nothing.
+  it("reports a branch the bridge cannot resolve to the agent that wrote it, once per failure", async () => {
+    bridge = makeBridge({ branchDiff: jest.fn().mockResolvedValue({ ok: false, error: "unknown branch" }) });
+    useCapability.mockReturnValue(() => bridge);
+    render(<BranchBlock label="refine/dead-code" />);
+    await waitFor(() =>
+      expect(mockReported).toHaveBeenCalledWith({ kind: "branch", ref: "refine/dead-code", reason: "unknown branch" })
+    );
+  });
+
+  it("does not report the HOST missing branch verbs — that is nobody's dead pointer", async () => {
+    mockReported.mockClear();
+    useCapability.mockReturnValue(() => ({ gitState: jest.fn().mockResolvedValue({}) }));
+    render(<BranchBlock label="refine/dead-code" />);
+    await screen.findByText("this surface's git bridge has no branch verbs yet");
+    expect(mockReported).not.toHaveBeenCalled();
   });
 
   it("loads the diff and shows the base and the file count", async () => {

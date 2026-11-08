@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useDocMembers, useMarkdownWrite } from "../context";
 import { normalizeState, normalizeKind, ordinalOf, claimAt } from "../claims";
 import { owesOf } from "../claimRows";
+import { useBlockFailure } from "../blockFailure";
 
 // `::claim[do this → this should happen]{id=…}` — a statement somebody can check, and the mark.
 //
@@ -62,6 +63,18 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   // Worst where it was most invisible: an EXPERIENTIAL claim marked met with nothing shown drew only
   // `by eye` and read as finished, while `kind=` exempts the SPEC and never the PROOF.
   const unproved = mark.state === "met" && !!parsed && !parsed.proved;
+  // AN UNPROVED MARK TELLS THE AGENT THAT MADE IT — same line ::commit carries, same once-only
+  // key. The row already says `unproved` to the reader; the writer is the one who can embed the
+  // proof or take the mark off, and until now nobody told them.
+  const report = useBlockFailure();
+  useEffect(() => {
+    if (unproved)
+      report({
+        kind: "claim",
+        ref: attrs.id || statement,
+        reason: "marked met with no proof embedded — it does not count as met",
+      }).catch(() => {});
+  }, [unproved, attrs.id, statement, report]);
   // RFC-075 round two — A CLAIM KNOWS ITS REVIEWERS (his: "the badges show up because the claim
   // knows who the reviewer is. And you check it off"). `reviewers=` declares who owes this claim a
   // look; each renders as a HOLLOW badge until their signature lands in `by=`. The human is the one

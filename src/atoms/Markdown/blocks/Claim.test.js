@@ -4,6 +4,14 @@ import Claim from "./Claim";
 import Claims from "./Claims";
 import { MarkdownWriteProvider, MarkdownMembersProvider } from "../context";
 
+// AN UNPROVED MARK TELLS ITS MAKER — the wiring claim; the hook's own rules live in
+// blockFailure.test.js, so here it is a spy.
+const mockReported = jest.fn();
+jest.mock("../blockFailure", () => ({ useBlockFailure: () => mockReported }));
+// CRA resets mock implementations before every test (resetMocks: true), so the promise the
+// blocks .catch() on is re-armed here rather than at the declaration.
+beforeEach(() => mockReported.mockResolvedValue(null));
+
 // THE RULE THESE GUARD: his press is its own evidence and writes at once; a note is optional and
 // lands as its own write. (The statement rule binds an AGENT's mark — that is in the chapter, not
 // in the block, because a file write cannot be policed here.) Mountable because the
@@ -418,6 +426,24 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
   it("never says unproved about a claim nobody marked — there is no claim of met to fail", () => {
     at(9, { id: "c4" });
     expect(screen.queryByText("unproved")).toBeNull();
+  });
+
+  // AND THE WRITER HEARS IT — the row said `unproved` to the reader while the agent that made the
+  // mark was never told, so it stood until he caught it by eye.
+  it("reports an unproved mark to the agent that made it", () => {
+    mockReported.mockClear();
+    at(2, { id: "c1", state: "met", by: "sv", at: "1" });
+    expect(mockReported).toHaveBeenCalledWith({
+      kind: "claim",
+      ref: "c1",
+      reason: "marked met with no proof embedded — it does not count as met",
+    });
+  });
+
+  it("reports nothing about a claim that is actually held", () => {
+    mockReported.mockClear();
+    at(3, { id: "c2", state: "met", by: "sv", at: "1" }, "container");
+    expect(mockReported).not.toHaveBeenCalled();
   });
 
   // THE EDGE IS WHAT READS FROM ACROSS THE CARD, and the chip was 10px of text beside a full green

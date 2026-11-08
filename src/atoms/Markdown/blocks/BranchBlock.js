@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useMarkdownScope, useDocMembers, useMarkdownWrite } from "../context";
 import { routeResult } from "../docSend";
+import { useBlockFailure } from "../blockFailure";
 import { useCapability, useCapabilityState } from "../capabilities";
 
 // `::branch[refine/dead-code]{base=main}` — a branch offered for REVIEW, as a live pointer.
@@ -31,6 +32,7 @@ const BranchBlock = ({ label, attrs = {}, line }) => {
   const [state, setState] = useState(null);
   const [open, setOpen] = useState({});
   const [error, setError] = useState("");
+  const report = useBlockFailure();
   const [busy, setBusy] = useState(false);
   const [armed, setArmed] = useState(false);
   // LAND (his design): accept the branch onto the one you are standing on — no switch, no CLI
@@ -86,7 +88,14 @@ const BranchBlock = ({ label, attrs = {}, line }) => {
       const p = git(projectCode);
       if (!p.branchDiff) throw new Error("this surface's git bridge has no branch verbs yet");
       const [d, s] = await Promise.all([p.branchDiff({ branch, base: attrs.base }), p.gitState()]);
-      if (!d.ok) throw new Error(d.error || "could not diff the branch");
+      if (!d.ok) {
+        // THE BRANCH DID NOT RESOLVE — tell the agent that wrote the block, same line ::commit
+        // carries, same once-only key. Only this case: a bridge with no branch verbs is the HOST
+        // missing a capability, which is nobody's dead pointer.
+        const why = d.error || "could not diff the branch";
+        report({ kind: "branch", ref: branch, reason: why }).catch(() => {});
+        throw new Error(why);
+      }
       setDiff(d);
       setState(s);
       setError("");

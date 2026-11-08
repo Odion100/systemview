@@ -3,6 +3,7 @@ import { projectOf } from "../../../utils/effectiveProject";
 import { useHistory, useParams } from "react-router-dom";
 import { useMarkdownScope, useInDocument } from "../context";
 import { onCodePage, openReportInPanel } from "../openRef";
+import { useBlockFailure } from "../blockFailure";
 
 // `:report[.systemview/report.<pc>.<Name>.md]{title="…"}` — a chip that OPENS a report. A report is
 // just a file plus an index entry, so off the Code page it opens the way any other file does: in
@@ -29,7 +30,19 @@ const ReportLink = ({ label, attrs = {} }) => {
   const slug = (path.split("/").pop() || "").replace(/^report\.[^.]+\./, "").replace(/\.md$/, "");
   const title = attrs.title || slug.replace(/-/g, " ") || path;
 
-  if (!path || !projectCode) {
+  // A DEAD CHIP TELLS THE AGENT THAT WROTE IT — same line ::commit carries, same once-only key.
+  const report = useBlockFailure();
+  const dead = !path || !projectCode;
+  React.useEffect(() => {
+    if (dead)
+      report({
+        kind: "report",
+        ref: path || title,
+        reason: !path ? "the chip names no report file" : "no project could be resolved for it",
+      }).catch(() => {});
+  }, [dead, path, title, report]);
+
+  if (dead) {
     return (
       <span className="md-chip md-chip--report md-chip--dead" title="A :report chip needs the report file's path">
         <span className="md-chip__kind">report</span>
