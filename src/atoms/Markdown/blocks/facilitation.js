@@ -249,6 +249,21 @@ function stepArcSettled(byObj) {
   };
 }
 
+// C22'S STANDING HALF — the sentence a SETTLED arc wears where its button used to be. The state is
+// derived upward and no hand can write it, so the settled station offers no press at all; what the
+// panel owes instead is the explanation, with the plan that actually finished the arc named — the
+// claim's own words: "an arc settles when its plans do", naming the last plan that closed. Ordered
+// by the plans' own settled dates (the leaf's `settled=<date>`, carried onto the registry row);
+// empty when no attached plan is settled, because then the arc is not settled either and the
+// sentence would be about a world that is not there.
+export function arcSettledLine(byObj) {
+  const plans = Object.values(byObj || {}).flat();
+  const settled = plans.filter((r) => r && r.state && r.state.settled);
+  if (!settled.length) return "";
+  const last = settled.reduce((a, b) => (String(a.state.settled) >= String(b.state.settled) ? a : b));
+  return `an arc settles when its plans do — ${last.id} (settled ${last.state.settled}) was the last to close`;
+}
+
 function facilitateArc(station, current, source, ctx, now, leaf, today) {
   const { rows = [], id = "" } = ctx || {};
   const approvals = parseApprovals(source);

@@ -389,3 +389,47 @@ describe("an unreadable retirement reason is said in the document", () => {
     expect(screen.queryByRole("note")).toBeNull();
   });
 });
+
+// ─── C22 — a settled arc's station is not a button, and the panel says why ──────────────────────
+// `settled` on an arc is derived upward (every plan settled, in its own document), so the station
+// you are standing on has no press that could mean anything — it used to be an enabled button
+// whose click silently returned, with the explanation living only in a hover title.
+describe("a settled arc (c22)", () => {
+  const SETTLED_ARC_ROWS = [
+    {
+      id: "ARC-7",
+      kind: "arc",
+      state: { verdict: "approved", objectives: { total: 1, planned: 1, complete: 1 } },
+    },
+    { id: "RFC-71", kind: "rfc", arc: "ARC-7-O1", state: { verdict: "approved", settled: "2026-10-30" } },
+    { id: "RFC-72", kind: "rfc", arc: "ARC-7-O1", state: { verdict: "approved", settled: "2026-11-05" } },
+  ];
+
+  it("the settled station is NO button — disabled, with the derivation in its title", async () => {
+    withRegistry(SETTLED_ARC_ROWS);
+    mountWritable("arc", "ARC-7", { setAttr: jest.fn() }, { id: "ARC-7" });
+    const st = await screen.findByRole("button", { name: "settled" });
+    expect(st).toBeDisabled();
+    expect(st.title).toMatch(/comes from every objective's plans being settled/);
+    // the stations a press can still REACH stay live
+    expect(screen.getByRole("button", { name: "retired" })).toBeEnabled();
+  });
+
+  it("the panel SAYS an arc settles when its plans do, naming the last plan that closed", async () => {
+    withRegistry(SETTLED_ARC_ROWS);
+    mountWritable("arc", "ARC-7", { setAttr: jest.fn() }, { id: "ARC-7" });
+    expect(await screen.findByRole("note")).toHaveTextContent(
+      "an arc settles when its plans do — RFC-72 (settled 2026-11-05) was the last to close"
+    );
+  });
+
+  it("an arc still moving wears no sentence — the ladder and its steps are the surface there", async () => {
+    withRegistry([
+      { id: "ARC-8", kind: "arc", state: { verdict: "approved", objectives: { total: 1, planned: 1, complete: 0 } } },
+      { id: "RFC-81", kind: "rfc", arc: "ARC-8-O1", state: { verdict: "approved", built: true } },
+    ]);
+    mountWritable("arc", "ARC-8", { setAttr: jest.fn() }, { id: "ARC-8" });
+    await screen.findByText(/in progress/);
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+});

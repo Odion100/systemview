@@ -1,5 +1,5 @@
 // RFC-076 §3, column four — the RFC facilitation LADDER, each shape provable without a renderer.
-import { facilitate, parseApprovals, rfcCurrent } from "./facilitation";
+import { facilitate, parseApprovals, rfcCurrent, arcSettledLine } from "./facilitation";
 
 const DOC = `# a design
 ::rfc{id=RFC-900}
@@ -246,6 +246,56 @@ describe("facilitation — the arc's column", () => {
     const bare = ARC.replace(/:::objective[\s\S]*/, "");
     const p = facilitate("arc", "inProgress", "approved", bare, 0, {}, "", { rows: [], id: "ARC-900" });
     expect(p.steps[0].label).toMatch(/no objectives/);
+  });
+
+  // c22's STANDING half — the sentence a settled arc wears where its button used to be, with the
+  // plan that actually finished the arc named, ordered by the plans' own settled dates.
+  it("c22 · the settled sentence names the LAST plan to close, by its settled date", () => {
+    const byObj = {
+      O1: [{ id: "RFC-901", state: { settled: "2026-10-30" } }],
+      O2: [{ id: "RFC-902", state: { settled: "2026-11-02" } }, { id: "RFC-903", state: { settled: "2026-10-12" } }],
+    };
+    expect(arcSettledLine(byObj)).toBe(
+      "an arc settles when its plans do — RFC-902 (settled 2026-11-02) was the last to close"
+    );
+  });
+
+  it("c22 · no settled plan, no sentence — a guess about a world that is not there", () => {
+    expect(arcSettledLine({ O1: [{ id: "RFC-901", state: {} }] })).toBe("");
+    expect(arcSettledLine({})).toBe("");
+  });
+});
+
+// ─── C20 — pressing forward from BUILT marks what is yours and names what is not ────────────────
+// `built` can be reached by the STATUS heading alone (rfcCurrent reads the heading), so a built
+// RFC can still carry unmarked claims — and the forward press is where the §3 table promises the
+// split: one button for your marks, the others' owner named, never pressed for.
+describe("facilitation — c20, forward from built", () => {
+  const BUILT = `# a plan
+::rfc{id=RFC-950}
+
+:::approval{ask="approve it?" verdict=approved by=you}
+body
+:::
+
+::claims
+
+::claim[one that is mine]{id=c1}
+::claim[another of mine]{id=c2}
+::claim[theirs to mark]{id=c3 reviewers=buapi}
+
+## STATUS — built 2026-11-01
+`;
+
+  it("c20 · marks the claims that are yours, and NAMES the ones that are not", () => {
+    const p = facilitate("rfc", "settled", "built", BUILT, 9);
+    const marks = p.steps.find((s) => /mark the/.test(s.label));
+    expect(marks.label).toBe("mark the 2 claims that are yours");
+    expect(marks.writes).toHaveLength(2);
+    expect(marks.writes.every((w) => w.pairs.state === "met" && w.pairs.by.split("|").includes("you"))).toBe(true);
+    // the one that is not yours is NAMED with its owner — and never written for them
+    expect(marks.note).toMatch(/1 belong to buapi — their marks are theirs to make/);
+    expect(marks.writes.some((w) => w.line === BUILT.split("\n").findIndex((l) => l.includes("id=c3")) + 1)).toBe(false);
   });
 });
 

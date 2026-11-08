@@ -13,7 +13,8 @@ import {
   reasonOf,
   stepsFor,
 } from "./lifecycleState";
-import { facilitate, rfcCurrent } from "./facilitation";
+import { facilitate, rfcCurrent, arcSettledLine } from "./facilitation";
+import { plansByObjective } from "../objectives";
 
 // RFC-075 §2 (his, folded at execution): *"the blocks for RFC and reports are literally just
 // labels — make the interactive component about the LIFE CYCLE of the document."*
@@ -150,8 +151,11 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   const { editable, setAttr, setAttrs, appendEnd } = useMarkdownWrite() || {};
   const { source = "", projectCode = "" } = useDocMembers() || {};
   // An arc's steps are about documents that are not this one — the registry is the only place
-  // those live. Fetched only for an arc whose panel is open (see useRegistryRows).
-  const planRows = useRegistryRows(kind === "arc" && !!helping && id, nonce);
+  // those live. Fetched for an arc whose panel is open — and for a SETTLED arc standing still,
+  // because the settled station carries no press (c22) and the panel owes the explanation instead:
+  // which plan actually closed it, which only the registry knows.
+  const arcSettled = kind === "arc" && !!row && stateOf("arc", row, leaf) === "settled";
+  const planRows = useRegistryRows(kind === "arc" && (!!helping || arcSettled) && id, nonce);
   const ctx = useMemo(
     () => ({ rows: planRows, id, project: projectCode, attrs }),
     // keyed on the attribute VALUES a step reads, not the object, which is new every render
@@ -340,6 +344,10 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   // comes back wearing its ✓, and the next one's button takes the floor.
   const plan = helping ? facilitate(kind, helping, helpCurrent, source, Date.now(), leaf, today(), ctx) : null;
   const nextStep = plan ? (plan.steps || []).find((s) => !s.done) : null;
+  // C22's sentence, standing — a settled arc's station takes no press, so the panel says WHY in
+  // place of the button, naming the plan that actually closed it. Derived from the registry rows;
+  // empty while they have not answered, because a sentence about plans it has not read is a guess.
+  const settledSays = arcSettled && current === "settled" ? arcSettledLine(plansByObjective(planRows, id)) : "";
 
   // THE BAR AND THE PANEL ARE SIBLINGS, never nested. The leaf is one row and it must not move:
   // anything that opens — a refusal, the reason menu, a step list — goes in `__panel`, which the
@@ -359,6 +367,12 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
         : s,
     fork: alt.includes(s),
     dead: s === "rejected" && i === reached,
+    // THE STATION YOU STAND ON, WHEN IT IS DERIVED, IS NOT A BUTTON AT ALL (c22). Pressing where
+    // you already are has always been a no-op, and a derived station cannot be re-pressed into
+    // being — so an enabled button there is a press with no possible meaning, and on a settled
+    // arc it read as "already settled" instead of as the fact it is. The stations a press can
+    // still REACH stay live: pressing a derived station from somewhere else opens its steps.
+    disabled: i === reached && !!derived[s],
     glyph: canPress && !derived[s] ? "⌾" : "◦",
     title:
       i === reached
@@ -367,6 +381,10 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
           ? standing
             ? `this document is retired — ${standing.label}: ${standing.why}`
             : `this document is retired, but “${retiredAs}” is not a reason anything can read — it is neither an ending nor a pause`
+          : derived[s]
+          ? // A derived station you are STANDING ON takes no press (c22) — the title says where
+            // the state comes from instead of narrating a button that is not there.
+            `this document is ${s} — it comes from ${derived[s]}, so there is nothing to press`
           : `this document is ${s}`
         : derived[s]
         ? `${s} comes from ${derived[s]} — this cannot set it`
@@ -391,7 +409,7 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
         because it is the one control every registered document already has, and it is holding the
         id and the spec inventory this needs. */}
     <DocProofs id={id} projectCode={projectCode} />
-    {asking || declining || refused || unreadable || helping ? (
+    {asking || declining || refused || unreadable || helping || settledSays ? (
     <span className="md-arc__panel" ref={panelRef}>
       {/* THE STEP LIST a press opened (RFC-076 §3, column four). One button for the mechanical
           half; what is not yours is NAMED, never done for its owner. When the steps run dry the
@@ -436,6 +454,11 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
           >
             never mind
           </button>
+        </span>
+      ) : null}
+      {settledSays ? (
+        <span className="md-arc__says" role="note">
+          {settledSays}
         </span>
       ) : null}
       {unreadable ? (

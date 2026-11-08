@@ -3735,6 +3735,20 @@
     color: #e08a76;
     padding: 5px 0 2px;
   }
+
+  // C22 — the sentence a settled arc wears where its button used to be. Same shape as a refusal,
+  // but nothing was refused: the state is derived upward and this explains it, so it reads muted
+  // rather than in the ending colour.
+  &__says {
+    flex-basis: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--sv-text-muted);
+    padding: 5px 0 2px;
+  }
 }
 
 // RFC-075 round two — the fence jam, visible: a document that cannot self-heal says so.
