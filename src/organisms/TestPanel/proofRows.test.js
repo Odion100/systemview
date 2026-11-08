@@ -188,3 +188,38 @@ describe("summaryOf — a run in flight has a number that moves", () => {
     expect(summaryOf({ listed: LISTED, running: true, marks: {} })).toBe("running…");
   });
 });
+
+// ── WIDENING IS A READ, NEVER A RUN ───────────────────────────────────────────────────────────
+// HIS CATCH, 2026-11-07: *"Why do all the tests run right away? Just because I clicked all to show
+// all the tests."* The `⤢ all` control, titled "widen to the whole project", called `runProofs` —
+// so asking to SEE every spec in the project executed every spec in the project, against live
+// services, on one press.
+//
+// This reads the panel's real source rather than mounting it, for the reason the top of this file
+// gives: a test that mounts the panel pulls in the rest of the organism. The claim is the one the
+// panel's own comment makes — the run door is not in scope here, and the cards below are what run.
+// A source claim is the right shape for it: the defect was not a wrong value, it was reaching for a
+// function that should not have been within reach.
+describe("the proofs panel lists; the cards run", () => {
+  const src = require("fs").readFileSync(require.resolve("./ProofsPanel"), "utf8");
+
+  it("does not import the bus's run door at all", () => {
+    const imports = src.slice(0, src.indexOf("\n\n"));
+    expect(imports).toMatch(/from "\.\.\/\.\.\/utils\/proofsBus"/);
+    expect(imports).not.toMatch(/\brun as \w+/);
+    expect(imports).toMatch(/\blist as listProofs\b/);
+  });
+
+  it("the widen control reaches the LIST door", () => {
+    const widen = src.match(/const go = useCallback\(([^;]*)\);/);
+    expect(widen).toBeTruthy();
+    expect(widen[1]).toMatch(/listProofs/);
+    expect(widen[1]).not.toMatch(/runProofs/);
+  });
+
+  it("and the button titled for widening is the one wired to it", () => {
+    const btn = src.match(/title="widen to the whole project"[\s\S]{0,120}/);
+    expect(btn).toBeTruthy();
+    expect(btn[0]).toMatch(/onClick=\{\(\) => go\(\{\}\)\}/);
+  });
+});

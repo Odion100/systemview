@@ -4,7 +4,7 @@ import ServiceContext from "../../../ServiceContext";
 import loadServiceWithHeaders from "../../../utils/loadService";
 import { useMarkdownScope } from "../context";
 import { openAddress } from "../openRef";
-import { useInDocument } from "../context";
+import { useInDocument, InEmbedProvider } from "../context";
 import { parseFileSpec } from "./FileLink";
 import CodeEditor from "../../CodeView/CodeEditor";
 import DiffView from "../../DiffView/DiffView";
@@ -456,13 +456,18 @@ const Embed = ({ label, attrs = {}, opens }) => {
           // checklist here shows its state without writing to his file behind his back. Open it
           // properly (click the path) to change it.
           <div className={`md-view md-view--${editorDark ? "dark" : "light"}`}>
-            <Markdown
-              dark={editorDark}
-              scope={{ projectCode: host ? host.projectCode : projectCode, serviceId: host ? host.serviceId : null }}
-              commentKey={`file-${path}`}
-            >
-              {content}
-            </Markdown>
+            {/* AND MARKED AS A QUOTATION, which is the other half of read-only: a registration leaf
+                in these lines must RENDER without acting, because it is another document's identity
+                being shown, not this one's. */}
+            <InEmbedProvider>
+              <Markdown
+                dark={editorDark}
+                scope={{ projectCode: host ? host.projectCode : projectCode, serviceId: host ? host.serviceId : null }}
+                commentKey={`file-${path}`}
+              >
+                {content}
+              </Markdown>
+            </InEmbedProvider>
           </div>
         ) : (
           // The EDITOR, held read-only — that's what carries the change stripes, the panel a stripe

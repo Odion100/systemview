@@ -31,7 +31,13 @@ try {
 
 const url = "http://localhost:3000/systemview/api";
 
-Client.loadService(url).then((SystemViewService) => {
+// FORCE THE RELOAD. `loadService` hands back a CACHED client when one exists for the url, with its
+// module map frozen at first construction — and this window is long-lived by design: it swaps its
+// own bundle in place rather than reloading, so a client built on the day it opened is the client it
+// keeps. A hub that gains a method is then a method this window cannot call, while the registry, the
+// manifest and the live service all list it. `forceReload` evicts first (Client.js:37), which is the
+// one thing that makes the next build real.
+Client.loadService(url, { forceReload: true }).then((SystemViewService) => {
   setHub(SystemViewService);
   ReactDOM.render(
     <React.StrictMode>

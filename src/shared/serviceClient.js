@@ -1,0 +1,113 @@
+// ONE DOOR TO A SERVICE CLIENT, AND IT CANNOT SERVE A SURFACE THAT DISAGREES WITH THE REGISTRY.
+//
+// IT LIVES IN src/shared/ BECAUSE BOTH LONG-LIVED PROCESSES HAVE THIS BUG. `Client.createService`
+// returns a CACHED instance keyed by serviceUrl and freezes its module/method map at first
+// construction, so any process that outlives a service's surface ends up holding a client that
+// cannot call a method the registry, the manifest and the live service all list.
+//
+// This file used to sit in api/ alone, on the reasoning that *"the browser builds its own client per
+// page load"*. The window does not reload — it swaps its own bundle in place and stays open for
+// days — so it holds its first client for as long as it is open. MEASURED 2026-11-07: a saved spec
+// for a module added that evening ran green through the agent door and red in the window, with
+// `o[a] is not a function` and `Cannot read properties of undefined (reading 'board')` — the mirror
+// image of the sentence that justified keeping this on one side.
+//
+// What that produces is not a wrong answer, it is an unanswerable one: *this service publishes no
+// such method* is true of a stale object and false of the system, and nothing on either side says
+// which. So it is checked at the only place a client is obtained — the registry DECLARES what a
+// service publishes (`connectionData.modules[].methods[].fn`) and the built object either has those
+// functions or does not. A disagreement rebuilds the client once; if it still disagrees, that is a
+// real mismatch and it is REPORTED with both surfaces named.
+// What the registry says this service publishes: [{ module, methods: [...] }]
+function declaredSurface(connectionData) {
+  const mods = (connectionData && connectionData.modules) || [];
+  return mods.map((m) => ({
+    module: m.name,
+    methods: (m.methods || []).map((x) => x.fn).filter(Boolean),
+  }));
+}
+
+// Which declared methods the built object cannot actually call. Empty means they agree.
+function missingFrom(service, connectionData) {
+  const gaps = [];
+  for (const { module, methods } of declaredSurface(connectionData)) {
+    const M = service && service[module];
+    if (!M) {
+      if (module) gaps.push(`${module} (whole module)`);
+      continue;
+    }
+    for (const fn of methods) if (typeof M[fn] !== "function") gaps.push(`${module}.${fn}`);
+  }
+  return gaps;
+}
+
+// `Client` is passed in rather than required here, because the hub's client carries its cookie jar
+// and headers — a second client would be a second identity, which is its own class of bug.
+function serviceClient(Client, connectionData, { onRebuild } = {}) {
+  let service = Client.createService(connectionData);
+  const gaps = missingFrom(service, connectionData);
+  if (!gaps.length) return service;
+
+  // THE REBUILD, ONCE. unloadService closes this instance's sockets and drops the cache entry, so
+  // createService genuinely constructs a new one from the record we are holding.
+  try { Client.unloadService(connectionData.serviceUrl); } catch {}
+  service = Client.createService(connectionData);
+  const still = missingFrom(service, connectionData);
+  if (onRebuild) {
+    try { onRebuild({ serviceUrl: connectionData.serviceUrl, was: gaps, now: still }); } catch {}
+  }
+  if (still.length) {
+    // Not a stale client — the registry and the service genuinely disagree. Naming both halves is
+    // the whole point: the caller can see it is a registration problem, not a missing method.
+    const err = new Error(
+      `${connectionData.serviceUrl}: the registry says this service publishes ` +
+        `${still.join(", ")}, but the service does not. Re-register it (the record was written ` +
+        `from an older build of the service), or the method was removed without re-registering.`
+    );
+    err.registryMismatch = still;
+    throw err;
+  }
+  return service;
+}
+
+/**
+ * THE SAME MISMATCH, AS A SERVICE THAT ANSWERS INSTEAD OF A CALL THAT NEVER HAPPENS.
+ *
+ * `serviceClient` throws, which is right for a PROBE: you asked for one method, the record is wrong,
+ * and the loudest possible answer is the useful one. It is wrong for a RUN. Measured 2026-11-07 by
+ * using the door: `runProofs` over 27 collectable specs died on a single stale method reference
+ * (`Plugin.fixturesRunning`, a record written from an older build), so twenty-seven proofs that had
+ * nothing to do with it never ran and the answer was one error string. This file's own neighbour
+ * states the doctrine it broke — *"A DEAD WIRE DOES NOT STOP THE RUN. Bailing on it would end a
+ * suite on a socket nobody was testing."*
+ *
+ * So a runner asks for a DEGRADED service: it carries exactly the surface the registry DECLARED, so
+ * the engine indexes it as it would any other, and every method on it rejects with the mismatch
+ * message. The specs that touch it fail, saying precisely why; every other spec runs.
+ */
+function degradedService(connectionData, err) {
+  const out = {};
+  for (const { module, methods } of declaredSurface(connectionData)) {
+    if (!module) continue;
+    out[module] = out[module] || {};
+    for (const fn of methods) out[module][fn] = () => Promise.reject(err);
+  }
+  // A DEGRADED SERVICE HAS TO SATISFY THE CLIENT'S SHAPE, NOT ONLY THE REGISTRY'S. The engine does
+  // not just index modules off this object — `Test.class.js` getConnection() calls
+  // `createService(...).setHeaders({ Origin: … })` on the very next line, so a stand-in carrying
+  // only the declared modules throws `setHeaders is not a function` and takes the WHOLE run down.
+  // That is strictly worse than the failure this degrade exists to prevent: measured 2026-11-07,
+  // `runProofs` over RFC-075 answered that one sentence and ran nothing, where before the degrade
+  // it at least named the mismatch.
+  //
+  // It accepts and discards, deliberately: headers are for a socket this stand-in does not have,
+  // and every method already rejects with the registry mismatch — so swallowing them changes
+  // nothing about what the caller is told.
+  // NON-ENUMERABLE, like the engine's own `connection` bag and for the same reason: the KEYS of this
+  // object are the registry's modules, and a claim that reads them should not have to know about
+  // client plumbing. `Object.keys(degradedService({}))` stays `[]`.
+  Object.defineProperty(out, "setHeaders", { value: () => out, enumerable: false });
+  return out;
+}
+
+module.exports = { serviceClient, degradedService, missingFrom, declaredSurface };

@@ -61,6 +61,30 @@ export function InDocumentProvider({ value = true, children }) {
 
 export const useInDocument = () => useContext(InDocument);
 
+// A DOCUMENT QUOTED INSIDE ANOTHER ONE — RENDERED, NEVER ACTING.
+//
+// `::file[path#L1-5]` brings a file into the document and renders it as markdown, which means a
+// registration leaf in those lines renders too. That is right: an embed shows you what the file
+// says. What is wrong is the leaf ACTING, because it is not this document's identity — it is a
+// quotation of another one.
+//
+// MEASURED 2026-11-07: a report embedded the first five lines of another report, whose line 1 is
+// its leaf. Every leaf carries a `DocProofs` that claims the proofs panel on mount, so opening the
+// host document loaded its own three specs and then lost the panel to the embedded id a beat later
+// — *"the test show up for a second and then go away."* One open tab, two leaves, and the panel
+// scoped to a document nobody had open.
+//
+// It is a context for the same reason `InDocument` is: the blocks that act are nested anywhere
+// inside the rendered file, and a prop threaded through every one of them is a prop missing from
+// the one nobody remembered.
+const InEmbed = createContext(false);
+
+export function InEmbedProvider({ value = true, children }) {
+  return <InEmbed.Provider value={!!value}>{children}</InEmbed.Provider>;
+}
+
+export const useInEmbed = () => useContext(InEmbed);
+
 const MarkdownWrite = createContext({ editable: false, setAttr: () => {} });
 
 export function MarkdownWriteProvider({ value, children }) {

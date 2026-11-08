@@ -1,5 +1,29 @@
 import { Client, markCredentialed } from "../systemClient";
 import { HOST_MARK, hostBackedPlugin } from "./hostProject";
+import { serviceClient } from "../shared/serviceClient";
+
+// A CLIENT THAT AGREES WITH THE REGISTRY, OR THE BEST ONE AVAILABLE — never an exception.
+//
+// The shared door THROWS when a rebuild does not reconcile the two surfaces, which is right for a
+// probe: one method was asked for and the record is wrong. It is wrong here, because this is called
+// from render paths — a file embed, a chart, a run block — and a throw there is a blank area with no
+// reason in it. By the time it throws, the rebuild has already happened and been re-cached, so
+// asking the client again hands back the REBUILT instance; the real mismatch then arrives as the one
+// method failing, where the caller can say which.
+function rebuilt(connectionData) {
+  try {
+    return serviceClient(Client, connectionData, {
+      onRebuild: ({ serviceUrl, was, now }) =>
+        console.warn(
+          `[systemview] rebuilt the client for ${serviceUrl} — it was missing ${was.join(", ")}` +
+            (now.length ? `; still missing ${now.join(", ")}` : ""),
+        ),
+    });
+  } catch (err) {
+    console.warn(`[systemview] ${(err && err.message) || err}`);
+    return Client.createService(connectionData);
+  }
+}
 
 // Load a service client with its auth headers attached.
 //
@@ -23,7 +47,16 @@ export default function loadServiceWithHeaders(connectionData, headers, credenti
   // can never fire for a real service.
   if (connectionData && connectionData[HOST_MARK])
     return { Plugin: hostBackedPlugin(connectionData[HOST_MARK]) };
-  const service = Client.createService(connectionData);
+  // THE CLIENT IS REBUILT WHEN IT DISAGREES WITH THE REGISTRY, and this window is exactly the
+  // process that needs it: it swaps its own bundle in place rather than reloading, so the client it
+  // built on the day it opened is the client it still holds. A service that gains a method after
+  // that leaves every block here calling a function that is not there — `o[a] is not a function`,
+  // which reads as the service being broken.
+  //
+  // It never throws, unlike the hub's probe path. This is called from render paths (file embeds,
+  // charts, run blocks), so a genuine registry mismatch has to arrive as the method failing where
+  // the caller can report it, not as a blank block.
+  const service = rebuilt(connectionData);
   if (
     service &&
     typeof service.setHeaders === "function" &&

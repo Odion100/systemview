@@ -1,4 +1,4 @@
-::report{id="The board answers the question it was asked" as=account retain=30d}
+::report{id="The board answers the question it was asked" as=spec retain=30d}
 
 ::members{who=systemview-test}
 
@@ -48,6 +48,29 @@ against a hub that had not restarted: the route dropped it, the read fell throug
 back, and the caller could not tell the write had never happened. Policing the vocabulary in one
 place requires the route to stop deciding — so it forwards what it does not recognise, and
 `board.js` refuses it by name.
+
+::claims
+
+**The proof is one saved spec at the door's own namespace** — `TestService.Board.board`, four setup
+steps and six assertions, mounted so that the method it calls is the method the hub calls. Press any
+chip below and it runs here.
+
+::::claim[`at` with no write reads that one card whole, instead of answering with the whole board]{id=b1 state=met by=systemview-test note="the step addresses it by PART of a title, asserts the body comes back whole, and asserts `cards` is absent — the fallthrough's signature" told=systemview-test}
+::test[TestService.Board.board]{project=systemview-test}
+::::
+
+::::claim[`brief` hands back the index and never the bodies]{id=b2 state=met by=systemview-test note="two index rows asserted field by field — title, state, declaration, body size — and an untitled card marked untitled rather than silently named" told=systemview-test}
+::test[TestService.Board.board]{project=systemview-test}
+::::
+
+::::claim[a parameter the door does not understand is refused by name, and writes nothing]{id=b3 state=met by=systemview-test note="the refusal names `stat` and hands back the vocabulary; the step after it re-reads the board and finds the same three cards, so a refused call cannot have half-happened" told=systemview-test}
+::test[TestService.Board.board]{project=systemview-test}
+::::
+
+**Each claim has been SEEN to fail, not merely seen to pass.** Neutralising the refusal — one line,
+`const spare = []` — turned exactly one step red and named the consequence rather than the symptom:
+`results.cards → expected "undefined", got "array"`. That is the whole board coming back, which is
+the behaviour the card was filed about.
 
 ## What ran
 
@@ -133,6 +156,12 @@ into. `runs-belong-to-the-agent` is mine, from 2026-11-02, and it carries seven 
 account that got the wrong word. Its leaf now says so.
 
 ::file[.systemview/report.systemview-test.runs-belong-to-the-agent.md#L1-5]
+
+**THAT EMBED FOUND A BUG, AND IT STAYS HERE AS THE REPRODUCTION.** Line 1 of that file is its leaf,
+so embedding its head renders a second registration leaf inside this document — and a leaf claims
+the proofs panel on mount. Reading this report, his three specs loaded and then vanished a beat
+later as the embedded leaf claimed the panel for a document nobody had open: *"the test show up for
+a second and then go away."* One open tab, two leaves. The fix is in the window, below.
 
 Writing proofs into either one would have been manufacturing evidence for claims neither document
 makes — and the pattern across all three is one thing, which is that `spec` got declared on work

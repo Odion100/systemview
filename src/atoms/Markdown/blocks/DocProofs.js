@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { list as listProofs } from "../../../utils/proofsBus";
 import useEffectiveProject from "../../../utils/effectiveProject";
+import { useInEmbed } from "../context";
 
 // OPENING A DOCUMENT LOADS ITS SPECS INTO THE PANEL.
 //
@@ -25,9 +26,16 @@ import useEffectiveProject from "../../../utils/effectiveProject";
 // it should be empty." Firing only when this document HAS specs left the previous document's specs
 // sitting in the panel under the new document's name — the panel saying one thing while the window
 // showed another, which is worse than an empty list.
+// A QUOTED LEAF IS NOT AN IDENTITY, SO IT DOES NOT CLAIM THE PANEL. "Mount is the signal" holds
+// only while every leaf in the DOM belongs to the document on screen, and a `::file` embed breaks
+// that: it renders another file's lines, and if those lines include its leaf, a second leaf mounts
+// inside the first document. Measured 2026-11-07 — one open tab, two leaves, the host's three specs
+// loading and then losing the panel to the embedded id: *"the test show up for a second and then go
+// away."* The embed is right to RENDER the leaf; what it may not do is act with it.
 const DocProofs = ({ id, projectCode: given }) => {
   const projectCode = useEffectiveProject(given);
-  const has = !!(id && projectCode);
+  const quoted = useInEmbed();
+  const has = !!(id && projectCode && !quoted);
   useEffect(() => {
     if (has) listProofs(projectCode, { document: id });
   }, [has, id, projectCode]);

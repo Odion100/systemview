@@ -77,3 +77,93 @@ describe("a service's origin is credentialed only when it says so", () => {
     expect(sendsCredentials("https://nope.example/api")).toBe(false);
   });
 });
+
+// ── A CLIENT THAT OUTLIVED THE SERVICE'S SURFACE ──────────────────────────────────────────────
+// MEASURED 2026-11-07: a saved spec for a module mounted that evening ran GREEN through the agent
+// door and RED in his window — `o[a] is not a function`, `Cannot read properties of undefined
+// (reading 'board')`. Neither is the subject failing. `Client.createService` caches by serviceUrl
+// and freezes its method map at first construction, and this window does not reload: it swaps its
+// own bundle in place and stays open for days, so the client it built on open is the client it
+// still holds.
+//
+// The hub already rebuilt on this disagreement. The window did not, on the written reasoning that
+// "the browser builds its own client per page load" — which is what these claims exist to stop
+// being true again.
+describe("a cached client that disagrees with the registry is rebuilt", () => {
+  const DECLARES = (url, surface) => ({
+    serviceUrl: url,
+    modules: Object.entries(surface).map(([module, methods]) => ({
+      name: module,
+      methods: methods.map((fn) => ({ fn })),
+    })),
+  });
+
+  // The cache this models is systemlynx's: one instance per URL, built once, handed back after.
+  // `unloadService` is the only thing that drops it, which is why the rebuild has to call it.
+  // The cache this models is systemlynx's: ONE instance per URL, built once, handed back after.
+  // `unloadService` is the only thing that drops it, which is why the rebuild has to call it — so the
+  // FIRST build here returns the stale surface and every build after it returns the live one. Getting
+  // that backwards (handing the live surface to the first build) describes a client that was never
+  // frozen, and the claim then passes against code that does nothing.
+  function clientHolding(...surfaces) {
+    const built = [];
+    return {
+      calls: built,
+      createService: (conn) => {
+        const surface = surfaces[Math.min(built.length, surfaces.length - 1)];
+        built.push(conn.serviceUrl);
+        const svc = { setHeaders: jest.fn() };
+        for (const [mod, fns] of Object.entries(surface)) {
+          svc[mod] = {};
+          for (const fn of fns) svc[mod][fn] = () => {};
+        }
+        return svc;
+      },
+      unloadService: jest.fn(),
+    };
+  }
+
+  it("asks again after unloading, so a method added later becomes callable", () => {
+    // frozen client: Math.add only. After an unload it would build with Board, like the live service.
+    const Client = clientHolding({ Math: ["add"] }, { Math: ["add"], Board: ["board"] });
+    jest.resetModules();
+    jest.doMock("../systemClient", () => ({ Client, markCredentialed: () => {} }));
+    const load = require("./loadService").default;
+
+    const svc = load(DECLARES("http://localhost:5555/test/api", { Math: ["add"], Board: ["board"] }), {}, false);
+
+    expect(Client.unloadService).toHaveBeenCalledWith("http://localhost:5555/test/api");
+    expect(Client.calls).toHaveLength(2); // built, found wanting, built again
+    expect(typeof svc.Board.board).toBe("function");
+  });
+
+  it("does NOT unload a client that already agrees — the rebuild costs sockets", () => {
+    const Client = clientHolding({ Math: ["add"] });
+    jest.resetModules();
+    jest.doMock("../systemClient", () => ({ Client, markCredentialed: () => {} }));
+    const load = require("./loadService").default;
+
+    load(DECLARES("http://localhost:5555/test/api", { Math: ["add"] }), {}, false);
+    expect(Client.unloadService).not.toHaveBeenCalled();
+    expect(Client.calls).toHaveLength(1);
+  });
+
+  // THE RENDER PATHS ARE WHY THIS MAY NOT THROW. A real mismatch — the registry promising something
+  // the service genuinely does not have — must arrive as the one method failing where the caller can
+  // say which, not as a file embed that renders nothing and explains nothing.
+  it("hands back a usable client even when the rebuild cannot reconcile the two surfaces", () => {
+    const Client = clientHolding({ Math: ["add"] });
+    jest.resetModules();
+    jest.doMock("../systemClient", () => ({ Client, markCredentialed: () => {} }));
+    const load = require("./loadService").default;
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+
+    // the registry promises a method no build of the service has
+    const svc = load(DECLARES("http://localhost:5555/test/api", { Math: ["add", "nope"] }), {}, false);
+
+    expect(svc).toBeTruthy();
+    expect(typeof svc.setHeaders).toBe("function");
+    expect(warn.mock.calls.flat().join(" ")).toMatch(/Math\.nope/);
+    warn.mockRestore();
+  });
+});

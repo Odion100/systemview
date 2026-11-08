@@ -1,6 +1,8 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getAgent } from "../../utils/hub";
-import { run as runProofs, list as listProofs, mark, subscribe, offerRunner, finished, clear as clearMarks } from "../../utils/proofsBus";
+// NO `run` DOOR IS IMPORTED HERE ANY MORE, and that is the guard rather than tidiness: this panel
+// LISTS and the cards below RUN. While `run` was in scope, the widen control reached for it.
+import { list as listProofs, mark, subscribe, offerRunner, finished, clear as clearMarks } from "../../utils/proofsBus";
 import SavedTests from "../SavedTests/SavedTests";
 import { parseSteps, toStep } from "../../atoms/Markdown/blocks/RunBlock";
 import ServiceContext from "../../ServiceContext";
@@ -108,6 +110,34 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
   // than an empty tab.
   useEffect(() => subscribe((s) => setState(s)), []);
 
+  // EVERY DOCUMENT IN THE PROJECT THAT CARRIES A SPEC — the picker's options, and the reason this
+  // panel can be pointed at ANY document rather than only the one that happened to claim it.
+  //
+  // WHY A PICKER AT ALL (his ask, 2026-11-07: *"I want the test showing up in the scratch pad test
+  // panel. The proofs. to read any document."*). Scope arrives from whichever registration LEAF
+  // mounted last, and one open document can hold more than one leaf: a `::file` embed of another
+  // document's head renders that document's leaf inside this one. Measured on his live window the
+  // same evening — one open tab, two leaves in `.code-pane`, the embedded one mounting second — so
+  // the panel asked the hub for an id belonging to a document nobody had open and reported
+  // "Nothing to run in this document" over one holding three specs.
+  //
+  // It reads the hub DIRECTLY instead of through the bus, deliberately: the bus holds the scope, so
+  // a project-wide list through it would clobber the very selection this control exists to make.
+  const [docs, setDocs] = useState([]);
+  useEffect(() => {
+    if (noProject || absent) return;
+    let live = true;
+    (async () => {
+      try {
+        const all = await getAgent().listProofs({ projectCode });
+        if (live) setDocs((all && all.documents) || []);
+      } catch {
+        /* the picker is an extra; its absence must never cost the panel its listing */
+      }
+    })();
+    return () => (live = false);
+  }, [projectCode, noProject, absent, ask, cleared]);
+
   // THIS PANEL IS THE RUNNER. While it is mounted, a ▶ pressed in a document collects into this
   // list and asks it to run — so the bus never calls the hub and never needs to. Taken back on
   // unmount, which is what lets a press from a page with no panel fall back to the hub instead of
@@ -122,7 +152,13 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
   // one: a document loads its own tests, so no document means no tests. An empty panel beside no
   // open document is the honest answer, not a pile from everywhere.
 
-  const go = useCallback((next) => runProofs(projectCode, next || {}), [projectCode]);
+  // WIDENING IS A READ. `⤢ all` says "show me everything in the project" and it called `runProofs`,
+  // which EXECUTED every spec in the project the instant it was pressed — his catch, 2026-11-07:
+  // *"Why do all the tests run right away? Just because I clicked all to show all the tests."*
+  // Nothing about asking to see more is a request to run anything, and on a project this size that
+  // is dozens of real calls against live services nobody asked for. The runner is ▶ Run all, below,
+  // where it is labelled as one.
+  const go = useCallback((next) => listProofs(projectCode, next || {}), [projectCode]);
 
 
   const rows = useMemo(() => listRows(listed), [listed]);
@@ -224,6 +260,25 @@ const ProofsPanel = ({ projectCode: routeCode, services: givenServices = [], sav
           {scopeLabel(scope)}
         </span>
         <span className="test-panel__proofs-sum">{head}</span>
+        {/* READ ANY DOCUMENT. The options are every document in the project carrying a spec, with
+            its count — so choosing is informed rather than a guess at a title. Selecting one scopes
+            the panel the same way opening that document does; there is one scoping door and this is
+            a second way to press it. */}
+        {docs.length > 1 && (
+          <select
+            className="test-panel__proofs-pick"
+            title="read another document's proofs"
+            value={(scope && scope.document) || ""}
+            onChange={(e) => (e.target.value ? listProofs(projectCode, { document: e.target.value }) : listProofs(projectCode, {}))}
+          >
+            <option value="">every document ({docs.length})</option>
+            {docs.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.id} — {(d.specs || []).length} spec{(d.specs || []).length === 1 ? "" : "s"}
+              </option>
+            ))}
+          </select>
+        )}
         <span className="test-panel__proofs-acts">
           {scoped && (
             <button type="button" className="test-panel__icon-btn" title="widen to the whole project" onClick={() => go({})}>
