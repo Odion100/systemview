@@ -1,4 +1,4 @@
-::report{id="The board answers the question it was asked" as=spec retain=30d}
+::report{id="The board answers the question it was asked" as=account retain=30d}
 
 ::members{who=systemview-test}
 
@@ -84,14 +84,24 @@ cd ~/autobot && yarn smoke:board 2>&1 | tail -4
 :::
 ::::
 
+**THIS IS AN `account`, AND THE CARD ASKED FOR A `spec`.** The declaration was right — the work
+owes runnable proof and it has some: 41 node assertions, 8 of them new, every one of the 8 failing
+against the old door. What is missing is an ADDRESS for it. `as=spec` derives *invalid — no spec*
+unless the document carries a `::test` or `:::run` block, and neither can reach a node suite: a
+`::test` chip addresses a saved test and a `:::run` block resolves against the live connection tree
+of registered services. A hub module is neither. So filing this as a spec would put *invalid — no
+spec* on the row of a document whose evidence runs in one command — the kind's promise unmet on
+paper while the proof is green on disk. The honest leaf is the one that does not claim an address it
+has not got, and the missing form is a question for him, on the board.
+
 **Why these are `:::cmd` and not `::test` chips.** A `::test` chip addresses a SAVED test, and
 writing one here would have put a fifth pointer into a project that already has a card about 27
 chips resolving to nothing. A `:::run` block resolves against the live connection tree — registered
 services — and the hub's own board door is not one. So the proof is the command that runs the real
 suite. Be aware of what that costs: `claims.js` derives *carries a spec* from a `::test` or a
 `:::run` and never from a `:::cmd`, deliberately, because a cmd running a suite and a cmd running
-`grep` are indistinguishable at parse level. **So the bar will read these five as unspec'd.** The
-evidence runs; the surface cannot tell that it does.
+`grep` are indistinguishable at parse level. **So the bar cannot read these five as spec'd whatever leaf this carries.** The evidence runs;
+nothing in the vocabulary can point at it.
 
 ## Walk it
 
@@ -146,3 +156,21 @@ The mirror of the same bug is one layer up and it is autobot's: the MCP tool val
 object, which **strips** an undeclared parameter before the call leaves the shell. So a shell older
 than the hub fails in exactly the way this change fixes for a hub older than the shell — silently,
 with a full board coming back. `brief` is declared now, so it is not live today; the class is.
+
+## The second pick, which the first one found
+
+Finding my own leaf wrong sent me at the card that says the same thing about two older reports —
+*"two spec reports have no spec in them"* — and both halves closed, neither the way the card
+expected.
+
+`lifecycle-walk` is **gone from disk**: retention took it, so there is nothing left to write a spec
+into. `runs-belong-to-the-agent` is mine, from 2026-11-02, and it carries seven `:::cmd` blocks,
+**zero claims**, and no spec block — so it was never a spec report whose spec was missing. It is an
+account that got the wrong word. Its leaf now says so.
+
+::file[.systemview/report.systemview-test.runs-belong-to-the-agent.md#L1-5]
+
+Writing proofs into either one would have been manufacturing evidence for claims neither document
+makes. The card is off the board with that account on it, and the cause it was a symptom of is a
+card of its own — the missing form is new vocabulary, which is his to decide and not a run's to
+invent.
