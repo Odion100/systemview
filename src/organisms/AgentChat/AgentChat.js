@@ -55,7 +55,7 @@ import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun, markJobState, jobStates, hasJobState } from "../../utils/hostJobs";
-import { bandTabs, bandLabel, bandHead, withDefaultList, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
+import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 import NudgeCog from "./NudgeCog";
 import { unseenSubagents } from "./unseenSubagents";
 import { chipFor, menuFor } from "./jobState";
@@ -6114,8 +6114,9 @@ const countdown = (str, now = Date.now()) => {
       if (src && !(r.items && r.items.length)) continue;
       // status + attachments ride along so the row can wear the run's declared ending — a run
       // marked abandoned with its account attached is the third face (done · abandoned · nudging).
-      rows.set(String(r.owner || "").slice(4), {
-        key: String(r.owner || "").slice(4),
+      const key = listKey(src, String(r.owner || "").slice(4));
+      rows.set(key, {
+        key,
         source: src,
         items: r.items,
         status: r.status || null,
@@ -6129,9 +6130,10 @@ const countdown = (str, now = Date.now()) => {
         // session had touched — which is exactly when a status is freshest (his catch, 2026-10-26:
         // he watched a run get declared abandoned and the row showed nothing). Items from the live
         // event, record from the disk row it replaces.
-        const prior = rows.get(l.key);
-        rows.set(l.key, {
-          key: l.key,
+        const key = listKey(l.source, l.key);
+        const prior = rows.get(key);
+        rows.set(key, {
+          key,
           source: l.source,
           items: l.items,
           status: prior ? prior.status : null,

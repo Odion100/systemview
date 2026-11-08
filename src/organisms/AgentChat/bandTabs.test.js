@@ -1,4 +1,4 @@
-import { bandTabs, bandLabel, bandHead, withDefaultList, DEFAULT_LIST_KEY, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
+import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, DEFAULT_LIST_KEY, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
 
 // THE BAND'S THREE TABS ARE A FIXED ROW. His ruling, 2026-11-07, said once and then repeated per
 // kind because I shipped only the first of them: *"the list should exist down there empty instead
@@ -228,5 +228,31 @@ describe("the default list always has a row", () => {
   it("answers for a caller that hands it nothing at all", () => {
     expect(withDefaultList().length).toBe(1);
     expect(withDefaultList(null).length).toBe(1);
+  });
+});
+
+// THE DUPLICATE HE SAW, measured 2026-11-07 in his own band: `📋1/3 default` twice, two identical
+// rows for one plan. The session's plan reaches this surface from two places — the session FILE on
+// disk (owned `session-<slot>-<uuid>`) and the live `todo.updated` (keyed "session") — and the row
+// key was derived from the owner by cutting `run:` off the front, which only ever made sense for a
+// run. Keyed apart, the live row could not overwrite the disk row, so both stood.
+describe("a sourceless row is the plan, whichever side it arrived from", () => {
+  it("collapses the session file and the live event onto one key", () => {
+    expect(listKey("", "ion-systemview-test-7225a2d7")).toBe(DEFAULT_LIST_KEY);
+    expect(listKey("", "session")).toBe(DEFAULT_LIST_KEY);
+    expect(listKey(undefined, undefined)).toBe(DEFAULT_LIST_KEY);
+  });
+
+  it("leaves a sourced run keyed by its own record, because each run is its own row", () => {
+    expect(listKey("skill:walkthrough", "rmw5csmoe00")).toBe("rmw5csmoe00");
+    expect(listKey("job:proactive-development", "rmw72vbyu00")).toBe("rmw72vbyu00");
+    expect(listKey("lane:lane/x", "abc")).toBe("abc");
+  });
+
+  // And the key it collapses onto is the one `withDefaultList` synthesises, or the plan would be
+  // drawn twice again the moment the disk row and the synthesised row met.
+  it("agrees with the key the synthesised row carries", () => {
+    const [synth] = withDefaultList([]);
+    expect(synth.key).toBe(listKey("", "session"));
   });
 });

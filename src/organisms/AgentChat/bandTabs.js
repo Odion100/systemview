@@ -134,6 +134,16 @@ export const writeBand = (key, value, store) => {
 // has not written a plan yet, or has emptied it.
 export const DEFAULT_LIST_KEY = "default";
 
+// WHICH ROW A LIST IS, AND THE PLAN'S KEY CANNOT BE DERIVED FROM ITS RECORD. A run's record is
+// owned by `run:<id>`, so its row is keyed by that id — but the session's own plan is owned by the
+// SESSION file (`session-<slot>-<uuid>`), which shares no key with the live `todo.updated` the same
+// plan arrives on (keyed "session"). Both are sourceless, both ARE the plan, and keyed apart they
+// drew TWO "default" rows in his band — measured 2026-11-07, one scroll below the ruling that the
+// plan always has a row. So a sourceless row takes the plan's key whichever side it came from, and
+// the live event overwrites the disk row instead of sitting beside it.
+export const listKey = (source, derived) =>
+  String(source || "") ? String(derived || "") : DEFAULT_LIST_KEY;
+
 /**
  * Guarantee the session's own plan has a row, even with nothing on it.
  *
