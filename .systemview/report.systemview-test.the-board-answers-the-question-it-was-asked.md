@@ -125,6 +125,8 @@ it. Until both, the doors below answer as they did before.
 
 ::commit{sha=5ce411e project=autobot}
 
+::commit{sha=cb3d8e16}
+
 **One commit of this sitting carries no `Serves:` trailer and I am not going to quietly fix it.**
 `04b0c86f` — the band drawing the session's plan twice — was work he asked for directly before this
 job fired, committed before any report existed to name. It reads as `unlinked` and that is accurate:
