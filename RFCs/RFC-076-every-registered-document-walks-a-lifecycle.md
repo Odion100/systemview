@@ -222,6 +222,9 @@ CI=true npx react-scripts test --watchAll=false --testPathPattern="(facilitation
 :::details{summary="what built c22"}
 ::commit{sha=2a427f78}
 ::commit{sha=3eb53e53}
+::commit{sha=9a92975c}
+::commit{sha=f6665b32}
+::commit{sha=770c976 project=autobot}
 :::
 ::::
 
