@@ -27,11 +27,9 @@ answered.
 | `yarn smoke:board` | `~/autobot` | 9 claims, the tool-schema and renderer half |
 | `smoke:worklist` · `smoke:nudge` · `smoke:lanes` | `~/autobot` | 73 · 24 · 21, unmoved |
 
-**What green does not cover:** nothing here has run against the LIVE hub, because the live hub is
-the process you started at 13:00 and `api/` only rides a restart. Until you restart it, the board
-door you call is the old one — it will keep answering a `brief` read with every card, because the
-parameter is dropped before it arrives. That is the same failure this change is about, which is the
-honest reason it cannot demonstrate itself yet.
+**And against the LIVE hub:** `Hub.Agent.board` — 1 passed, through the MCP, after the restarts you
+ordered. The `brief` read answered 66 open cards as one line each; the same question cost ~12,000
+tokens and truncated when this card was picked.
 
 ## The evaluation, recorded before the work
 
@@ -100,12 +98,6 @@ passed; with the change, forty-one pass.
 
 ::branch[main]
 
-Nothing to arm in the window — this is `api/` and `electron/`, so:
-
-:::cmd
-systemview stop
-:::
-
 **Already armed** — you ordered the restart and I did it (stop, then start from ~/autobot, twice:
 once for the board door, once more for the clean registration). The autobot half rode your shell
 restart earlier tonight. The doors below answer the new way now.
@@ -142,6 +134,10 @@ restart earlier tonight. The doors below answer the new way now.
 ::commit{sha=adc9e755}
 
 ::commit{sha=ff368f38}
+
+::commit{sha=2a746141}
+
+::commit{sha=cfb13cda}
 
 **The last one is recorded by a commit carrying no `Serves:` trailer, and that is the convention
 rather than an omission.** A commit that adds its own sha cannot contain that sha, so a trailer on
