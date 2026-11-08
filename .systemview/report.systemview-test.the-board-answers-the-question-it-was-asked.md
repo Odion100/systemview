@@ -49,59 +49,21 @@ back, and the caller could not tell the write had never happened. Policing the v
 place requires the route to stop deciding — so it forwards what it does not recognise, and
 `board.js` refuses it by name.
 
-::claims
+## What ran
 
-**The two halves are in two repos and the first is dead without the second** — the hub can hand back
-an index nothing can ask for, and the tool can ask for one no hub answers.
+The evidence is a command, and it is the same one either half of this runs under.
 
-::::claim[`at` with no write reads that one card whole, instead of answering with the whole board]{id=b1 state=met by=systemview-test note="4 assertions in api/board.test.js: the address resolves by part of a title, the body comes back whole, `cards` is absent, and the count it chose from is still said"}
 :::cmd
-cd ~/Systemly/systemview && node --test api/board.test.js 2>&1 | grep -E "at. with no write|unreachable .at"
+cd ~/Systemly/systemview && node --test api/board.test.js 2>&1 | tail -5
 :::
-::::
 
-::::claim[`brief` hands back the index and never the bodies, and composes with a state read]{id=b2 state=met by=systemview-test note="3 assertions: the exact index row for a titled card, an untitled one marked untitled rather than silently named, and the index of one state; plus a size assertion that the index is smaller than a single card's body"}
-:::cmd
-cd ~/Systemly/systemview && node --test api/board.test.js 2>&1 | grep -E "brief. hands back|untitled card is still|brief. narrows"
-:::
-::::
-
-::::claim[a parameter the door does not understand is refused by name, with nothing read and nothing written]{id=b3 state=met by=systemview-test note="asserts the refusal names the typo, hands back the vocabulary, leaves the board byte-identical — and that an explicitly undefined option is NOT a refusal, so spreading options still works"}
-:::cmd
-cd ~/Systemly/systemview && node --test api/board.test.js 2>&1 | grep -E "does not understand|explicitly undefined"
-:::
-::::
-
-::::claim[the hub route forwards what it cannot name, so one file owns the vocabulary]{id=b4 state=met by=systemview-test note="reads the REAL source of api/index.js rather than a mock — a mock of a passthrough passes while the passthrough drops things, which is the failure this claim's older sibling was written for"}
-:::cmd
-cd ~/Systemly/systemview && node --test api/board.test.js 2>&1 | grep -E "FORWARDS what it does not recognise|forwards every parameter"
-:::
-::::
-
-::::claim[the agent-facing tool declares `brief` and prints the index as scannable lines, not JSON]{id=b5 state=met by=systemview-test note="autobot tests/board.js: the schema carries it (the SDK strips an undeclared parameter silently), it reaches the hub unstripped, and the rows carry the declaration pill, the untitled marker, the reply count and the line saying how to read one whole"}
 :::cmd
 cd ~/autobot && yarn smoke:board 2>&1 | tail -4
 :::
-::::
 
-**THIS IS AN `account`, AND THE CARD ASKED FOR A `spec`.** The declaration was right — the work
-owes runnable proof and it has some: 41 node assertions, 8 of them new, every one of the 8 failing
-against the old door. What is missing is an ADDRESS for it. `as=spec` derives *invalid — no spec*
-unless the document carries a `::test` or `:::run` block, and neither can reach a node suite: a
-`::test` chip addresses a saved test and a `:::run` block resolves against the live connection tree
-of registered services. A hub module is neither. So filing this as a spec would put *invalid — no
-spec* on the row of a document whose evidence runs in one command — the kind's promise unmet on
-paper while the proof is green on disk. The honest leaf is the one that does not claim an address it
-has not got, and the missing form is a question for him, on the board.
-
-**Why these are `:::cmd` and not `::test` chips.** A `::test` chip addresses a SAVED test, and
-writing one here would have put a fifth pointer into a project that already has a card about 27
-chips resolving to nothing. A `:::run` block resolves against the live connection tree — registered
-services — and the hub's own board door is not one. So the proof is the command that runs the real
-suite. Be aware of what that costs: `claims.js` derives *carries a spec* from a `::test` or a
-`:::run` and never from a `:::cmd`, deliberately, because a cmd running a suite and a cmd running
-`grep` are indistinguishable at parse level. **So the bar cannot read these five as spec'd whatever leaf this carries.** The evidence runs;
-nothing in the vocabulary can point at it.
+The eight new assertions were checked the only way a new assertion is worth anything — by stashing
+`api/board.js` and `api/index.js` and running them against the old door. Eight failed, thirty-three
+passed; with the change, forty-one pass.
 
 ## Walk it
 
@@ -173,6 +135,6 @@ account that got the wrong word. Its leaf now says so.
 ::file[.systemview/report.systemview-test.runs-belong-to-the-agent.md#L1-5]
 
 Writing proofs into either one would have been manufacturing evidence for claims neither document
-makes. The card is off the board with that account on it, and the cause it was a symptom of is a
-card of its own — the missing form is new vocabulary, which is his to decide and not a run's to
-invent.
+makes — and the pattern across all three is one thing, which is that `spec` got declared on work
+that owed an account. A sitting's account owes a statement of what ran. A spec is a contract, and
+nobody is a party to these.
