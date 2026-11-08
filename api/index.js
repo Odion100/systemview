@@ -3557,7 +3557,60 @@ module.exports = function launchSystemView(port = 3000) {
         return { ok: true };
       },
     })
-    .on("ready", () => {
+    // THE HUB'S OWN SPEC STORE — the same `Plugin` module every decorated service publishes, mounted
+    // in the ordinary module chain. `collectTests` asks each service's `Plugin.getTests()`; without
+    // this door the hub's saved specs (api/specs/) are files nothing serves. What the hub does NOT
+    // do is use the full systemview-plugin on itself: that shape phones home over HTTP to a hub that
+    // is still booting, and measured 2026-11-07 it stood up a second service and wedged the boot.
+    .module(
+      "Plugin",
+      require("../systemview-plugin/SystemViewModule")({
+        App,
+        specs: path.resolve(__dirname, "specs"),
+        projectCode: "systemview-test",
+        serviceId: "Hub",
+        svDir: path.resolve(__dirname, "../.systemview"),
+        root: path.resolve(__dirname, ".."),
+        // TEST-SIDE LOGIC, through the same `module` option every service uses: the board a spec
+        // may scribble on. Specs write to the board NAMED `spec` — a separate file from his — and
+        // this clears it, because a spec that counts its own leftovers passes exactly once.
+        // Measured within the hour: without it, eight fixture cards from earlier runs answered a
+        // spec that planted three.
+        module: {
+          resetSpecBoard() {
+            const root = rootOf("systemview-test");
+            if (!root) return { ok: false, error: "no folder for systemview-test" };
+            const abs = path.join(root, ".systemview/boards/spec.md");
+            const existed = fsGit.existsSync(abs);
+            if (existed) fsGit.unlinkSync(abs);
+            return { ok: true, cleared: existed, board: "spec" };
+          },
+        },
+      }),
+    )
+    .on("ready", (system) => {
+      // THE HUB REGISTERS WITH ITSELF, IN-PROCESS — his design: *"since the hub is hosting itself,
+      // it doesn't need to take the regular path."* The regular path is the plugin phoning the hub
+      // over HTTP; here `connect` is a local function and the ready payload is exactly what the
+      // plugin would have sent. One call, no wire, no second service, nothing to wedge.
+      try {
+        const { getSpecList } = require("../systemview-plugin/utils");
+        connect({
+          system: {
+            connectionData: system && system.connectionData,
+            modules: system && system.modules,
+            routing: system && system.routing,
+            services: system && system.services,
+          },
+          projectCode: "systemview-test",
+          serviceId: "Hub",
+          specList: getSpecList(path.resolve(__dirname, "specs")),
+        });
+      } catch (e) {
+        // Registration is a citizenship upgrade, never a boot condition: the hub serves every
+        // window and agent without it, and says why instead of dying.
+        console.warn(`[systemview] the hub could not register its own service: ${(e && e.message) || e}`);
+      }
       server.get("*", (req, res) => {
         res.setHeader("Cache-Control", "no-store");
         res.sendFile(indexPath);

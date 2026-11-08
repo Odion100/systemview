@@ -141,8 +141,11 @@ a plugin-less service lands under the catch-all project `connected-services`, re
 run blocks, with **no spec store**: `runTests` collects saved tests from each service's `Plugin`
 module, which only the systemview-plugin mounts. The plugin (§1.6) buys *testable* — a project of
 its own, the `specs` folder, docs, logs, stats. **The hub itself is a service** at
-`:3000/systemview/api` (modules `Agent` · `SystemView` · `CLI`) and registers with itself through
-the same plugin, which is what gives its own doors a spec store (`api/specs/`).
+`:3000/systemview/api` (modules `Agent` · `SystemView` · `CLI`) and registers with itself
+**in-process** — hosting itself, it skips the regular path: `connect()` is a local function and the
+plugin's HTTP phone-home is for remote processes (used on the hub's own boot it stood up a second
+service and wedged the start). Its spec store is `api/specs/`, served by a `Plugin` module in its
+own chain, so its doors carry saved specs like any service's.
 
 ---
 

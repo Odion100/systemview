@@ -71,11 +71,14 @@ method your window calls.
 ::test[Hub.Agent.board]{project=systemview-test}
 ::::
 
-**TODAY THESE CHIPS RESOLVE TO NOTHING, AND THAT IS THE LIVE HUB SAYING SO.** The registration is
-code in `api/`, and `api/` rides your restart — the hub you are running has no `Hub` service and the
-old board door besides. After the restart the chips resolve, the spec runs here, and the eight node
-assertions that mutation-proved the behaviour (all eight red against the old door) stop being the
-only runnable evidence.
+**THE WHOLE CHAIN HAS BEEN RUN, on a throwaway hub, and seen to fail.** Boot → in-process
+self-registration (`Hub` under systemview-test — *"since the hub is hosting itself, it doesn't need
+to take the regular path"*) → the engine lists the saved spec from `api/specs/` → runs it against
+`Agent.board` → **1 passed**. Then the guard came out (`const spare = []`), the run went red on
+exactly the refusal step, and the restore went green again. The first attempt at registration used
+the plugin's regular path and wedged your boot — that is reverted, and the in-process shape above is
+what replaced it. Your hub still predates all of it: one more restart arms the board door, the
+registration, and these chips together.
 
 ## What ran
 
