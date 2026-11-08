@@ -260,8 +260,29 @@ export function arcSettledLine(byObj) {
   const plans = Object.values(byObj || {}).flat();
   const settled = plans.filter((r) => r && r.state && r.state.settled);
   if (!settled.length) return "";
-  const last = settled.reduce((a, b) => (String(a.state.settled) >= String(b.state.settled) ? a : b));
-  return `an arc settles when its plans do — ${last.id} (settled ${last.state.settled}) was the last to close`;
+  // THE PICK PREFERS ROWS THAT CARRY A DATE. A row can say `settled: true` (older parses did), and
+  // lexically "true" beats every ISO date — so one undated row would win "last to close" over every
+  // dated one, falsely. Dated rows decide among themselves; only an all-undated set falls through.
+  const dated = settled.filter((r) => /^\d{4}-\d{2}-\d{2}/.test(String(r.state.settled)));
+  const pool = dated.length ? dated : settled;
+  const last = pool.reduce((a, b) => (String(a.state.settled) >= String(b.state.settled) ? a : b));
+  const when = /^\d{4}-\d{2}-\d{2}/.test(String(last.state.settled)) ? ` (settled ${last.state.settled})` : "";
+  return `an arc settles when its plans do — ${last.id}${when} was the last to close`;
+}
+
+// C19'S STANDING HALF — the claim's own trigger is "OPEN an arc", not "press one": an arc with an
+// objective nobody has planned wears the naming the moment the document opens, in the panel, with
+// no press required. Same shape as the settled sentence one function up, and the same derivation
+// stepArcPlanned uses behind the forward press — one rule, two surfaces. Empty when every
+// objective is served, and empty for an arc with no objectives (that absence has its own sentence
+// in the ladder; a standing line about it would read as a nag on an empty page).
+export function arcUnplannedLine(objectives, byObj, arcId) {
+  const list = objectives || [];
+  if (!list.length) return "";
+  const unplanned = list.filter((o) => !((byObj || {})[o.id] || []).length);
+  if (!unplanned.length) return "";
+  const named = unplanned.map((o) => `${addressOf(arcId, o.id)}${o.title ? ` (${o.title})` : ""}`).join(" · ");
+  return `${plural(unplanned.length, "objective")} with no plan attached — ${named}`;
 }
 
 function facilitateArc(station, current, source, ctx, now, leaf, today) {

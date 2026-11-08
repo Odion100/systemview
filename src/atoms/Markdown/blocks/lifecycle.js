@@ -13,8 +13,8 @@ import {
   reasonOf,
   stepsFor,
 } from "./lifecycleState";
-import { facilitate, rfcCurrent, arcSettledLine } from "./facilitation";
-import { plansByObjective } from "../objectives";
+import { facilitate, rfcCurrent, arcSettledLine, arcUnplannedLine } from "./facilitation";
+import { plansByObjective, parseObjectives } from "../objectives";
 
 // RFC-075 §2 (his, folded at execution): *"the blocks for RFC and reports are literally just
 // labels — make the interactive component about the LIFE CYCLE of the document."*
@@ -88,7 +88,10 @@ export function useRegistryRow(kind, id, nonce = 0) {
  * arc, and only while its panel is open: the rows are a lookup, and nothing else here needs them.
  */
 export function useRegistryRows(wanted, nonce = 0) {
-  const [rows, setRows] = useState([]);
+  // NULL UNTIL THE REGISTRY ANSWERS — [] is an ANSWER (no rows), and the two must not share a
+  // value: a panel deriving "which objectives have no plan" from rows that simply have not arrived
+  // yet names every objective unplanned for a beat, and standing surfaces would say it out loud.
+  const [rows, setRows] = useState(null);
   useEffect(() => {
     if (!wanted) return undefined;
     let dead = false;
@@ -154,10 +157,17 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   // those live. Fetched for an arc whose panel is open — and for a SETTLED arc standing still,
   // because the settled station carries no press (c22) and the panel owes the explanation instead:
   // which plan actually closed it, which only the registry knows.
-  const arcSettled = kind === "arc" && !!row && stateOf("arc", row, leaf) === "settled";
-  const planRows = useRegistryRows(kind === "arc" && (!!helping || arcSettled) && id, nonce);
+  const arcState = kind === "arc" && row ? stateOf("arc", row, leaf) : "";
+  const arcSettled = arcState === "settled";
+  // Approved arcs fetch too: c19's trigger is OPENING the document — an objective nobody has
+  // planned is named with no press required, and only the registry knows which ones those are.
+  const arcStands = arcSettled || arcState === "approved";
+  const planRows = useRegistryRows(kind === "arc" && (!!helping || arcStands) && id, nonce);
   const ctx = useMemo(
-    () => ({ rows: planRows, id, project: projectCode, attrs }),
+    // `rows` must be an array for the step builders — null means "not answered yet", and the
+    // ladder's own guard against that beat is the standing lines' (below); a pressed panel keeps
+    // its old behaviour of deriving from what it has.
+    () => ({ rows: planRows || [], id, project: projectCode, attrs }),
     // keyed on the attribute VALUES a step reads, not the object, which is new every render
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [planRows, id, projectCode, attrs.resolved, attrs.rejected, attrs.by, attrs.why]
@@ -344,10 +354,18 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
   // comes back wearing its ✓, and the next one's button takes the floor.
   const plan = helping ? facilitate(kind, helping, helpCurrent, source, Date.now(), leaf, today(), ctx) : null;
   const nextStep = plan ? (plan.steps || []).find((s) => !s.done) : null;
-  // C22's sentence, standing — a settled arc's station takes no press, so the panel says WHY in
-  // place of the button, naming the plan that actually closed it. Derived from the registry rows;
-  // empty while they have not answered, because a sentence about plans it has not read is a guess.
-  const settledSays = arcSettled && current === "settled" ? arcSettledLine(plansByObjective(planRows, id)) : "";
+  // THE STANDING SENTENCES — rendered the moment the document opens, no press required, and only
+  // once the registry has ANSWERED (planRows null is "not yet", and a sentence derived from rows
+  // that have not arrived names every objective unplanned for a beat).
+  // C22's: a settled arc's station takes no press, so the panel says WHY in place of the button,
+  // naming the plan that actually closed it.
+  const settledSays = arcSettled && planRows ? arcSettledLine(plansByObjective(planRows, id)) : "";
+  // C19's: an arc with an objective nobody has planned NAMES it — address and title, never a
+  // count — standing, because the claim's trigger is opening the document, not pressing it.
+  const unplannedSays =
+    arcState === "approved" && planRows
+      ? arcUnplannedLine(parseObjectives(source), plansByObjective(planRows, id), id)
+      : "";
 
   // THE BAR AND THE PANEL ARE SIBLINGS, never nested. The leaf is one row and it must not move:
   // anything that opens — a refusal, the reason menu, a step list — goes in `__panel`, which the
@@ -409,7 +427,7 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
         because it is the one control every registered document already has, and it is holding the
         id and the spec inventory this needs. */}
     <DocProofs id={id} projectCode={projectCode} />
-    {asking || declining || refused || unreadable || helping || settledSays ? (
+    {asking || declining || refused || unreadable || helping || settledSays || unplannedSays ? (
     <span className="md-arc__panel" ref={panelRef}>
       {/* THE STEP LIST a press opened (RFC-076 §3, column four). One button for the mechanical
           half; what is not yours is NAMED, never done for its owner. When the steps run dry the
@@ -459,6 +477,11 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
       {settledSays ? (
         <span className="md-arc__says" role="note">
           {settledSays}
+        </span>
+      ) : null}
+      {unplannedSays ? (
+        <span className="md-arc__says" role="note">
+          {unplannedSays}
         </span>
       ) : null}
       {unreadable ? (

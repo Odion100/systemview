@@ -1,5 +1,5 @@
 // RFC-076 §3, column four — the RFC facilitation LADDER, each shape provable without a renderer.
-import { facilitate, parseApprovals, rfcCurrent, arcSettledLine } from "./facilitation";
+import { facilitate, parseApprovals, rfcCurrent, arcSettledLine, arcUnplannedLine } from "./facilitation";
 
 const DOC = `# a design
 ::rfc{id=RFC-900}
@@ -263,6 +263,34 @@ describe("facilitation — the arc's column", () => {
   it("c22 · no settled plan, no sentence — a guess about a world that is not there", () => {
     expect(arcSettledLine({ O1: [{ id: "RFC-901", state: {} }] })).toBe("");
     expect(arcSettledLine({})).toBe("");
+  });
+
+  it("c22 · a dateless `settled: true` row cannot steal 'last to close' from the dated ones", () => {
+    const byObj = {
+      O1: [{ id: "RFC-OLD", state: { settled: true } }],
+      O2: [{ id: "RFC-NEW", state: { settled: "2026-11-02" } }],
+    };
+    // lexically "true" > "2026-…", which is exactly the trap: the dated rows decide
+    expect(arcSettledLine(byObj)).toMatch(/RFC-NEW \(settled 2026-11-02\) was the last to close/);
+    // an all-undated set still answers, without inventing a date
+    expect(arcSettledLine({ O1: [{ id: "RFC-OLD", state: { settled: true } }] })).toBe(
+      "an arc settles when its plans do — RFC-OLD was the last to close"
+    );
+  });
+
+  // c19's STANDING half — the same derivation stepArcPlanned uses, as the sentence an open
+  // document wears with no press required.
+  it("c19 · the standing line names every unplanned objective by address and title, and is silent when all are served or none exist", () => {
+    const objectives = [
+      { id: "O1", title: "the served half" },
+      { id: "O2", title: "the second half" },
+    ];
+    const byObj = { O1: [{ id: "RFC-901", state: {} }] };
+    expect(arcUnplannedLine(objectives, byObj, "ARC-900")).toBe(
+      "1 objective with no plan attached — ARC-900-O2 (the second half)"
+    );
+    expect(arcUnplannedLine(objectives, { O1: byObj.O1, O2: byObj.O1 }, "ARC-900")).toBe("");
+    expect(arcUnplannedLine([], {}, "ARC-900")).toBe("");
   });
 });
 

@@ -56,17 +56,20 @@ const Trail = ({ kind = "", stations = [], at, onPress, className = "" }) => {
             }${s.id === at ? " is-at" : ""}`;
             return (
               <div key={s.id} className={cls}>
-                {onPress ? (
+                {onPress && !s.disabled ? (
                   <button
                     type="button"
                     className="sv-trail__btn"
-                    disabled={!!s.disabled}
                     title={s.title || ""}
                     onClick={() => onPress(s.id)}
                   >
                     {body}
                   </button>
                 ) : (
+                  // A DISABLED STATION IS NO BUTTON AT ALL (RFC-076 c22): a derived station you
+                  // are standing on has no press that could mean anything, and a disabled button
+                  // still reads as a control that might wake up. The span is the honest shape —
+                  // the same one every station takes on a read-only trail.
                   <span className="sv-trail__btn" title={s.title || ""}>
                     {body}
                   </span>

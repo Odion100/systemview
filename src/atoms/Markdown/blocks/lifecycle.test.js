@@ -349,7 +349,11 @@ describe("a gap's two endings, under your finger", () => {
   it("an rfc offers no rejected station to press", async () => {
     withRegistry([{ id: "RFC-90", kind: "rfc", state: { verdict: "rejected" } }]);
     mountWritable("rfc", "RFC-90", { setAttr: jest.fn() }, { id: "RFC-90" });
-    expect(await screen.findByRole("button", { name: "draft" })).toBeTruthy();
+    // draft is where a declined RFC STANDS, and it is derived — so it draws as the station you are
+    // on, not as a button (c22's rule reaches every kind); the stations ahead stay pressable.
+    expect(await screen.findByText("draft")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "draft" })).toBeNull();
+    expect(screen.getByRole("button", { name: "approved" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "rejected" })).toBeNull();
   });
 
@@ -405,12 +409,13 @@ describe("a settled arc (c22)", () => {
     { id: "RFC-72", kind: "rfc", arc: "ARC-7-O1", state: { verdict: "approved", settled: "2026-11-05" } },
   ];
 
-  it("the settled station is NO button — disabled, with the derivation in its title", async () => {
+  it("the settled station is NO BUTTON AT ALL — a span, with the derivation in its title", async () => {
     withRegistry(SETTLED_ARC_ROWS);
     mountWritable("arc", "ARC-7", { setAttr: jest.fn() }, { id: "ARC-7" });
-    const st = await screen.findByRole("button", { name: "settled" });
-    expect(st).toBeDisabled();
-    expect(st.title).toMatch(/comes from every objective's plans being settled/);
+    const st = await screen.findByText("settled");
+    expect(screen.queryByRole("button", { name: "settled" })).toBeNull();
+    expect(st.closest(".sv-trail__btn").tagName).toBe("SPAN");
+    expect(st.closest(".sv-trail__btn").title).toMatch(/comes from every objective's plans being settled/);
     // the stations a press can still REACH stay live
     expect(screen.getByRole("button", { name: "retired" })).toBeEnabled();
   });
@@ -420,6 +425,33 @@ describe("a settled arc (c22)", () => {
     mountWritable("arc", "ARC-7", { setAttr: jest.fn() }, { id: "ARC-7" });
     expect(await screen.findByRole("note")).toHaveTextContent(
       "an arc settles when its plans do — RFC-72 (settled 2026-11-05) was the last to close"
+    );
+  });
+
+  // C19's trigger is OPENING the document — the naming stands with no press required. The source
+  // carries the objectives; the registry says which are served.
+  it("c19 · OPENING an approved arc with an unplanned objective names it, standing — address and title, no press", async () => {
+    withRegistry([
+      { id: "ARC-9", kind: "arc", state: { verdict: "approved", objectives: { total: 2, planned: 1, complete: 0 } } },
+      { id: "RFC-91", kind: "rfc", arc: "ARC-9-O1", state: { verdict: "approved" } },
+    ]);
+    const SOURCE = [
+      ":::objective{id=O1 title=\"the served half\"}",
+      "x",
+      ":::",
+      ":::objective{id=O2 title=\"the second half\"}",
+      "x",
+      ":::",
+    ].join("\n");
+    render(
+      <MarkdownMembersProvider value={{ projectCode: "systemview-test", source: SOURCE }}>
+        <MarkdownWriteProvider value={{ editable: true, appendEnd: jest.fn(), setAttr: jest.fn() }}>
+          <LifecycleTrail kind="arc" id="ARC-9" line={3} attrs={{ id: "ARC-9" }} />
+        </MarkdownWriteProvider>
+      </MarkdownMembersProvider>,
+    );
+    expect(await screen.findByRole("note")).toHaveTextContent(
+      "1 objective with no plan attached — ARC-9-O2 (the second half)"
     );
   });
 
