@@ -175,7 +175,15 @@ cd /Users/odionedwards/autobot && node -e 'const {parse}=require("./electron/mar
 
 #### This section's claims
 
-::claim[Press forward from built on an RFC whose claims are not all yours → it marks the ones that are yours and names the ones that are not]{id=c20 state=unmet by=systemview-test at=1793191085847 note="no per-claim step list exists at the press — pressing forward from built writes settled or refuses, it never marks your claims or names the others" told=systemview-test}
+::::claim[Press forward from built on an RFC whose claims are not all yours → it marks the ones that are yours and names the ones that are not]{id=c20 state=met by=systemview-test at=1794130544683 note="the forward press opens the step whose one button writes met on the claims that are yours (yours = no reviewers, or reviewers including you); the others are named by their OWNER with a count ('1 belong to buapi — their marks are theirs to make'), the §3 table's own form, and are never written for — facilitation.test.js c20, red when the split is cut" told=systemview-test}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="facilitation" 2>&1 | tail -4
+:::
+
+:::details{summary="what built c20"}
+::commit{sha=2a427f78}
+:::
+::::
 
 ::::claim[Try to press backward to approved from built → it refuses, and says that the heading cannot be unwritten]{id=c21 state=met by=systemview-test at=1793191085847 note="backward to approved from built refuses and names the STATUS heading a press cannot unwrite" told=systemview-test}
 :::cmd
@@ -195,9 +203,27 @@ CI=true npx react-scripts test --watchAll=false --testPathPattern="lifecycleStat
 
 #### This section's claims
 
-::claim[Open an arc that has an objective nobody has planned → the panel names that objective, rather than only showing a count]{id=c19 state=unmet by=systemview-test at=1793191085847 note="the row carries planned over total and the trail wears the counts, and nothing NAMES the unplanned objective — the facilitation step list of section 3 is not built" told=systemview-test}
+::::claim[Open an arc that has an objective nobody has planned → the panel names that objective, rather than only showing a count]{id=c19 state=met by=systemview-test at=1794130544683 note="STANDING, on open, no press: an approved arc wears '1 objective with no plan attached — ARC-nnn-Ox (the title)' in its panel the moment the registry answers — never a count, never during the fetch beat (rows answer null until then), and the forward press's ladder names the same objectives behind one derivation. A blind review caught the first build answering a weaker sentence (press-only); the code moved to the sentence" told=systemview-test}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="(facilitation|lifecycle.test)" 2>&1 | tail -4
+:::
 
-::claim[Press forward on an arc that is already settled → there is no button at all, and the panel says an arc settles when its plans do]{id=c22 state=unmet by=systemview-test at=1793191085847 note="the settled station is still a button on a settled arc — pressing it answers already settled, and the panel explains only through the hover title, not as the claim describes" told=systemview-test}
+:::details{summary="what built c19"}
+::commit{sha=2a427f78}
+::commit{sha=3eb53e53}
+:::
+::::
+
+::::claim[Press forward on an arc that is already settled → there is no button at all, and the panel says an arc settles when its plans do]{id=c22 state=met by=systemview-test at=1794130544683 note="literally no button: a derived station you stand on renders as a SPAN (the read-only trail's own shape), the derivation in its title — the same rule also caught a declined RFC's draft station — and the panel STANDS saying 'an arc settles when its plans do — RFC-nn (settled date) was the last to close', the last plan picked by the plans' own settled dates with dated rows outranking a bare settled=true; lifecycle.test.js c22 + arcSettledLine's pure claims, each red under its own mutation" told=systemview-test}
+:::cmd
+CI=true npx react-scripts test --watchAll=false --testPathPattern="(facilitation|lifecycle.test)" 2>&1 | tail -4
+:::
+
+:::details{summary="what built c22"}
+::commit{sha=2a427f78}
+::commit{sha=3eb53e53}
+:::
+::::
 
 ### GAP
 
@@ -864,9 +890,24 @@ declared window runs out; the countdown renders at the leaf and on the drawer ro
 press. The backfill was the cleanup: three bare run-reports deleted, the lifecycle planning meeting
 retired as superseded by this RFC, every surviving report's leaf declared.
 
-**Not built** — §3's facilitation step lists (c19, c20, c22) are assigned to no slice and are not
-built. The window has not yet been WATCHED rendering the countdown — the unit specs pin the face's
-words and the presses; the live look is the owner's next open of MOCK-REPORT (now `retain=14d`).
+**Built 2026-11-08, after the approvals landed** — §3's last three (c19, c20, c22): an approved
+arc NAMES its unplanned objectives standing, the moment it opens; a settled arc's station is no
+button at all (a span, the read-only trail's own shape — a rule that also reached a declined RFC's
+draft station) and the panel stands saying *an arc settles when its plans do*, naming the last plan
+to close by the plans' own settled dates; and the forward press from built marks the claims that
+are yours while naming who the others belong to. A blind review of the first walk returned three
+findings and every one was BUILT rather than argued with: c19's trigger said *open* where the build
+answered only a press (the standing line is the fix), c22's "no button" was a disabled button (the
+span is the fix), and two latent defects it spotted are closed — registry rows answer null until
+fetched so a standing line cannot name every objective unplanned for a beat, and a dateless
+`settled=true` row cannot lexically steal "last to close" from dated ones. Marking the three
+through the agent door found the door itself broken — `markBlock` matched only the two-colon leaf,
+so any claim grown its proof fold was "nothing to mark"; fixed in autobot (rides the shell
+restart). Still unbuilt from §3's arc table: the unplanned objective as a JUMP into authoring with
+the address pre-filled — named here so nobody charges it to c19, whose sentence asks for the
+naming only. The window has not yet been WATCHED rendering the countdown — the unit specs pin the
+face's words and the presses; the live look is the owner's next open of MOCK-REPORT (now
+`retain=14d`).
 
 **Contradicts its own design** — c24 reads *in progress* where §2's table says a one-of-two-planned
 arc is *approved*. The table is built; the claim is marked unmet; the press on the claims list below
