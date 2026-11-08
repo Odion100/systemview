@@ -91,7 +91,7 @@ teach the layout on the fly instead of describing it. An unknown region renders 
 :report[The agent face stops going through the CLI]
 ```
 
-Opens a filed report by its title. Reports are markdown files in `.systemview/` — **title them by
+Opens a filed report by its title. Reports are markdown files committed visibly in the repo — **title them by
 SUBJECT, never by position** ("the next iteration" only works once). A report about a file should
 open with a `:file` chip so the artifact is one click away.
 

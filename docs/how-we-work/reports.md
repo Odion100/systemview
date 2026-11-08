@@ -264,11 +264,13 @@ read.
 ## The file, the leaf, and the pointer
 
 The file IS the report. There is no filing verb: writing the document with its leaf is what registers
-it, and the registry finds it by that leaf wherever it lives — beside the work, with the arc, in
-`.systemview/`.
+it, and the registry finds it by that leaf wherever it lives — beside the work, with the arc, in a
+`reports/` or `meetings/` folder. **Visible in the repo, never in `.systemview/`** — that folder is
+machine state (chats, runs, manifests), and a document has a lifecycle of its own, so it needs no
+hiding place: the leaf manages its life, not the directory.
 
 ```
-.systemview/report.<projectCode>.<slug>.md
+reports/<slug>.md        meetings/<date>-<subject>.md
 ```
 
 **AND IT IS COMMITTED, like any other document in the repo.** Reports used to be kept out of git on

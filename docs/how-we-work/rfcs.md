@@ -31,7 +31,7 @@ argues a position without committing to how it is built is a **report** — valu
 `RFCs/` in the project it concerns, one file, `RFC-NNN-kebab-title.md`, **committed**. It is a
 project artifact with the same lifetime as the code it planned, reviewed alongside it.
 
-A **report** (`.systemview/report.*.md`) is the opposite by design: a disposable view that carries
+A **report** is the opposite by design: a disposable view that carries
 its own window and expires. Never put a plan in a report — a plan that matters is an RFC or it is lost.
 
 Cross-repo work gets **one** RFC in the repo where the design decision lives, and the other repo's

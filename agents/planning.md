@@ -55,17 +55,18 @@ every piece and dispatches the work. Nobody else picks it up if they stop.
 
 ## Opening one
 
-1. **Give it its leaf.** `::report{id="<Subject>" as=planning retain=permanent}` at the top, with
+1. **Give it its leaf.** `::report{id="<Subject>" as=planning retain=7d}` at the top, with
    `::members` beside it. The leaf is what makes the document exist to the system — it registers on
    save, and from that moment the registry finds it, the band lists it, and anything can point at
    it. **A planning document with no leaf is not merely unlisted, it is invisible**, and then the
    only way anybody finds it is remembering where you put it.
 
    **Which is why the folder is not a decision.** Put the file where it belongs to a reader —
-   beside the code it plans, in the repo whose agent is opening it — and name it for its date and
-   subject so a human can read the path. One copy, never mirrored into other repos; the frame
-   carries the absolute path so members elsewhere can read it. `retain=permanent` is what keeps it,
-   not its directory.
+   `meetings/<date>-<subject>.md` in the repo whose agent is opening it, visible, never in
+   `.systemview/`. One copy, never mirrored into other repos; the frame carries the absolute path
+   so members elsewhere can read it. The leaf decides its life, not its directory: 7d is the
+   deciding window, and promoting it to `permanent` is one of its legitimate endings, chosen at
+   close rather than at opening.
 2. **Choose the members, and say why in the chat.** They are project codes, and only a CONNECTED
    project is one — an unknown code renders fine and delivers to nobody, which is the worst
    failure available here. The membership is a proposal like anything else: he can cut it.
@@ -145,16 +146,14 @@ is held, and he releases when he reads.
 
 ## Where it lives, and how it reaches his panel
 
-**It is committed in the repo, beside the code it plans** — like any other document, and the
-directory is a readability choice rather than a convention.
+**It is committed in the repo, beside the code it plans** — visible, like any other document;
+`meetings/` is the convention here, and `.systemview/` is machine state, never a home for one.
 
-**Residence decides nothing about how long it lasts — the leaf does.** `.systemview/` is excluded
-with one deliberate re-inclusion (`!.systemview/report.*.md`), so a registered document living
-there is committed like anything else and its retirement arrives as a deletion to commit. And
-`api/janitor.js` reads the **registry**, never a folder or a glob: it collects any registered
-document — report, RFC, gap or arc — whose leaf says `retired=`, on no clock and no mtime. Even
-`retain=permanent` does not protect one, because the retirement is the later fact. So nothing
-survives by sitting in the right directory, and nothing is swept for being old.
+**Residence decides nothing about how long it lasts — the leaf does.** `api/janitor.js` reads the
+**registry**, never a folder or a glob: it collects any registered document — report, RFC, gap or
+arc — whose leaf says `retired=`, on no clock and no mtime. Even `retain=permanent` does not
+protect one, because the retirement is the later fact. So nothing survives by sitting in the right
+directory, and nothing is swept for being old.
 
 **You still put it in front of him, because that is where he looks.** The file stays in the repo
 and he is navigated to it — nothing is copied and nothing is snapshotted:
