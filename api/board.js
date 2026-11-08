@@ -32,6 +32,11 @@ const boardPath = (name) => `${ROOT}/${name || "board"}.md`;
 // the reader should never need. The line beside the state says whether it was code or a cause
 // written down; the state says it is over.
 const STATES = ["resolved", "reviewed", "partial", "blocked"];
+// WHAT THIS DOOR UNDERSTANDS, named so a refusal can hand it back. Split read/write because the
+// refusal is most useful to a caller who meant to WRITE and reached for a word this hub does not
+// have yet — the two lists tell them which half they were in.
+const READS = ["projectCode", "name", "state", "at", "brief"];
+const WRITES = ["add", "reply", "remove", "removeSettled", "status", "title", "report", "as"];
 // DONE is narrower than "has a status", and that gap is the whole safety of a bulk delete: a
 // `partial` or `blocked` card carries an account precisely because work is still outstanding on
 // it, so clearing by "has an account" would delete exactly the cards that must survive.
@@ -163,6 +168,25 @@ function addressCard(cards, want) {
   };
 }
 
+// ONE LINE PER CARD — the index rather than the bodies, which is where the whole cost is. A reader
+// choosing what to work on needs four things: how to address the card, whether anybody has read it,
+// what the work on it owes, and how much body is waiting if they want it. Reading all of that whole
+// to pick ONE is what made the board expensive to consult — 30 open cards came back as ~12k tokens
+// and truncated mid-card, so the last cards were not merely costly, they were unreadable.
+//
+// `title` falls back to the opening of the text because an untitled card still has to be nameable,
+// and `untitled` says which it was — the title is a reviewer's act, and inferring one would hide
+// that nobody has done it.
+const indexRow = (c) => ({
+  ts: c.ts,
+  title: c.title || c.text.slice(0, 60).trim(),
+  ...(c.title ? {} : { untitled: true }),
+  state: c.status && c.status.text ? c.status.state || "no state" : "open",
+  ...(c.report ? { report: c.report } : {}),
+  chars: c.text.length,
+  ...(c.replies && c.replies.length ? { replies: c.replies.length } : {}),
+});
+
 function boardOn({ readFile, writeFile }) {
   async function load(projectCode, name) {
     const res = await readFile(projectCode, { path: boardPath(name) });
@@ -170,8 +194,22 @@ function boardOn({ readFile, writeFile }) {
     return res && res.ok !== false ? parseBoard(res.content) : { title: "", cards: [] };
   }
 
-  return async function board({ projectCode, name, add, reply, remove, removeSettled, status, state, title, at, as, report } = {}) {
+  // THE REST ELEMENT IS THE WHOLE OF THE REFUSAL BELOW, and it has to be here rather than there: a
+  // destructured signature makes an unrecognised parameter INVISIBLE, so a call carrying one looked
+  // exactly like a plain read and answered with the whole board. That is how `report=` hid before
+  // the hub restart that taught it — the caller saw 125 cards and no error, and could not tell that
+  // nothing had happened.
+  return async function board({ projectCode, name, add, reply, remove, removeSettled, status, state, title, at, as, report, brief, ...rest } = {}) {
     if (!projectCode) return { error: "projectCode required" };
+    // UNDERSTOOD BEFORE ANYTHING IS READ OR WRITTEN. A parameter this door does not know is not a
+    // read with a typo in it — it is a question nobody answered, and answering it with the board is
+    // the silent failure this names instead.
+    const spare = Object.keys(rest).filter((k) => rest[k] !== undefined);
+    if (spare.length)
+      return {
+        error: `the board door does not understand ${spare.map((k) => `"${k}"`).join(", ")} — nothing was read or written`,
+        understands: READS.concat(WRITES),
+      };
     // AN UNKNOWN PROJECT IS NOT AN EMPTY BOARD. Reading straight through answered `cards: []` for a
     // project the hub has never heard of — the same silent shrug as "no tests to run" standing in
     // for "nothing was ever asked". The file layer already knows the difference; ask it.
@@ -385,6 +423,16 @@ function boardOn({ readFile, writeFile }) {
     // the finished — the same filter his panel puts on the row of marks, so what an agent can ask
     // for and what he can press are the same question. An unknown state is refused with the
     // vocabulary rather than silently answering nothing, which would read as "none of those".
+    // READING ONE CARD. `at` with no write fell past every branch to the whole board, which is the
+    // same silent shrug as the unknown parameter above: the caller asked a precise question and got
+    // everything, with nothing saying the question had not been understood. `at` already addresses a
+    // card by id, title or part of one for every write, and it addresses one here the same way.
+    if (at != null && !brief) {
+      const found = addressCard(board.cards, at);
+      if (found.error) return { ...where, ...found };
+      return { ...where, title: board.title, how: found.how, card: found.card, of: board.cards.length };
+    }
+
     if (state) {
       const want = String(state).trim().toLowerCase();
       if (want !== "open" && !STATES.includes(want))
@@ -402,8 +450,10 @@ function boardOn({ readFile, writeFile }) {
         const st = c.status && c.status.text ? c.status.state : null;
         return want === "open" ? !st : st === want;
       });
+      if (brief) return { ...where, title: board.title, state: want, brief: cards.map(indexRow), of: board.cards.length };
       return { ...where, title: board.title, state: want, cards, of: board.cards.length };
     }
+    if (brief) return { ...where, title: board.title, brief: board.cards.map(indexRow), of: board.cards.length };
     return { ...where, ...board };
   };
 }

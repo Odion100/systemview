@@ -3440,8 +3440,14 @@ module.exports = function launchSystemView(port = 3000) {
       //
       // The emit rides HERE rather than in api/board.js because this is where the socket is, the
       // same split the chat verbs use; board.js stays a pure capability over a file layer.
-      board: async function boardVerb({ projectCode, name, add, replyText, remove, removeSettled, status, state, title, at, as, report } = {}) {
-        const r = await Board({ projectCode, name, add, reply: replyText, remove, removeSettled, status, state, title, at, as: as || null, report });
+      // THE REST ELEMENT IS FORWARDED ON PURPOSE. This door used to destructure the parameters it
+      // knew and drop the others on the floor, which put the silent failure HERE rather than in
+      // board.js: a caller one version ahead of this hub sent `report=`, the route dropped it, the
+      // read fell through, and 125 cards came back looking like a successful write. The vocabulary
+      // is board.js's to police — so an unrecognised parameter has to survive the trip to be
+      // refused by name there.
+      board: async function boardVerb({ projectCode, name, add, replyText, remove, removeSettled, status, state, title, at, as, report, brief, ...rest } = {}) {
+        const r = await Board({ projectCode, name, add, reply: replyText, remove, removeSettled, status, state, title, at, as: as || null, report, brief, ...rest });
         // Only a WRITE announces itself — a read that emitted would make every agent's poll look
         // like a change and send every open panel back to the disk for nothing.
         if (r && r.ok) {

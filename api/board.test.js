@@ -191,7 +191,11 @@ test("api/index.js forwards every parameter boardOn accepts — no door stops at
   const params = sig[1]
     .split(",")
     .map((s) => s.trim().split(/[:=]/)[0].trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    // The rest element is not a parameter — it is the opposite, the catch-all that makes an
+    // unrecognised one visible. It is claimed on its own below, where the claim can say which half
+    // of the trip it has to survive.
+    .filter((x) => !x.startsWith("..."));
   assert.ok(params.includes("status") && params.includes("removeSettled"), "the signature itself changed");
 
   // The passthrough is a function body now (it emits after a write), so the two halves are matched
@@ -387,4 +391,101 @@ test("title and report both ride the same stamp without eating each other", () =
   assert.strictEqual(cards[0].title, "two words here");
   assert.strictEqual(cards[0].report, "account");
   assert.strictEqual(serializeBoard({ title: "", cards }), src);
+});
+
+// AN UNRECOGNISED PARAMETER HAS TO SURVIVE THE TRIP TO BE REFUSED. Both halves are needed and
+// either alone is the old silent read: board.js can only name what reached it, and the hub route
+// destructured the names it knew and dropped the rest on the floor. That is where `report=` died
+// against the older hub — the route dropped it, the read fell through, and 125 cards came back
+// looking like a write that had happened.
+test("the hub route FORWARDS what it does not recognise, so the vocabulary is policed in one place", () => {
+  const fs = require("node:fs");
+  const hubSrc = fs.readFileSync(require.resolve("./index"), "utf8");
+  const line = hubSrc.match(/board: async function boardVerb\(\{([^}]*)\}[\s\S]{0,400}?Board\(\{([^}]*)\}\)/);
+  assert.ok(line, "could not find the Agent module's board passthrough in api/index.js");
+  const [, takes, passes] = line;
+  assert.match(takes, /\.\.\.rest/, "the route must COLLECT the parameters it does not know");
+  assert.match(passes, /\.\.\.rest/, "and pass them on, or board.js has nothing to refuse");
+});
+
+// ── READING LESS THAN EVERYTHING ──────────────────────────────────────────────────────────────
+// WHY THESE EXIST. A proactive run read the 30 open cards to choose one piece of work, spent about
+// 12k tokens on it, and the answer TRUNCATED mid-card — so the last cards were not just expensive,
+// they were unreadable, and the pick was made from a partial board. The door had no smaller question
+// in it: every call that was not a recognised write answered with all of them.
+//
+// The three claims below are the three smaller questions, and the last one is the reason the first
+// two were reachable at all — `at` with no write used to BE the full read.
+const MIXED = [
+  { ts: 1000, by: "him", text: "x".repeat(900), title: "a titled card", report: "spec", status: { by: "me", ts: 1, text: "partial — half of it", state: "partial" } },
+  { ts: 2000, by: "him", text: "an untitled card he dropped in by voice, raw" },
+  { ts: 3000, by: "him", text: "y".repeat(400), title: "another titled card", replies: [{ by: "me", ts: 2, text: "a reply" }] },
+];
+
+test("`brief` hands back the index and NOT the bodies — what a reader needs to choose one", async () => {
+  const { api } = fake(MIXED);
+  const r = await api({ projectCode: "p", brief: true });
+  assert.equal(r.of, 3);
+  assert.equal(r.cards, undefined, "the bodies are the cost — they must not come back");
+  assert.deepEqual(r.brief.map((b) => b.ts), [1000, 2000, 3000]);
+  // Addressable, readable, and it says how much body is waiting if the reader wants it.
+  assert.deepEqual(r.brief[0], { ts: 1000, title: "a titled card", state: "partial", report: "spec", chars: 900 });
+  assert.equal(r.brief[2].replies, 1);
+  // The whole point, in one number: the index is a fraction of the bodies it stands for.
+  assert.ok(JSON.stringify(r.brief).length < 900, "an index longer than one card's body buys nothing");
+});
+
+test("an untitled card is still nameable, and says nobody has titled it", async () => {
+  const { api } = fake(MIXED);
+  const { brief } = await api({ projectCode: "p", brief: true });
+  assert.equal(brief[1].title, "an untitled card he dropped in by voice, raw");
+  assert.equal(brief[1].untitled, true, "inferring a title would hide that no reviewer has been near it");
+  assert.equal(brief[1].state, "open", "no account at all is `open`, derived from the absence");
+});
+
+test("`brief` narrows a state read too, because that is the read a picker actually makes", async () => {
+  const { api } = fake(MIXED);
+  const r = await api({ projectCode: "p", state: "open", brief: true });
+  assert.equal(r.state, "open");
+  assert.deepEqual(r.brief.map((b) => b.ts), [2000, 3000]);
+  assert.equal(r.cards, undefined);
+});
+
+test("`at` with no write reads THAT card — it used to answer with the whole board", async () => {
+  const { api } = fake(MIXED);
+  const r = await api({ projectCode: "p", at: "another titled" });
+  assert.equal(r.how, "part of the title", "addressed the same way every write addresses one");
+  assert.equal(r.card.ts, 3000);
+  assert.equal(r.card.text, "y".repeat(400), "one card comes back WHOLE — that is what asking for one is for");
+  assert.equal(r.cards, undefined);
+  assert.equal(r.of, 3, "and it still says how many it chose from");
+});
+
+test("an unreachable `at` is refused with the candidates, never answered with everything", async () => {
+  const { api } = fake(MIXED);
+  const r = await api({ projectCode: "p", at: "titled card" });
+  assert.match(r.error, /two cards|more than one|matches/i);
+  assert.equal(r.card, undefined);
+  assert.equal(r.cards, undefined, "the old fallthrough answered an ambiguous address with all 125");
+});
+
+// ── THE PARAMETER THIS DOOR DOES NOT KNOW ─────────────────────────────────────────────────────
+// Measured: a call carrying `report=` against a hub that had not restarted yet came back with the
+// whole board and no error, so the caller could not tell the write had never happened. A refusal is
+// the only answer that is distinguishable from a read.
+test("a parameter this door does not understand is refused BY NAME, and nothing is written", async () => {
+  const { api, read } = fake(MIXED);
+  const r = await api({ projectCode: "p", at: 1000, repott: "spec", as: "me" });
+  assert.match(r.error, /does not understand "repott"/);
+  assert.match(r.error, /nothing was read or written/);
+  assert.ok(r.understands.includes("report"), "it hands back the vocabulary, so the typo is fixable in one read");
+  assert.ok(r.understands.includes("brief"));
+  assert.deepEqual(read().map((c) => c.ts), [1000, 2000, 3000], "and the board is untouched");
+});
+
+test("an explicitly undefined parameter is not a refusal — that is how a caller spreads options", async () => {
+  const { api } = fake(MIXED);
+  const r = await api({ projectCode: "p", brief: true, somethingOptional: undefined });
+  assert.equal(r.error, undefined);
+  assert.equal(r.of, 3);
 });
