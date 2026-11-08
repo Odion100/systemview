@@ -82,6 +82,8 @@ last night's board-tool commit.
 
 ::commit{sha=56aa9847}
 
+::commit{sha=53927faa}
+
 ## What this did not touch
 
 **The write side.** The reply route still stamps `sent=` receipts on `::members` lines and thread
