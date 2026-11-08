@@ -21,9 +21,12 @@ On the board before building: **do it as stated, shape (a) off the card** — th
 honest shapes, and joining on `documentOpened` beat exposing the document's blocks through the
 markdown context because the trip already exists and the derivation already has one owner.
 
-Reading `Report.js` for this also found an adjacent bug, filed as its own card rather than fixed as
-a rider: **an embedded report leaf stamps the real report's first open** — a quotation can start a
-retention clock. It is on the board, declared `spec`.
+Reading `Report.js` for this also found an adjacent bug, filed on the board before it was touched:
+**an embedded report leaf stamps the real report's first open** — `stampOpened` is first-write-wins,
+so a `::file` embed of a report's head could START that report's retention clock without the report
+ever being opened. The clock measured a quotation. Fixed in the same sitting (r4 below): the leaf
+takes the same `InEmbed` guard the proofs panel uses — a quoted leaf renders identity and fetches
+nothing, so it can neither start the clock nor claim one.
 
 ## Where the tests stand
 
@@ -58,6 +61,12 @@ cd ~/Systemly/systemview && CI=true npx react-scripts test --testPathPattern="Re
 :::
 ::::
 
+::::claim[a leaf quoted inside an embed stamps nothing — a quotation cannot start the real report's retention clock]{id=r4 state=met by=systemview-test note="the InEmbed guard on the stamp effect; mutation-verified — guard out, exactly this jest claim reds; the divert press cannot appear in a quotation either, because the clock never gets an openedAt to count from" told=systemview-test}
+:::cmd
+cd ~/Systemly/systemview && CI=true npx react-scripts test --testPathPattern="Report.test" --watchAll=false 2>&1 | tail -4
+:::
+::::
+
 ## Walk it
 
 ::branch[main]
@@ -81,7 +90,8 @@ window half is in `main.e949e3e1`, which lands on your window's own hold.
 
 ## What this did not touch
 
-The embed-stamps-the-clock bug stays a card — its fix wants the `InEmbed` guard the proofs panel
-already uses, and a spec of its own. And the shell's derivation of `no spec` (`SPECS = test|run`)
-is untouched: a cmd still satisfies a claim and still does not make a document a spec, which is the
+Clocks the embed bug already started: the guard stops new false stamps, and does not audit the
+opened ledger for stamps a quotation wrote before today — a stamp and a real first-open are
+indistinguishable after the fact. And the shell's derivation of `no spec` (`SPECS = test|run`) is
+untouched: a cmd still satisfies a claim and still does not make a document a spec, which is the
 line RFC-076 drew.
