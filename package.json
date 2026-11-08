@@ -110,6 +110,7 @@
     "api/*.js",
     "src/shared/",
     "build/",
+    "!build/**/*.map",
     "testing-utilities",
     "server.js",
     "systemview-plugin/",
