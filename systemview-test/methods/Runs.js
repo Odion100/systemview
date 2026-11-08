@@ -58,6 +58,19 @@ module.exports = {
       // numeric bound can be written against.
       closed: runs.filter((r) => r.total > 0 && r.done === r.total).map((r) => r.id),
       closedCount: runs.filter((r) => r.total > 0 && r.done === r.total).length,
+      // THE DURABLE RECORD. pruneRuns deletes closed run FILES after 14 days — a decided retention
+      // (worklist.cjs, RFC-067 §4: "pruneRuns is not reopened") — so a count asserted on files alone
+      // goes red the day the evidence ages out, with nothing wrong. The stamp is the record the
+      // system keeps on purpose: .chore-stamps.json carries the last close per source, forever.
+      everClosed: (() => {
+        try {
+          const stamps = JSON.parse(fs.readFileSync(path.join(DIR, ".chore-stamps.json"), "utf8"));
+          const row = stamps[source];
+          return !!(row && Object.keys(row).length);
+        } catch {
+          return false;
+        }
+      })(),
       runs,
     };
   },

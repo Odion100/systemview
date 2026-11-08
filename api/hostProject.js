@@ -94,7 +94,18 @@ module.exports = function createHostProject(hubPort = 3000) {
 
     const app = createApp();
     const modules = loadModules(methodsDir, files);
-    Object.entries(modules).forEach(([name, mod]) => app.module(name, mod));
+    // A FOLDER'S Plugin.js EXTENDS THE PLUGIN'S MODULE — IT MUST NEVER BE DECLARED AS ITS OWN.
+    // The plugin below mounts a `Plugin` module on every service it decorates (getTests, saveTest,
+    // getConnection — the surface the test engine collects through). A methods/Plugin.js mounted
+    // beside it is a SECOND module with the same name: the record declares both method sets, the
+    // built client resolves one, and the service reads as a registry mismatch — measured
+    // 2026-11-08 on the Test service, where one user function (`fixturesRunning`) made every
+    // runTests/runProofs in the project report "Test did not answer", which is how RFC-075's 27
+    // proof chips came to resolve to nothing. The plugin's `module` option exists for exactly this:
+    // the folder's test-side functions land ON the real Plugin module, beside getTests, the way
+    // `Plugin.createMockUsers` does everywhere else.
+    const { Plugin: pluginExtensions, ...ownModules } = modules;
+    Object.entries(ownModules).forEach(([name, mod]) => app.module(name, mod));
     app.use(
       plugin({
         connection: hubUrl,
@@ -103,6 +114,7 @@ module.exports = function createHostProject(hubPort = 3000) {
         projectCode,
         serviceId,
         hosted: folder,
+        ...(pluginExtensions ? { module: pluginExtensions } : {}),
       }),
     );
     app.startService({ route: `${serviceId.toLowerCase()}/api`, port: usePort, host: "localhost" });

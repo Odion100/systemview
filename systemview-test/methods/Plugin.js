@@ -1,28 +1,20 @@
-// systemview-test/methods/Plugin.js — the `Plugin` module of `Test`: THE TEST-SIDE SURFACE.
+// systemview-test/methods/Plugin.js — test-side functions for the `Test` service.
 //
-// WHY THIS EXISTS AS ITS OWN MODULE. Every other module here is a DOOR: it calls, reads, counts and
-// hands back what it saw, and it never decides whether the answer is good — the moment a door
-// judges, the evidence stops being readable from the document that asked, because the judgment has
-// moved inside the thing being judged. So doors stay transcription, and anything that DOES
-// something on the test's behalf needs a different home.
+// THIS FILE DOES NOT BECOME A MODULE OF ITS OWN. The systemview-plugin mounts a `Plugin` module on
+// every service it decorates — getTests, saveTest, getConnection, the surface the test engine
+// collects through — so a methods/Plugin.js mounted beside it would be a SECOND module with the
+// same name: the record declares both method sets, the built client resolves one, and the whole
+// service reads as a registry mismatch. Measured 2026-11-08: this one file made every runTests and
+// runProofs in the project report "Test did not answer", which is how RFC-075's 27 proof chips came
+// to resolve to nothing.
 //
-// `support/fixtures.js` is the other half of that rule and it is deliberately NOT in this folder:
-// hostProject serves every file in `methods/` as a module, so a helper dropped here becomes a
-// callable surface by accident. That reason is sound and it is not an argument against this file —
-// it is an argument against ACCIDENTAL surfaces. This one is deliberate and it is named so nobody
-// mistakes it for product contract: `Test.Plugin.*` is test-side, by its name, wherever it shows up.
+// So hostProject (api/hostProject.js) lifts this file OUT of the module list and hands it to the
+// plugin's `module` option — the same door `Plugin.createMockUsers` rides in buAPI — and these
+// functions land ON the real Plugin module, beside getTests. The calling convention is unchanged:
+// a spec's step still says `Plugin.fixturesRunning`.
 //
-// THE PATTERN IS buAPI'S, and it is the one to copy. There, `systemview-plugin` is mounted with
-// `module: helpers` and those functions become `<Service>.Plugin.<fn>` — `Plugin.createMockUsers`,
-// `Plugin.clearMockGames`, `Plugin.mockGame`. A spec's `Before` steps then call `Plugin.*` to build
-// the world with REAL calls, `Main` calls the method under test, `After` clears up. Our service is
-// hosted by `api/hostProject.js` rather than by the plugin's `module:` option, so the equivalent is
-// a module file with that name — same surface, same labelling, loaded the way this service loads
-// everything else.
-//
-// IT STARTS NEARLY EMPTY ON PURPOSE. The point of landing it now is that the next thing which wants
-// to DO something for a spec has an honest home, instead of being written into a door because there
-// was nowhere else to put it. One tenant, below, because an empty module teaches nothing.
+// `support/fixtures.js` stays out of methods/ because hostProject serves every file there as a
+// callable surface; that rule is about ACCIDENTAL surfaces, and this file is a deliberate one.
 const fixtures = require("../support/fixtures");
 
 /**

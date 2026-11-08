@@ -167,9 +167,11 @@ module.exports = {
     };
   },
 
-  // c18 — THE BAR'S THIRD AXIS. `spec'd` is a fraction of the BEHAVIOURAL claims — an experiential
-  // claim is not a shortfall — and the MET count is untouched by any of it (which is c8, still
-  // true, just narrower).
+  // c18 — THE BAR'S THIRD AXIS, under the law RFC-076 settled: `spec'd` is a fraction of the
+  // BEHAVIOURAL claims — an experiential claim is not a shortfall — and MET now requires the proof
+  // the claim's kind owes INSIDE it ("marked is not met", his ruling, blocks.cjs metClaims /
+  // claims.js PROOF_SPEC). This spec pinned the pre-076 arithmetic (met counts marks alone) for a
+  // year of one night; the claim and this method both adapt to the decided law.
   async barAxes() {
     const { claimsOf } = claimsModule();
     const d = doc(
@@ -183,7 +185,10 @@ module.exports = {
     const bar = claimsOf(d);
     return {
       totalCountsEveryClaim: bar.total === 4,
-      metCountsMarksOnly: bar.met === 3,
+      // c1 is marked AND carries its owed spec → met. c2 is marked with nothing inside → NOT met
+      // (the pre-076 assertion here was bar.met === 3). c3 is experiential and marked but carries
+      // no evidence at all — exempt from the SPEC obligation, still owed *something shown*.
+      metIsMarkedPlusProof: bar.met === 1,
       uncheckedIsTheRemainder: bar.unchecked === 1,
       behavioralExcludesTheExempt: bar.behavioral === 3 && bar.experiential === 1,
       // 1 of the 3 behavioural claims carries a spec — never 1 of 4.
@@ -193,9 +198,11 @@ module.exports = {
     };
   },
 
-  // c8 — `::claims` COUNTS MARKS, NOT PROOFS. Two claims with the same mark count identically
-  // whether one carries a proof and the other carries nothing. (The spec'd axis above reports the
-  // gap separately, which is why c8 survives the amendment instead of being retracted.)
+  // c8, AS RFC-076 LEFT IT. The original claim said met counts marks and "ignores proofs
+  // entirely" — the second half died by decision ("marked is not met": met requires the proof the
+  // kind owes, inside the claim). What SURVIVES of c8 is real and still asserted here: RUNNING a
+  // proof moves nothing (presence is checked, never exit codes — no mark automation), and the mark
+  // is still the only human word in the count.
   async countsMarksNotProofs() {
     const { claimsOf } = claimsModule();
     const proofed = claimsOf(
@@ -203,7 +210,12 @@ module.exports = {
     );
     const bare = claimsOf("::claim[a]{id=c1 state=met by=you note=x}");
     return {
-      sameMetCount: proofed.met === bare.met && proofed.met === 1,
+      // the decided law: same mark, different folds — different met.
+      proofedMarkIsMet: proofed.met === 1,
+      bareMarkIsNotMet: bare.met === 0,
+      // the surviving half of c8: nothing but the WORD was consulted for the mark itself —
+      // an unmarked claim with a proof inside is still not met.
+      proofAloneIsNotMet: claimsOf(doc(":::claim[a]{id=c1}", ":::cmd", "echo proof", ":::", ":::")).met === 0,
       sameTotal: proofed.total === bare.total && proofed.total === 1,
       // THERE WAS A THIRD FIELD HERE AND IT WAS A STRAWMAN: `!keys.includes("proofed")`. The object
       // it inspected carries `specd` AND `owed` — two proof-derived columns — so the field asserted
@@ -654,10 +666,11 @@ module.exports = {
   // proof, written for the human) and the APPROACH. Asserted sentence by sentence; the first
   // version tested one heading and the note still claimed "everything a spec can reach".
   async chapterAnswersTheProofQuestion() {
-    const chapter = read(path.join(REPO, "docs/how-we-work/rfcs.md"));
+    const chapter = read(path.join(REPO, "docs/how-we-work/claims.md"));
     const heading = (text) => new RegExp(`^#{2,3} .*${text}`, "mi").test(chapter);
     return {
-      theProofSectionExists: heading("A claim can carry its proof"),
+      // The heading was deliberately renamed (f4cc7cc5): "can carry" read as optional, and it is not.
+      theProofSectionExists: heading("A claim CARRIES its proof"),
       theApproachSectionExists: heading("Writing a proof — the approach"),
       theSequenceIsSaid: /The sequence is verify → mark → proof/.test(chapter),
       theProofIsForTheHuman: /the proof is written for the human/i.test(chapter),
@@ -675,7 +688,7 @@ module.exports = {
   // for this claim, which is a spec defending the wrong file.
   async authoringPointsAtTheChapter() {
     const authoring = skillText("rfc-authoring");
-    const chapter = read(path.join(REPO, "docs/how-we-work/rfcs.md"));
+    const chapter = read(path.join(REPO, "docs/how-we-work/claims.md"));
     return {
       theSkillWasFound: authoring.length > 0,
       itCarriesTheProofLine: /leave the PROOF/.test(authoring),
@@ -695,7 +708,7 @@ module.exports = {
   // the substring "delegated", which matched a HEADING: the whole permission paragraph could be
   // deleted and the spec stayed green. These are the three things the claim actually says.
   async chapterPermitsADelegatedProof() {
-    const chapter = read(path.join(REPO, "docs/how-we-work/rfcs.md"));
+    const chapter = read(path.join(REPO, "docs/how-we-work/claims.md"));
     return {
       permissionIsStated: /Proof-writing may be delegated; verification may not/.test(chapter),
       theBriefIsTheClaimItsMarkAndItsNote: /briefed with the claim, its mark, its `note=`/.test(chapter),
@@ -725,7 +738,7 @@ module.exports = {
   // c20 — the doctrine reaches BOTH readers: the corpus answers an agent who asks, and the skill
   // carries the deciding paragraph — and neither restates the other.
   async doctrineReachesBothReaders() {
-    const chapter = read(path.join(REPO, "docs/how-we-work/rfcs.md"));
+    const chapter = read(path.join(REPO, "docs/how-we-work/claims.md"));
     const secondOpinion = read(path.join(REPO, "docs/how-we-work/second-opinion.md"));
     const execution = skillText("rfc-execution");
     const heading = (src, text) => new RegExp(`^#{2,3} .*${text}`, "mi").test(src);
@@ -737,7 +750,10 @@ module.exports = {
       routesToALiveDoor: heading(chapter, "live door"),
       livingIsSaidOutLoud: /living spec/i.test(chapter),
       // the second reader's half
-      executionCarriesTheDecidingParagraph: /a run lives in its document|a test rides the change loop|A RUN ONLY LIVES IN ITS DOCUMENT/i.test(execution),
+      // The deciding paragraph was reworded by decision (63e3194f: decided by where the contract
+      // belongs, not protection) — the current sentence: a contract that outlives the RFC goes in
+      // the spec library as a FILE; :::run is the narrow case.
+      executionCarriesTheDecidingParagraph: /spec library as a FILE/i.test(execution) && /narrow case/i.test(execution),
       // NEITHER RESTATES THE OTHER — the skill carries the decision and the query; the routes stay
       // in the chapter. One definition, or it drifts into two, and a copy pasted into the skill
       // reads perfectly well, which is exactly why this is asserted rather than trusted.

@@ -30,8 +30,15 @@ const REPO = path.resolve(__dirname, "..", "..");
 
 // The real module, compiled off disk on every call — ESM, so a hosted CommonJS service cannot
 // `require` it, and a copy would be a second implementation that agrees with nothing.
-function claimsModule() {
-  const abs = path.join(REPO, "src/atoms/Markdown/claims.js");
+// A RELATIVE IMPORT IN THE REAL MODULE RESOLVES AGAINST THE REAL MODULE — and recursively, through
+// the same compile. The first version handed the eval THIS file's `require`, so the day claims.js
+// grew `import { unfenced } from "./unfenced"` the door died with "Cannot find module ./unfenced":
+// the id resolved against methods/ instead of src/atoms/Markdown/, and even pointed right it would
+// have choked on the target's own `export`. Found 2026-11-08 when RFC-075's first run block went
+// red on undefined — the door, not the subject, which is exactly the doubt a wrapper buys.
+const compiled = new Map();
+function loadEsm(abs) {
+  if (compiled.has(abs)) return compiled.get(abs).exports;
   const { transformSync } = require("@babel/core");
   const { code } = transformSync(fs.readFileSync(abs, "utf8"), {
     babelrc: false,
@@ -40,14 +47,27 @@ function claimsModule() {
     plugins: [require.resolve("@babel/plugin-transform-modules-commonjs")],
   });
   const m = { exports: {} };
+  compiled.set(abs, m);
+  const req = (id) => {
+    if (id.startsWith(".")) {
+      let target = path.resolve(path.dirname(abs), id);
+      if (!fs.existsSync(target)) target = `${target}.js`;
+      return loadEsm(target);
+    }
+    return require(id);
+  };
   new Function("exports", "require", "module", "__filename", "__dirname", code)(
     m.exports,
-    require,
+    req,
     m,
     abs,
     path.dirname(abs),
   );
   return m.exports;
+}
+
+function claimsModule() {
+  return loadEsm(path.join(REPO, "src/atoms/Markdown/claims.js"));
 }
 
 module.exports = {

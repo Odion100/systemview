@@ -394,7 +394,9 @@ or tell nobody, so the people on the document would learn about decisions by re-
 sitting in this document so the gesture can be done where you are reading it rather than in another
 file:
 
-::claim[A disposable claim, for trying the gesture on → right-click it, choose *add a proof*, and watch it grow room for one]{id=cTRY kind=experiential state=met by=you at=1793097230875 told=systemview-test}
+:::claim[A disposable claim, for trying the gesture on → right-click it, choose *add a proof*, and watch it grow room for one]{id=cTRY kind=experiential told=systemview-test state=met by=you at=1793998942884}
+
+:::
 
 Right-click it, pick *Add a proof*, and watch the line grow its fences around an empty body with the
 statement untouched. Then put it back and do it again:
@@ -412,7 +414,7 @@ would notice until a claim came back wearing somebody else's mark.
 ::test[Test.Proofs.growProof]{project=systemview-test}
 ::::
 
-::::claim[Open a document the system knows about → the coloured lifecycle strip at its top lights the stage the system actually believes it is at, read from the record rather than typed by an author. You cannot fake it by writing a word.]{id=c5 state=met by=systemview-test|you at=1793017353142 note="met and spec'd in two halves: Window.lifecycleTrail pins the render law (station lit off the row, no row means no trail at all, no hub means nothing rather than an error, rejected shows draft -> rejected) and Proofs.registryLightsThisDocument asserts the LIVE row behind it — kind rfc, path matching this file, state derived by the shell's parse, station 'built' present in the kind's own list. The suite MOCKS the registry, so only the second half would notice the row going missing." told=systemview-test}
+::::claim[Open a document the system knows about → the coloured lifecycle strip at its top lights the stage the system actually believes it is at, read from the record rather than typed by an author. You cannot fake it by writing a word.]{id=c5 state=met by=systemview-test|you at=1793017353142 note="met and spec'd in two halves: Window.lifecycleTrail pins the render law (station lit off the row, no row means no trail at all, no hub means nothing rather than an error, a declined RFC stands in draft — his ruling, 17e557bf: 'I will never reject an RFC', the verdict stays on the approval block) and Proofs.registryLightsThisDocument asserts the LIVE row behind it — kind rfc, path matching this file, state derived by the shell's parse, station 'built' present in the kind's own list. The suite MOCKS the registry, so only the second half would notice the row going missing." told=systemview-test}
 The leaf at the top of THIS document is the probe — *built* is lit. **Press this to see the whole
 record it reads, and the complete field vocabulary** — the trail is drawing six booleans and a word,
 and there is nothing else in there:
@@ -431,7 +433,9 @@ has just changed it.
 **What the first one asks:** given a record saying what stage a document is at, does the strip
 light that stage — and when there is no record at all, does it draw nothing rather than guess?
 It hands the renderer the record itself, so it is a drawing law and nothing more.
-**If it stopped holding,** a rejected design would light up as a draft and somebody would build it.
+**If it stopped holding,** the strip would guess a stage no record supports — and a declined RFC
+would grow a rejected station again, which he ruled out: declined stands in draft, the verdict on
+the approval block carrying the ending.
 ::test[Test.Window.lifecycleTrail]{project=systemview-test}
 
 **What the second one asks:** is there a real record behind the strip at the top of THIS document —
@@ -495,7 +499,7 @@ greens would stop meaning anybody had checked anything.
 ::test[Test.Proofs.noProofRunner]{project=systemview-test}
 ::::
 
-::::claim[Running a proof must never move a document's met count — only a person's press may do that. So the counter reads signatures and ignores proofs entirely: a claim with a proof and a claim without one count exactly the same.]{id=c8 state=met by=systemview-test|you at=1793017353142 note="met and spec'd: Proofs.countsMarksNotProofs — a proofed and an unproofed claim give identical met and total counts. A third field asserting 'no proof column' was DELETED in reconciliation: it checked for a key nobody ever used while the object right there carries specd and owed, so it asserted the opposite of what the code contains and passed anyway. The reading is narrower since the amendment, which is why c8 stands rather than being retracted." told=systemview-test}
+::::claim[Running a proof must never move a document's met count — only a person's press may do that: presence of evidence is read, exit codes never are, and an unmarked claim with a proof inside is still not met.]{id=c8 state=met by=systemview-test|you at=1793017353142 note="SUPERSEDED IN HALF by RFC-076 (2026-11-08): 'marked is not met' — met now requires the mark AND the proof the claim's kind owes inside it, so the original second sentence ('ignores proofs entirely; a claim with a proof and one without count the same') is the pre-076 law, retired. What SURVIVES is the half that mattered: running a proof moves nothing, no exit code is consulted, and the mark stays the only human word in the count. Proofs.countsMarksNotProofs asserts that survival: proofed+marked met, bare mark not met, proof alone not met." told=systemview-test}
 Two documents are the contrast, and you can read both bars yourself. This one: 25 of its 26 claims
 hold a proof, and its met count says **24 of 26** — one marked not met, one nobody has marked at
 all. RFC-073:
@@ -506,11 +510,11 @@ both times, because the scan reads colons and marks and nothing else — :file[s
 cd ~/Systemly/systemview && node -e 'const C=require("./systemview-test/methods/Claims.js");(async()=>{for(const f of ["RFC-075-a-claim-carries-its-proof","RFC-073-a-document-state-lives-in-the-system"]){const b=await C.bar({path:`RFCs/${f}.md`});console.log(f.slice(0,7),"met",b.met+"/"+b.total," proofs",b.specd)}})()'
 :::
 
-**What it asks:** hand the real counter two documents identical but for a proof, and get back the
-same met and total. **If it stopped holding** — if the counter ever took proofs into account —
-pressing a command would quietly advance a document toward *built*, which is the lifecycle moving
-because a shell exited zero rather than because anybody agreed. That is the risk this claim exists
-to rule out; the arithmetic is just how it is ruled out.
+**What it asks, under the law RFC-076 settled:** a mark plus its owed proof is met, a bare mark is
+not, and a proof with no mark is not — so the count can never move because a shell exited zero,
+which is the risk this claim exists to rule out. The pre-076 arithmetic (identical counts with and
+without a proof) was superseded by his ruling, *marked is not met*; the spec pins the decided law
+and the surviving half of the original claim.
 ::test[Test.Proofs.countsMarksNotProofs]{project=systemview-test}
 ::::
 
@@ -597,13 +601,13 @@ built in whatever order the agent felt like, with the claims walk quietly droppe
 ::::
 
 ::::claim[Run that skill → it opens one tracked run under its own name, so afterwards there is a record on disk saying the procedure was followed rather than just chosen. This document's own claims walk is one of those records.]{id=c13b state=met by=systemview-test|you at=1793017353142 note="met. Checked by looking before opening one: zero runs sourced skill:rfc-execution existed on disk while this claim already read met — which is exactly the hole the whole doctrine is about. This document's walk is now one of them. The Skill tool proves a skill was chosen; only the sourced run proves it was followed." told=systemview-test}
-The records themselves. Press this and it reads the real worklists directory — including, if you
-are reading this while I am still walking the document, the run doing it, stopped on whichever item
-it is on:
+The record itself. Run FILES are retention-pruned after 14 days — a decided policy (RFC-067 §4;
+worklist.cjs rules "pruneRuns is not reopened") — so the durable record is the per-source close
+stamp the system keeps on purpose, and the files appear too whenever a walk ran inside the window:
 :::run{title="The skill leaves a record on disk: at least one run sourced skill:rfc-execution, at least one of them driven all the way to done"}
-- Test.Runs.sourced({ "source": "skill:rfc-execution" }){title="every run record carrying this skill's own name, with how far each got and where it stopped"}
-  - results.count >= 1
-  - results.closedCount >= 1
+- Test.Runs.sourced({ "source": "skill:rfc-execution" }){title="the records inside the 14-day retention window, and the close stamp that outlives them"}
+  - results.ok = true
+  - results.everClosed = true
 :::
 
 **What it asks:** is there a run record on disk carrying this skill's own name — because the Skill
@@ -697,11 +701,12 @@ quoting examples of tests, and the bar would be counting prose.
 ::test[Test.Proofs.specDetection]{project=systemview-test}
 ::::
 
-:::claim[The bar at the top of a document says how many claims are defended out of the ones that OWE a defence — never out of all of them, because a claim a person concludes by eye is not a shortfall — and it says how many are owed. None of that moves the met count.]{id=c18 state=met by=systemview-test|you at=1793063000000 note="met and spec'd three ways: Proofs.barAxes pins the arithmetic on a fixture (spec'd over the BEHAVIOURAL count and never the total, met untouched, owed only where marked, behavioural and unspec'd), Window.claimRow now pins what a reader SEES — 1/2 spec'd and 1 owed drawn on a mixed document, no owed tag at all when nothing is owed, reviewed still beside them — which nothing asserted before the review asked, and Proofs.rfc075OwesNothing asserts THIS document owes nothing AND that every namespace it names resolves to a spec on disk, because hasSpec is structural and 21/21 was otherwise reachable with 21 fabricated names. The bar read 0/15 the night the amendment landed." told=systemview-test}
+:::claim[The bar at the top of a document says how many claims are defended out of the ones that OWE a defence — never out of all of them, because a claim a person concludes by eye is not a shortfall — and it says how many are owed. Since RFC-076, met itself requires the owed proof inside the claim — the axes stay separate questions.]{id=c18 state=met by=systemview-test|you at=1793063000000 note="SUPERSEDED IN PART by RFC-076 (2026-11-08): the closing sentence was 'none of that moves the met count' — true pre-076, not now: met requires mark + owed proof (claims.js PROOF_SPEC, blocks.cjs metClaims). The axes remain distinct. Original note: met and spec'd three ways: Proofs.barAxes pins the arithmetic on a fixture (spec'd over the BEHAVIOURAL count and never the total, met untouched, owed only where marked, behavioural and unspec'd), Window.claimRow now pins what a reader SEES — 1/2 spec'd and 1 owed drawn on a mixed document, no owed tag at all when nothing is owed, reviewed still beside them — which nothing asserted before the review asked, and Proofs.rfc075OwesNothing asserts THIS document owes nothing AND that every namespace it names resolves to a spec on disk, because hasSpec is structural and 21/21 was otherwise reachable with 21 fabricated names. The bar read 0/15 the night the amendment landed." told=systemview-test}
 **The bar on this document is the probe — look up.**
 
 **What the first spec asks:** that the fraction is over the claims that owe a defence rather than
-over all of them, that owed is counted and reported, and that none of it touches the met count.
+over all of them, that owed is counted and reported — and, since RFC-076, that met is the mark PLUS
+the proof its kind owes, never the mark alone.
 **If it stopped holding,** a document full of by-eye claims would read as badly defended, and the
 honest answer would start looking like a failure.
 ::test[Test.Proofs.barAxes]{project=systemview-test}

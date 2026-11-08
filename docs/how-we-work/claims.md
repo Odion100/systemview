@@ -149,6 +149,8 @@ A claim you chose not to prove reads `unproved` for as long as it stands, which 
 rather than the debt denied — and `kind=experiential` changes WHICH evidence counts, the human's own
 eye instead of a runnable spec, never whether evidence is what closes the gap.
 
+## Leaving the proof — the check made pressable
+
 **A proof is a claim's check made pressable** (RFC-075). A mark's `note=` is a sentence about work
 that evaporated the moment it was done — to believe it next month somebody re-derives the check. The
 proof is that check written down where the mark will be doubted: the claim grows a container —

@@ -156,9 +156,11 @@ module.exports = {
   },
 
   // c5 — the lifecycle trail reads the REGISTRY, and the absence of a row is an absence, never a
-  // guess: no row means no trail, and a rejected RFC shows its real ending rather than the happy
-  // path with a station lit. (The suite MOCKS the registry — the live row behind it is
-  // Proofs.registryLightsThisDocument, and neither half covers the other.)
+  // guess: no row means no trail. The rejected-station half moved by decision (17e557bf, his words:
+  // "I will never reject an RFC… that trail has no facilitation") — a declined RFC stands in draft,
+  // the verdict staying on the approval block, and the suite pins that ending by name. (The suite
+  // MOCKS the registry — the live row behind it is Proofs.registryLightsThisDocument, and neither
+  // half covers the other.)
   async lifecycleTrail() {
     const run = jest("blocks/lifecycle\\.test");
     return {
@@ -170,7 +172,7 @@ module.exports = {
       lightsTheStationOffTheRegistryRow: passed(run, "lights the current station off the registry row"),
       noRowMeansNoTrail: passed(run, "no registry row → no trail at all"),
       noHubMeansNothingBroken: passed(run, "no hub at all → nothing, no error"),
-      rejectedShowsItsRealEnding: passed(run, "a rejected RFC shows its real ending"),
+      declinedStandsInDraft: passed(run, "a declined RFC draws no rejected station"),
       cases: run.tests || 0,
     };
   },
