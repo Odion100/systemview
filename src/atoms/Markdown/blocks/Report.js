@@ -30,6 +30,13 @@ const WINDOWS = ["1h", "6h", "12h", "1d", "2d", "3d", "7d", "14d", "30d", "90d",
 const Report = ({ attrs = {}, line }) => {
   const { editable, setAttr } = useMarkdownWrite() || {};
   const [openedAt, setOpenedAt] = useState(null);
+  // WHAT THE ROW KNOWS AND THIS BLOCK CANNOT. `no spec` is a fact about the document's OTHER
+  // blocks (an `as=spec` report owes a runnable one), and this component only ever receives its
+  // own attrs — so the drawer row said `invalid — no spec` while the document looked fine. The
+  // row's derived reasons ride back on the documentOpened answer the leaf already fetches; they
+  // are UNIONED with the two reasons derivable locally, so an unregistered document (or no hub)
+  // keeps the honest local fallback instead of looking valid by silence.
+  const [rowInvalid, setRowInvalid] = useState("");
   const retired = !!attrs.retired;
   const retain = String(attrs.retain || "").trim();
   const windowMs = parseRetain(retain);
@@ -59,7 +66,10 @@ const Report = ({ attrs = {}, line }) => {
     agent
       .documentOpened({ id: attrs.id })
       .then((r) => {
-        if (!dead && r && r.ok) setOpenedAt(r.openedAt);
+        if (!dead && r && r.ok) {
+          setOpenedAt(r.openedAt);
+          setRowInvalid(typeof r.invalid === "string" ? r.invalid : "");
+        }
       })
       .catch(() => {});
     return () => {
@@ -83,7 +93,10 @@ const Report = ({ attrs = {}, line }) => {
   };
   const okWindow = (word) => parseRetain(word) !== undefined; // the free field can't write a word no clock can read
 
-  const missing = [!attrs.as && "no subtype", !retain && "no retention"].filter(Boolean);
+  // The union, deduped: the row's reasons include the two local ones in the same words, and the
+  // local pair still answers when the row has not (unregistered, hub down, first render).
+  const local = [!attrs.as && "no subtype", !retain && "no retention"].filter(Boolean);
+  const missing = [...local, ...rowInvalid.split(", ").filter((w) => w && !local.includes(w))];
   const clock = retainLine({ retired, retain, windowMs, openedAt });
 
   return (

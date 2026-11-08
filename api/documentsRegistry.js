@@ -111,13 +111,26 @@ function openedMap() {
     return {};
   }
 }
+// WHAT THE ROW KNOWS AND THE LEAF CANNOT — joined onto the stamp's answer, because the stamp
+// already rides the leaf's render. The leaf derives `no subtype`/`no retention` from its own
+// attrs, but `no spec` is a fact about the document's OTHER blocks, which the block never sees —
+// so the drawer row read `invalid — no spec` while the document looked fine: two surfaces
+// disagreeing about one document. One derivation (the shell's parse, on the registry row), and
+// the leaf wears the same words the row does. An unregistered id simply gets no `invalid`, which
+// leaves the leaf its honest local fallback.
+const invalidOf = (key) => {
+  const row = rows().find((r) => r.id === key);
+  const invalid = row && row.state && row.state.invalid;
+  return invalid ? { invalid } : {};
+};
+
 function stampOpened(id, { restart = false } = {}) {
   const key = String(id || "").trim();
   if (!key) return { ok: false, error: "a first open needs the document's id" };
   const all = openedMap();
   // DIVERT IS A RESTART (RFC-076 §4.6): the one caller allowed to move an existing stamp is the
   // divert press — the clock re-measures attention from the moment he chose to keep the report.
-  if (all[key] && !restart) return { ok: true, id: key, openedAt: all[key], already: true };
+  if (all[key] && !restart) return { ok: true, id: key, openedAt: all[key], already: true, ...invalidOf(key) };
   all[key] = Date.now();
   try {
     fs.mkdirSync(path.dirname(OPENED()), { recursive: true });
@@ -125,7 +138,7 @@ function stampOpened(id, { restart = false } = {}) {
   } catch (e) {
     return { ok: false, error: String((e && e.message) || e) };
   }
-  return { ok: true, id: key, openedAt: all[key] };
+  return { ok: true, id: key, openedAt: all[key], ...invalidOf(key) };
 }
 
 module.exports = { documentsRegistryOn, upsertRow, stampOpened, openedMap, file: FILE, openedFile: OPENED };

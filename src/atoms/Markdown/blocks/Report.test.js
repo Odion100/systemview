@@ -76,6 +76,31 @@ describe("the report leaf", () => {
     expect(screen.getByText("invalid — no subtype, no retention")).toBeInTheDocument();
   });
 
+  // TWO SURFACES, ONE ANSWER. `no spec` is a fact about the document's other blocks, which this
+  // component never receives — the drawer row said `invalid — no spec` while the document looked
+  // fine. The row's derived reasons ride back on the documentOpened answer the leaf already makes.
+  it("the leaf wears the ROW's reasons too — `no spec` arrives on the answer it already gets", async () => {
+    opened = jest.fn(async ({ id }) => ({ ok: true, id, openedAt: Date.now(), invalid: "no spec" }));
+    setHub({ SystemView: {}, Agent: { documentOpened: opened } });
+    mount(<Report attrs={{ id: "r-specless", as: "spec", retain: "30d" }} line={1} />);
+    await screen.findByText("invalid — no spec");
+  });
+
+  it("the union dedupes — the row repeating the local reasons does not say them twice", async () => {
+    opened = jest.fn(async ({ id }) => ({ ok: true, id, openedAt: Date.now(), invalid: "no subtype, no retention, no spec" }));
+    setHub({ SystemView: {}, Agent: { documentOpened: opened } });
+    mount(<Report attrs={{ id: "r-bare-row" }} line={1} />);
+    await screen.findByText("invalid — no subtype, no retention, no spec");
+  });
+
+  it("no row answer, no silence about the local pair — the fallback is the two attrs-derived reasons", async () => {
+    opened = jest.fn(async () => ({ ok: false }));
+    setHub({ SystemView: {}, Agent: { documentOpened: opened } });
+    mount(<Report attrs={{ id: "r-offline" }} line={1} />);
+    await waitFor(() => expect(opened).toHaveBeenCalled());
+    expect(screen.getByText("invalid — no subtype, no retention")).toBeInTheDocument();
+  });
+
   it("permanent renders as a word, never a countdown (c45's render half)", async () => {
     mount(<Report attrs={{ id: "r-perm", as: "account", retain: "permanent" }} line={1} />);
     await screen.findByText("permanent");

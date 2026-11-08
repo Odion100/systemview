@@ -1,0 +1,56 @@
+[
+  {
+    "title": "The first-open stamp: first write wins, divert restarts, the row's invalid rides the answer — and an unregistered id adds nothing, so the leaf keeps its honest local fallback",
+    "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "documentOpened" },
+    "Before": [],
+    "Main": [
+      {
+        "title": "FIRST OPEN of a fixture id: stamped, a clock is born — and no `invalid` joined, because nothing registered this id (the join speaks only for rows the shell's parse derived)",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "documentOpened" },
+        "args": [
+          { "name": "argument:", "input": { "id": "spec-fixture-opened" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.ok", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.openedAt", "expected_type": "number", "validations": [{ "name": "min", "value": 1 }], "save": true },
+          { "namespace": "results.invalid", "expected_type": "undefined", "validations": [], "save": true }
+        ]
+      },
+      {
+        "title": "SECOND OPEN keeps the first clock — the stamp measures attention, not renders",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "documentOpened" },
+        "args": [
+          { "name": "argument:", "input": { "id": "spec-fixture-opened" }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.ok", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.already", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true }
+        ]
+      },
+      {
+        "title": "DIVERT is the one caller allowed to move the stamp — restart answers fresh, never `already`",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "documentOpened" },
+        "args": [
+          { "name": "argument:", "input": { "id": "spec-fixture-opened", "restart": true }, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.ok", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": true }], "save": true },
+          { "namespace": "results.already", "expected_type": "undefined", "validations": [], "save": true }
+        ]
+      },
+      {
+        "title": "NO ID, NO STAMP — refused by name, nothing written",
+        "namespace": { "serviceId": "Hub", "moduleName": "Agent", "methodName": "documentOpened" },
+        "args": [
+          { "name": "argument:", "input": {}, "input_type": "object", "data_type": "", "targetValues": [] }
+        ],
+        "savedEvaluations": [
+          { "namespace": "results.ok", "expected_type": "boolean", "validations": [{ "name": "boolEquals", "value": false }], "save": true },
+          { "namespace": "results.error", "expected_type": "string", "validations": [{ "name": "isLike", "value": "id" }], "save": true }
+        ]
+      }
+    ],
+    "Events": [],
+    "After": []
+  }
+]

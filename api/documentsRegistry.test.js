@@ -80,6 +80,24 @@ test("the registry read joins openedAt onto the row — absent when never opened
   assert.strictEqual(rows.find((r) => r.id === "rep-2").openedAt, undefined, "unread stays unstamped");
 });
 
+// THE STAMP'S ANSWER CARRIES WHAT THE ROW KNOWS AND THE LEAF CANNOT. `no spec` is a fact about the
+// document's other blocks, which the ::report block never sees — so the drawer said `invalid — no
+// spec` while the document looked fine. The stamp already rides the leaf's render; the row's
+// derived invalid rides the answer back, on every path (fresh, already, divert).
+test("the stamp's answer joins the row's invalid — the leaf wears the same words the row does", () => {
+  process.env.AUTOBOT_DOCUMENTS_OPENED = path.join(tmp, "documents-opened.json");
+  write([
+    { id: "rep-bad", kind: "report", path: "a.md", project: "systemview", at: 1, state: { invalid: "no spec" } },
+    { id: "rep-fine", kind: "report", path: "b.md", project: "systemview", at: 1, state: {} },
+  ]);
+  const { stampOpened } = require("./documentsRegistry");
+  assert.strictEqual(stampOpened("rep-bad").invalid, "no spec");
+  assert.strictEqual(stampOpened("rep-bad").invalid, "no spec", "the already-stamped path joins it too");
+  assert.strictEqual(stampOpened("rep-bad", { restart: true }).invalid, "no spec", "and the divert path");
+  assert.strictEqual("invalid" in stampOpened("rep-fine"), false, "a valid row adds nothing");
+  assert.strictEqual("invalid" in stampOpened("rep-unregistered"), false, "an unregistered id adds nothing — the leaf keeps its local fallback");
+});
+
 test("divert restarts the clock — the one caller allowed to move an existing stamp", async () => {
   process.env.AUTOBOT_DOCUMENTS_OPENED = path.join(tmp, "documents-opened.json");
   const { stampOpened } = require("./documentsRegistry");
