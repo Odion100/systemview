@@ -76,12 +76,6 @@ rather than an enum). A scenario that is genuinely none of these takes a new wor
 why in its own first screen. What the openness is not is licence to invent a synonym for a row that
 already exists.
 
-**AN ACCOUNT CARRIES NO `::claim` BLOCKS.** His ruling, 2026-11-07, after three accounts in one
-night carried them: a claim is a CONTRACT — an id, a state, co-signatures, a bar that counts it —
-and nobody is a party to a sitting's account. What an account owes is a statement of what ran and
-what it said, which is a table and the command that reproduces it. Claims belong to the documents
-that make commitments: an RFC, a spec report, a gap's resolution.
-
 **A flag with nothing to act on is not a report.** If all it does is tell him something happened, it
 is a line in the chat or a card on the board — both reach him sooner and neither has to be retired
 afterwards. What makes a file worth writing is that it carries enough to ACT on, and that is a

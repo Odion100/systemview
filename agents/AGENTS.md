@@ -126,6 +126,16 @@ The procedure, in the order the questions come, because every step of it was fum
 every piece was already known (2026-11-07 — a second instance of a live service got built because a
 probe refusal was read as "not a service"):
 
+**TWO DOORS FROM AN AGENT'S CHAIR, AND THEY CARRY DIFFERENT THINGS.** The systemlynx MCP
+(`services` → `loadService` → `call`) is the CLIENT itself: it loads any live service by name and
+every module method becomes callable — no hub in the path, no registry, and no test machinery. The
+systemview MCP (`probe`, `runTests`, `runProofs`, `connect`…) is the HUB's door: `probe` resolves
+the registered-projects tree and carries the project's headers, and the hub is where the testing
+lives — saved specs, document proofs — because specs are project artifacts the hub indexes. The
+choice rule: an ad-hoc call to anything live → systemlynx load + call; a registered project's
+method with its auth, or anything spec-shaped → the hub's doors. Using one door's refusal to
+conclude about the other is how a second instance of a live service got built (2026-11-07).
+
 1. **"Is it available?" → `projects`.** One call, every project the hub knows, every service under
    each with its URL. That is the live registry — the processes answering right now.
 2. **"Call it" → `probe({namespace: "Service.Module.method"})`.** Fuzzy resolution, the project's
