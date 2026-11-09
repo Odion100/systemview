@@ -1275,7 +1275,10 @@ $sv-board-states: (
     width: 100%;
     padding: 3px 10px 2px;
     border: none;
-    background: none;
+    // NOT `none` — it sits in the opaque bottom region (see `__list ~ *`) and a button declaring
+    // itself transparent is the one member a region rule cannot save, because it is saying the
+    // opposite on purpose. This is the block he caught me missing.
+    background: var(--sv-surface);
     cursor: pointer;
     font-family: "SF Mono", Menlo, monospace;
     font-size: 9.5px;
@@ -2382,10 +2385,59 @@ $sv-board-states: (
     overflow-y: auto;
     // A little more under the last bubble than beside it — his: the last word sat flush with the
     // bottom, under the voice pill. Just enough air; not much.
-    padding: 10px 10px 20px;
+    //
+    // AND A SCROLL BUFFER UNDER IT ALL (his ask, 2026-11-09): *"make the bottom scrollable if it's
+    // not big enough — a scroll buffer at the bottom, since it actually disappears behind the chat
+    // when it's pushed out."* When the drawer is dragged tall this column runs short, and the last
+    // thing said ends up under the composer with no way to reach it: the scroller's own end was
+    // the composer's top edge, so scrolling to the bottom still left the final line covered. The
+    // buffer is scrollable emptiness — it costs nothing when there is room (it is simply the
+    // bottom of a scroller that is not scrolling) and it is the only thing that makes the last
+    // line reachable when there is not.
+    // AND A SCROLL BUFFER UNDER IT ALL (his ask, 2026-11-09). Plain padding, deliberately: the
+    // first version measured the blocks below with a ResizeObserver and reserved exactly their
+    // height, which is the honest answer to "the height of the stuff down there" and is also a
+    // moving number, a CSS variable and an observer for a strip of empty space. His call, and he
+    // is right — *"fuck the buffer if you think you got to do magic."* The blocks below are opaque
+    // and sit above the words now, which is what was actually broken; this is just air.
+    padding: 10px 10px 72px;
     display: flex;
     flex-direction: column;
     gap: 6px;
+  }
+  // EVERYTHING BELOW THE CONVERSATION IS OPAQUE — his report, 2026-11-09: *"it's messed up 'cause
+  // you can see through it… the chat box, you got the attachment icon, all that stuff"*, and then
+  // again when I fixed only the blocks I had thought to name: *"what you missed is the background
+  // of the usage line, the bar and everything down there."*
+  //
+  // HE IS RIGHT THAT A LIST WAS THE WRONG MECHANISM. Measured in his live window rather than read
+  // off this file: the siblings below the conversation are the voice bar, the cooking line, the
+  // WORK BAND ITSELF, the usage meter and the input row — and every one of them computed to
+  // rgba(0, 0, 0, 0). I had named six blocks, two of which do not render in that state, and missed
+  // three that do. `__usageline` even declared `background: none` outright.
+  //
+  // So it is the REGION, by position: a general sibling after the scroller. A block added down
+  // here next month is opaque because of where it sits, not because somebody remembered to add it
+  // to a list. That is also why the selector is `~ *` and not a set of classes — it has to hold
+  // for members that do not exist yet.
+  //
+  // --sv-surface is the PANEL'S OWN background (see `__panel`), not a new colour: the bottom is not
+  // a different surface, it is the part of this one that nothing may show through.
+  &__list ~ * {
+    background: var(--sv-surface);
+    // AND ABOVE THE WORDS — his words, and the half a background alone does not buy. Opaque only
+    // decides what you see THROUGH a block; paint order decides which of two overlapping boxes is
+    // on top, and in a flex column a later sibling does not win by default. A stacking context of
+    // its own is what makes "behind it" mean behind it, for the usage row and everything else down
+    // there rather than for the input row alone.
+    position: relative;
+    z-index: 2;
+  }
+  // THE TWO EXCEPTIONS ARE NOTICES, NOT SURFACE, and they say so with their own colour — they
+  // appear ON the bottom rather than being part of it. Re-asserted here because the region rule
+  // above sits later in the file than the chip's own declaration and would otherwise flatten it.
+  &__compaction {
+    background: var(--sv-hover);
   }
   // RFC-029 — a COMMAND in the thread: not a bubble, a quiet mono receipt line ("→ opened …").
   &__cmd {
@@ -3835,6 +3887,40 @@ $sv-board-states: (
   line-height: 1;
 }
 .agent-chat__worklist-chev { flex: none; opacity: 0.6; font-size: 14px; } // a little bigger, his ask
+// THE BRIEF — the sender's prose on a run, above the steps it explains. Quoted rather than
+// boxed: it is somebody else's voice inside this agent's drawer, and the left rule is the cheapest
+// way to say so without a second card. It wraps and it scrolls at the same ceiling the items do,
+// because a brief long enough to need more room should have been a report.
+// CLOSED, IT IS TWO LINES. A brief can be a paragraph and this row sits in a drawer whose height
+// is contested — so the statement is visible without a press (his report: *"I don't see a brief"*)
+// and cannot push anything around until he opens it. The title attribute carries the whole thing
+// for a hover, so clamping hides nothing that cannot be read on the spot.
+.agent-chat__worklist-brief--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-height: none;
+}
+.agent-chat__worklist-brief {
+  margin: 4px 0 2px;
+  padding: 3px 0 3px 8px;
+  border-left: 2px solid var(--sv-border);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--sv-text-muted);
+  white-space: pre-wrap;
+  max-height: 160px;
+  overflow-y: auto;
+}
+// The closed row's tell. Flex-none and 10px like every other chip on that line — it costs no
+// height, which is the one rule the head row cannot bend.
+.agent-chat__worklist-briefmark {
+  flex: none;
+  font-size: 10px;
+  line-height: 1;
+  opacity: 0.75;
+}
 .agent-chat__worklist-items {
   list-style: none;
   margin: 2px 0 0;

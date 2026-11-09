@@ -14,7 +14,7 @@ import NudgeCog from "./NudgeCog";
 // draw what the harness said and to send one changed field back to it, keeping no copy of its own.
 
 let writes = [];
-const doors = ({ nudge = true, compaction = true } = {}) => {
+const doors = ({ nudge = true, compaction = true, agents = ["manager", "systemview-test", "blink"] } = {}) => {
   writes = [];
   const api = {};
   if (nudge)
@@ -36,6 +36,9 @@ const doors = ({ nudge = true, compaction = true } = {}) => {
         return { ok: true, settings: { on: true, softPct: 60, hardPct: 70, countdownSec: 12, snoozeSec: 60 } };
       },
     };
+  // THE ROSTER DOOR the manager select reads — the same one the Agents page uses. Stubbed with
+  // more than one agent, because a select with one option proves nothing about choosing.
+  if (agents) api.agent = { defs: async () => agents.map((id) => ({ id })) };
   window.systemview = api;
 };
 
@@ -145,38 +148,53 @@ describe("each section states its own absence (c19's other half)", () => {
 
 describe("the manager field — his control over who may assign work", () => {
   // WHY IT IS HERE AND NOT ON EVERY AGENT'S DEFINITION: the profile's lever is allow/deny per
-  // agent, so gating `assign` that way would mean unchecking a tool on every agent that must not
+  // agent, so gating assign that way would mean unchecking a tool on every agent that must not
   // have it. One name, in the panel he already opens to control the nudging.
-  it("draws with `nobody` as its placeholder, because empty means refused", async () => {
+  //
+  // AND IT IS PICKED, NOT TYPED (his correction, 2026-11-09). The authority is compared to a
+  // session's slot exactly, so a typo names nobody and the refusal that follows is correct and
+  // unactionable — "that is managr". A select cannot misspell.
+  const managerBox = async () => {
+    const boxes = await screen.findAllByRole("combobox");
+    return boxes.find((b) => within(b).queryByText(/^nobody$/));
+  };
+
+  it("offers every defined agent, with nobody as the default", async () => {
     doors();
     render(<BandSettings />);
-    const box = await screen.findByPlaceholderText(/nobody/i);
-    expect(box).toBeTruthy();
+    const box = await managerBox();
     expect(box.value).toBe("");
+    await waitFor(() => expect(within(box).getByText("systemview-test")).toBeTruthy());
+    expect(within(box).getByText("manager")).toBeTruthy();
+    expect(within(box).getByText("blink")).toBeTruthy();
+    expect(writes.length).toBe(0);
   });
 
-  // A CONTROLLED TEXT INPUT WIRED STRAIGHT TO THE DOOR WRITES ONCE PER CHARACTER, and each of those
-  // is an authority the assign verb would briefly obey. So it commits on blur and nowhere else.
-  it("types without writing, and writes once on blur", async () => {
+  it("picking one writes it once — a choice is a single discrete act", async () => {
     doors();
     render(<BandSettings />);
-    const box = await screen.findByPlaceholderText(/nobody/i);
-    fireEvent.change(box, { target: { value: "man" } });
+    const box = await managerBox();
+    await waitFor(() => expect(within(box).getByText("manager")).toBeTruthy());
     fireEvent.change(box, { target: { value: "manager" } });
-    expect(writes.length).toBe(0);
-    fireEvent.blur(box);
     await waitFor(() => expect(writes.length).toBe(1));
     expect(writes[0].chaserKnobs).toEqual({ manager: "manager" });
   });
 
-  it("escape abandons the edit without writing anything", async () => {
+  it("returning to nobody is a choice he can make, and it writes the empty authority", async () => {
     doors();
     render(<BandSettings />);
-    const box = await screen.findByPlaceholderText(/nobody/i);
-    fireEvent.change(box, { target: { value: "someone-else" } });
-    fireEvent.keyDown(box, { key: "Escape" });
-    fireEvent.blur(box);
-    expect(writes.length).toBe(0);
+    const box = await managerBox();
+    await waitFor(() => expect(within(box).getByText("manager")).toBeTruthy());
+    fireEvent.change(box, { target: { value: "" } });
+    await waitFor(() => expect(writes.length).toBe(1));
+    expect(writes[0].chaserKnobs).toEqual({ manager: "" });
+  });
+
+  // AN EMPTY ROSTER SAYS SO. A one-option select reads as "there are no agents", which is a claim
+  // about the world the panel cannot make from a door that simply is not there.
+  it("says the roster is empty rather than drawing a menu of one", async () => {
+    doors({ agents: [] });
+    render(<BandSettings />);
+    expect(await screen.findByText(/no agents defined to choose from/i)).toBeInTheDocument();
   });
 });
-

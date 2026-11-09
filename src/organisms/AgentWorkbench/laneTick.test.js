@@ -55,3 +55,31 @@ describe("which events mean re-read the run files", () => {
     expect(laneTicksIn([])).toBe(0);
   });
 });
+
+// RFC-078 §2.8 — A CORRECTION ARRIVES. Added 2026-11-09 after a physical test: the manager
+// assigned two real runs to this agent, `stripRuns` returned them first, and the band read
+// "0 corrections". Every other event in this list rides something the session itself did, so a run
+// handed to the agent from outside produced no tick and the row waited for an unrelated one.
+describe("a run assigned by another agent", () => {
+  it("asks for a re-read, because nothing in this session caused it", () => {
+    expect(ticksLanes({ kind: "run.assigned", source: "correction:manager", runId: "r1" })).toBe(true);
+  });
+
+  it("counts toward the tick the effect depends on, beside the events it already watched", () => {
+    expect(
+      laneTicksIn([
+        { kind: "message" },
+        { kind: "run.assigned", source: "correction:manager" },
+        { kind: "todo.updated", source: "" },
+        { kind: "run.updated" },
+      ]),
+    ).toBe(2);
+  });
+
+  // THE LIST IS A WHITELIST AND HAS TO STAY ONE — a bare kind nobody declared must not tick, or
+  // the window re-reads disk on every feed event in the session.
+  it("does not open the door to anything that merely sounds like a run", () => {
+    expect(ticksLanes({ kind: "run.assigned.maybe" })).toBe(false);
+    expect(ticksLanes({ kind: "assigned" })).toBe(false);
+  });
+});

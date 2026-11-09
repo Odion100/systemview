@@ -27,6 +27,13 @@ export const ticksLanes = (e) => {
     case "run.finished":
     case "run.updated":
     case "lane.removed":
+    // A RUN OPENED FOR THIS AGENT BY SOMEBODY ELSE — a correction (RFC-078 §2.8). It is the only
+    // kind here that originates OUTSIDE the session, which is exactly why it had to be added:
+    // every other case rides an event this session caused, so a run handed to this agent produced
+    // no tick at all. Measured 2026-11-09 with a real assign from the manager — two runs on disk,
+    // `stripRuns` returning them first, and the band reading "0 corrections" until something
+    // unrelated happened to tick the re-read. Work that arrives has to arrive.
+    case "run.assigned":
       return true;
     case "todo.updated":
       return !!String((e && e.source) || "").trim();

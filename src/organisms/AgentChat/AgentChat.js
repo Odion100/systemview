@@ -1321,7 +1321,7 @@ function useNudgeEta({ source = "", runKey = "", projectCode = "", off = false }
   return eta;
 }
 
-function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null, onDelete = null }) {
+function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null, brief = "", onDelete = null }) {
   const [open, setOpen] = useState(false);
   const done0 = (items || []).filter((t) => t.state === "done").length;
   const complete0 = items && items.length ? done0 === items.length : true;
@@ -1399,6 +1399,17 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
             {accounted ? "abandoned · accounted" : "abandoned — no account"}
           </span>
         ) : null}
+        {/* A BRIEF IS WHY THE RUN EXISTS, so the closed row has to SAY one arrived — a paragraph
+            that only appears once he opens the fold is a paragraph he never reads. The glyph is
+            the whole tell; the words are below, where there is room for them. */}
+        {brief ? (
+          <span
+            className={`${CLASSNAME}__worklist-briefmark`}
+            title="this run carries a brief from whoever opened it — open the row to read it"
+          >
+            ❝
+          </span>
+        ) : null}
         {eta != null ? (
           <span
             className={`${CLASSNAME}__worklist-nudgeeta`}
@@ -1429,6 +1440,25 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
       )}
       {runDel.del}
       </div>
+      {/* THE BRIEF IS NOT BEHIND A PRESS — his report, 2026-11-09: *"if the corrections has
+          briefs, I don't see a brief."* It was inside the fold with the attachments, which is
+          right for a thing the run POINTS AT and wrong for the thing that says why the run
+          exists: two rows read "correction:manager" and nothing on screen said what either was
+          about. Closed it is clamped to two lines so a long one cannot push the drawer around;
+          open, the whole statement is there — which is why it sits OUTSIDE the fold below rather
+          than being written into both states.
+
+          IT IS THE SENDER'S STATEMENT and nothing the owing agent does edits it, which is why it
+          is prose on the record rather than a status line (a status is the owner's voice) or a
+          first item (an item is work, and this is not). */}
+      {brief ? (
+        <div
+          className={`${CLASSNAME}__worklist-brief${open ? "" : ` ${CLASSNAME}__worklist-brief--clamped`}`}
+          title={open ? undefined : brief}
+        >
+          {brief}
+        </div>
+      ) : null}
       {runDel.confirm}
       {open && (
         <>
@@ -6228,6 +6258,10 @@ const countdown = (str, now = Date.now()) => {
         items: r.items,
         status: r.status || null,
         attachments: r.attachments || null,
+        // The brief rides the RECORD, so it comes from the disk row and only from there — a live
+        // todo event carries items and nothing else, which is the same reason status and
+        // attachments are preserved rather than overwritten below.
+        brief: r.brief || "",
       });
     }
     for (const l of work.state.todoLists || [])
@@ -6245,6 +6279,7 @@ const countdown = (str, now = Date.now()) => {
           items: l.items,
           status: prior ? prior.status : null,
           attachments: prior ? prior.attachments : null,
+          brief: prior ? prior.brief : "",
         });
       }
     // THE DEFAULT LIST IS NEVER FILTERED AWAY — his ruling, 2026-11-07: *"default list always."*
@@ -8006,6 +8041,7 @@ const countdown = (str, now = Date.now()) => {
                         projectCode={projectCode}
                         status={l.status || null}
                         attachments={l.attachments || null}
+                        brief={l.brief || ""}
                         onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
                         // THE SESSION'S OWN PLAN HAS NO RECORD TO DELETE — it is the session
                         // file's, not a run's, and withDefaultList synthesises its row when there
@@ -8020,8 +8056,17 @@ const countdown = (str, now = Date.now()) => {
             </div>
               {/* The whiteboard sits UNDER the list — tried on top, he wants to feel this order
                   again. Same area, different job: the list tracks the work, the board holds the
-                  conversation. The wipe is the host's, so an erase clears it for both of us. */}
-              <Whiteboard text={work.state.whiteboard} onWipe={() => work.wipeWhiteboard()} />
+                  conversation. The wipe is the host's, so an erase clears it for both of us.
+
+                  AND IT STANDS DOWN WHILE THE SETTINGS ARE OPEN (his fix, 2026-11-09: *"when the
+                  settings is open, the whiteboard doesn't need to be down there"*). The settings
+                  pane is a tab in this same area — it is what he is looking at — and the board
+                  underneath it is competing for the height he opened the panel to use. It is not
+                  hidden state: closing the settings brings it straight back, unchanged, because
+                  the board lives on the host and this is only whether it draws. */}
+              {!bandSettings && (
+                <Whiteboard text={work.state.whiteboard} onWipe={() => work.wipeWhiteboard()} />
+              )}
             </div>
           )}
           {/* Closed, the band IS a label (his words) — the count rides it so "hidden" never looks

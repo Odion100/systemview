@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { listDefs } from "../../utils/hostAgents";
 import { FIELDS, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
 import {
   FIELDS as COMPACTION_FIELDS,
@@ -24,11 +25,26 @@ import {
 const BandSettings = () => {
   const [tab, setTab] = useState("worklist");
 
-  // ONE FREE-TEXT FIELD, SO ONE DRAFT. A controlled input wired straight to `send` writes once per
-  // CHARACTER: typing a slot name would send `m`, `ma`, `man`… and each of those is an authority the
-  // assign verb would briefly obey. Toggles, numbers and the source buttons are single discrete
-  // acts and still send immediately; only this one commits on blur.
-  const [slotDraft, setSlotDraft] = useState(null);
+  // THE MANAGER IS PICKED, NOT TYPED — his correction, 2026-11-09: *"I don't know why you didn't
+  // just give me the ability to select the agent or why would I type a specific name in."* He is
+  // right, and the typed field was worse than inconvenient: the authority is matched against a
+  // session's SLOT exactly, so one typo names an agent that does not exist and the refusal reads
+  // "assigning work is the manager's, and that is managr" — a correct refusal nobody can act on.
+  // A select cannot misspell, and it is one discrete act, so it sends on change like every toggle
+  // here (the draft-and-blur dance existed only because a text input writes once per keystroke).
+  //
+  // THE ROSTER IS THE HARNESS'S, read through the door the Agents page already uses — no new
+  // bridge, so no shell restart to arm it.
+  const [roster, setRoster] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    Promise.resolve(listDefs())
+      .then((list) => alive && setRoster((list || []).map((r) => r && r.id).filter(Boolean)))
+      .catch(() => alive && setRoster([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // ── THE CHASER'S OWN KNOBS ──
   const [settings, setSettings] = useState(null);
@@ -159,21 +175,34 @@ const BandSettings = () => {
                     </span>
                   )}
                   {f.kind === "slot" && (
-                    <input
-                      type="text"
+                    <select
                       className="agent-chat__bandcog-slot"
-                      placeholder="nobody"
-                      value={slotDraft == null ? settings[f.key] || "" : slotDraft}
-                      onChange={(e) => setSlotDraft(e.target.value)}
-                      onBlur={() => {
-                        if (slotDraft != null) send(patchFor(settings, f.key, slotDraft));
-                        setSlotDraft(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.target.blur();
-                        if (e.key === "Escape") setSlotDraft(null);
-                      }}
-                    />
+                      value={settings[f.key] || ""}
+                      onChange={(e) => send(patchFor(settings, f.key, e.target.value))}
+                    >
+                      {/* EMPTY IS A REAL CHOICE AND IT IS THE DEFAULT — a blank authority admits
+                          nobody, so "nobody" is an option he can return to, never a placeholder
+                          that means "unset and therefore anyone". */}
+                      <option value="">nobody</option>
+                      {/* A NAME ALREADY SET THAT IS NOT IN THE ROSTER STILL APPEARS. An agent can
+                          be removed after being named manager, and a select that silently dropped
+                          the value would rewrite his setting the next time he touched anything
+                          else in this panel. It shows, marked, and he decides. */}
+                      {settings[f.key] && roster && !roster.includes(settings[f.key]) ? (
+                        <option value={settings[f.key]}>{settings[f.key]} — no such agent</option>
+                      ) : null}
+                      {(roster || []).map((id) => (
+                        <option key={id} value={id}>
+                          {id}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {/* THE ROSTER'S OWN ABSENCE, said rather than drawn as an empty menu — the same
+                      rule the two sections above follow. A shell with no agents door leaves this
+                      a one-option select, which reads as "there are no agents" and is a lie. */}
+                  {f.kind === "slot" && roster && !roster.length && (
+                    <span className="agent-chat__bandcog-none">no agents defined to choose from</span>
                   )}
                   {f.kind === "sources" && (
                     <span className="agent-chat__bandcog-sources">
