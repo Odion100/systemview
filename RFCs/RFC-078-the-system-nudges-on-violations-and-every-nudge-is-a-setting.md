@@ -672,16 +672,16 @@ deletion can take them. The withdrawn work is part of what this document cost an
 ::commit{sha=56e32c94}
 ::commit{sha=f22c697b}
 ::commit{sha=38b4fb3c}
-::commit{sha=6609507}
+::commit{sha=6609507 project=autobot}
 ::commit{sha=eeb8202f}
-::commit{sha=442d8aa}
-::commit{sha=a94ba8d}
-::commit{sha=711b0bb}
+::commit{sha=442d8aa project=autobot}
+::commit{sha=a94ba8d project=autobot}
+::commit{sha=711b0bb project=autobot}
 ::commit{sha=66e3e6c6}
-::commit{sha=e5ad6dc}
-::commit{sha=6893a13}
+::commit{sha=e5ad6dc project=autobot}
+::commit{sha=6893a13 project=autobot}
 ::commit{sha=806bf86e}
-::commit{sha=0187663}
+::commit{sha=0187663 project=autobot}
 ::commit{sha=8446b18d}
 ::commit{sha=ab4bd2db}
 ::commit{sha=e6a4c422}
