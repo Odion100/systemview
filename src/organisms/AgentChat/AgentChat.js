@@ -56,6 +56,10 @@ import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun, markJobState, jobStates, hasJobState } from "../../utils/hostJobs";
 import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, readBandTab, writeBand, TAB_KEY, DEFAULT_LIST_KEY } from "./bandTabs";
+// AS runNowLine, NOT nowLine — this file already has a local `nowLine` deep inside the panel (the
+// live-speech line), and an import shadowed by a const 5,000 lines later is legal JavaScript and a
+// trap for whoever edits either one next.
+import { nowLine as runNowLine } from "./nowLine";
 import { runDelete } from "./runDelete";
 import NudgeCog from "./NudgeCog";
 import BandSettings from "./BandSettings";
@@ -1084,7 +1088,10 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           on the first row") */}
       <div className={`${CLASSNAME}__jobrun-head`}>
         <span className={`${CLASSNAME}__jobrun-badge`}>⚙</span>
-        <span className={`${CLASSNAME}__jobrun-name`}>{(rec && rec.job) || jobId}</span>
+        {/* THE NAME WEARS THE SOURCE-BADGE GRAMMAR every other row uses for its source — hollow,
+            same size, same shape. A job IS its source; what made this row look like another species
+            was the costume, not the content. */}
+        <span className={`${CLASSNAME}__worklist-source ${CLASSNAME}__jobrun-name`}>{(rec && rec.job) || jobId}</span>
         {/* THE WORD IS A DOOR when this shell can record his mark — a CUSTOM menu, not a native
             select (his call: *"it doesn't have to be a built-in selector if that doesn't style
             nicely. I prefer custom ones."*). It keeps the chip's own costume either way, so the
@@ -1162,6 +1169,16 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
             {moment(rec.finishedAt || rec.startedAt).format("D MMM h:mm a")}
           </span>
         )}
+        {/* WHAT IT IS DOING RIGHT NOW — the one thing every ordinary row leads with and a job card
+            never said. His ask, 2026-11-09: the job rows "could use a redesign to look similar to
+            the regular list… it's really not special anymore." The card said the job's name, its
+            state, its count and when it ran, and never the step it was standing on — so of the
+            four kinds of run in this drawer, the one that runs unattended was the only one you
+            could not read a progress sentence off. Same grammar, same class, same fallbacks as
+            WorkList: the active item, or plainly that there is none. */}
+        <span className={`${CLASSNAME}__worklist-now`}>
+          {runNowLine(items, { complete: "run complete", idle: "nothing active" })}
+        </span>
         <span className={`${CLASSNAME}__jobrun-chev`}>{open ? "▾" : "▸"}</span>
       </div>
       {/* WHAT THE RUN DID, as its own quiet line — his correction, 2026-10-17: the work-title in
@@ -1420,9 +1437,9 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
         ) : null}
         {/* The ACTIVE item is the line — not "3 tasks", which says nothing about what is happening.
             With nothing active (finished, or not started yet) it says so plainly. */}
-        <span className={`${CLASSNAME}__worklist-now`}>
-          {active ? active.text : done === items.length ? "plan complete" : "planning"}
-        </span>
+        {/* ONE DEFINITION, read by both rows — see nowLine.js. The words here are unchanged;
+            what moved is that the job row now says the same kind of thing in the same place. */}
+        <span className={`${CLASSNAME}__worklist-now`}>{runNowLine(items)}</span>
         <span className={`${CLASSNAME}__worklist-chev`}>{open ? "▾" : "▸"}</span>
       </button>
       {/* ABANDONED·ACCOUNTED IS AN ENDING TOO (his ruling, 2026-10-26: "I see this one was

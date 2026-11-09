@@ -4726,16 +4726,29 @@ $sv-board-states: (
 // A JOB'S RUN — distinct from a skill's list on purpose (his ask, 2026-10-08). Amber is the
 // system's colour for the loud kind of moment; a finished one goes green and leads with the report,
 // because at that point the card is not progress any more, it is work waiting to be read.
+// A JOB ROW IS A ROW, NOT A CARD — his call, 2026-11-09: *"the jobs on worklist could use a
+// redesign to look similar to the regular list that have skills and default… it's really not
+// special anymore."* He is right about the history: a job used to be the only DURABLE run in this
+// drawer, so it earned a card — an amber tint, a rounded box, a 3px left rule — while skills,
+// lanes and the session's plan were flat rows. Corrections and skill runs are durable now, all
+// four kinds are read off the same run files by the same strip, and the costume was the only thing
+// left saying otherwise.
+//
+// SO THE SHAPE IS `__worklist`'s, EXACTLY: the same padding, the same hairline rule saying where
+// one row begins, no tint and no radius. What remains job-specific moves into the CONTENT, where it
+// belongs — the ⚙ badge, the pressable state chip, the report mark, the lane count, the timestamp.
+// Those are facts about the run; the box was a claim about its importance.
 .agent-chat__jobrun {
-  margin: 6px 0;
-  padding: 6px 8px;
-  border-radius: 8px;
-  border-left: 3px solid #d19a2e;
-  background: rgba(209, 154, 46, 0.07);
+  flex: none;
+  padding: 2px 8px 4px;
+  font-size: 12px;
+  border-top: 1px solid var(--sv-border-soft);
 }
+// DONE IS STILL SAID, and still at the left edge where he reads it — but as a hairline on the rule
+// every row already has, rather than as a second background colour. The progress bar beside the
+// count is the loud statement; this is the glance.
 .agent-chat__jobrun--done {
-  border-left-color: #63b98a;
-  background: rgba(99, 185, 138, 0.08);
+  border-top-color: color-mix(in srgb, #63b98a 45%, var(--sv-border-soft));
 }
 // THE LANES NESTED UNDER THEIR JOB CARD — a left rule and an indent, so they read as the card's
 // produce rather than more siblings; the rows inside are the flat strip's own, untouched.
@@ -4761,15 +4774,18 @@ $sv-board-states: (
   cursor: pointer; // the whole bar opens it — see the note in JobRun
 }
 .agent-chat__jobrun-badge { font-size: 12px; opacity: 0.85; }
+// THE JOB'S NAME IS ITS SOURCE BADGE, so this rule no longer flattens one. It used to zero the
+// border, background and padding — written when the name was bare text inside a card — and left in
+// place it would have won on cascade order and undone the badge the row now wears, which is the
+// quiet way a shared grammar fails: the class is applied, the costume is overridden, and only the
+// screen says so. What stays here is what is genuinely job-specific: it is PRESSABLE (the name
+// opens the job's own document), so it carries a cursor and the weight that says so.
 .agent-chat__jobrun-name {
-  border: 0;
-  background: none;
-  padding: 0;
   cursor: pointer;
-  font: inherit;
-  font-size: 12px;
+  font-family: inherit;
   font-weight: 700;
   color: var(--sv-text-strong);
+  opacity: 0.85; // a shade stronger than a plain source badge — it is a door, not a label
 }
 // THE TOP BLOCK — head row + title line left, the × centered against BOTH rows (his correction:
 // "it doesn't need to be in either row").
