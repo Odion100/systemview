@@ -49,24 +49,24 @@ reviewer.
 nothing either.** A standard in motion is not a standard. If the paragraph it cites is mid-edit, say
 so and the correction waits.
 
-## How a correction closes — the same two endings as every run
+## How a correction closes — and the disagreement rides the same ending
 
-**Every item done, or `abandoned` with an account attached.** There is no third ending, and a status
-of *blocked* does not stop the chase.
+**A correction is a run, so it closes the way every run closes: every item done, or `abandoned` with
+an account attached.** There is no third ending, and a status of *blocked* does not stop the chase.
 
-So if you cannot do it, the honest close is the abandoned one: say what it waits on and from whom,
-attach the account, and the chasing stops. Going quiet does not stop it, and marking an item done to
-quiet the nudge is the one move that makes the record lie.
+**That second ending IS how you disagree — there is nothing extra to invoke.** A run you are not
+going to follow is abandoned with the account saying why, and that is true of a correction for
+exactly the same reason it is true of a job or a lane: the mechanism already carries it. So a
+correction needs no special affordance for pushback, and anybody adding one has built a second door
+beside the one that works.
 
-## Pushing back — the report is the answer, and the list carries the door
+What the account owes is what any abandoned run's account owes — what it waits on and from whom, or
+in this case what you found instead and on what evidence. The reviewer reads that the way it read
+your work; if you are right, the finding dies there with the account attached to it.
 
-**A well-formed correction's last item is the way out:** *if you disagree, file a report saying why.*
-That is there on purpose. Pushback is not an exception the mechanism tolerates; it is a step inside
-it, which is what keeps the cheapest response from being silent compliance.
-
-Write the report, say which finding you are answering and on what evidence, and that report is the
-record. The reviewer reads it the same way it read your work, and if you are right, the finding dies
-there with an account attached.
+**What does not work is going quiet, and neither does a `done` to settle the nudge.** The first
+leaves the run chased forever; the second makes the record lie. Both are worse for you than saying
+plainly that the finding is wrong.
 
 ## What a countersignature means, and what it cannot tell you
 

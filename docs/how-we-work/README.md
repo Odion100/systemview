@@ -23,7 +23,7 @@ the context stack. It is not a SystemView document.
 | `second-opinion.md` | When a blind pass is owed, and the question only an outsider can ask |
 | `intent.md` | The why an agent can act on — standing and operational, and why they are not interchangeable |
 | `code.md` | The code those documents describe — does it cross a wire, and call it through the client |
-| `review.md` | What happens after you say it is done — the manager, a correction, and how to refuse one |
+| `review.md` | What happens after you say it is done — the manager, a correction, and when you may refuse it |
 
 Still nominated and unwritten: **jobs and chores**, and **lanes/runs** — which lives in
 `autobot-docs` today and belongs here.
