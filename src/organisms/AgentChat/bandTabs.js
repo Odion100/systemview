@@ -198,6 +198,23 @@ export const listKey = (source, derived) =>
  * IT IS NOT FILTERED BY `cleared`. Clearing the plan is how he empties it, not how he deletes it:
  * the row has to survive its own clear or "always" would mean "until he uses it".
  */
+// WHICH TAB SHOWS THE SESSION'S OWN PLAN — `runs` (`all`), and only that one.
+//
+// His correction, 2026-11-09: *"make the default list show at the top of runs only. And that shows
+// every list, runs, should have a default at the top. That's it. And then it can go away from the
+// other tabs."* It had been pinned below EVERY pane, from his earlier *"have it always show, like
+// at the bottom or something"* — and the "always" was the part that did not survive seeing it.
+//
+// THE REASON IT BELONGS ON `all` AND NOWHERE ELSE: a list with no source has no KIND, so on `jobs`
+// or `corrections` it is an answer to a question that tab is not asking — the same row repeated
+// under five headings that each promise to be about one kind of work. `all` is the tab that already
+// shows every list, so the plan heads it.
+//
+// IT IS A FUNCTION RATHER THAN A COMPARISON IN THE JSX for this file's standing reason: a decision
+// written inline in AgentChat.js is a decision nothing can check, because anything mounting that
+// component pulls in the markdown renderer and jest dies before it runs.
+export const showsPlan = (activeTab) => String(activeTab || "") === "all";
+
 export const withDefaultList = (rows = []) => {
   const list = Array.isArray(rows) ? rows : [];
   if (list.some((l) => l && !l.source)) return list;

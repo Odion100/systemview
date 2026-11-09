@@ -54,7 +54,7 @@ import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
-import { bandTabs, tabOfSource, bandLabel, bandHead, withDefaultList, listKey, readBandTab, writeBand, TAB_KEY, DEFAULT_LIST_KEY } from "./bandTabs";
+import { bandTabs, tabOfSource, bandLabel, bandHead, withDefaultList, showsPlan, listKey, readBandTab, writeBand, TAB_KEY, DEFAULT_LIST_KEY } from "./bandTabs";
 // AS runNowLine, NOT nowLine — this file already has a local `nowLine` deep inside the panel (the
 // live-speech line), and an import shadowed by a const 5,000 lines later is legal JavaScript and a
 // trap for whoever edits either one next.
@@ -7790,6 +7790,43 @@ const countdown = (str, now = Date.now()) => {
                   !listsShown.some((l) => l.source.startsWith("job:")) && (
                     <div className={`${CLASSNAME}__bandnone`}>no job running</div>
                   )}
+                {/* THE SESSION'S OWN PLAN LEADS THE `runs` TAB, AND APPEARS NOWHERE ELSE — his
+                    correction, 2026-11-09: *"make the default list show at the top of runs only.
+                    And that shows every list, runs, should have a default at the top. That's it.
+                    And then it can go away from the other tabs."*
+
+                    It was pinned below every pane, which came from his earlier *"have it always
+                    show, like at the bottom or something"* — and seeing it, the "always" was the
+                    part that was wrong. `runs` is the tab that already shows every list, so the
+                    plan belongs at the head of that one: a list with no source has no kind, so on
+                    `jobs` or `corrections` it was an answer to a question the tab was not asking,
+                    repeated five times over. TOP rather than bottom because it is what this agent
+                    is doing right now — the thing you look down here to find.
+
+                    IT IS NOT A RUN AND IS NOT BECOMING ONE — no source, no nudge, no record of a
+                    procedure followed, no 🗑 (there is no record to delete; withDefaultList
+                    synthesises the row when the session has written no plan). It wears "default",
+                    filled, for exactly that reason. */}
+                {attached && showsPlan(bandShown.active) && (() => {
+                  const plan = listsShown.find((l) => !l.source);
+                  if (!plan) return null;
+                  return (
+                    <div className={`${CLASSNAME}__bandplan`}>
+                      <WorkList
+                        key={plan.key}
+                        runKey={plan.key}
+                        items={plan.items}
+                        source={plan.source}
+                        projectCode={projectCode}
+                        status={plan.status || null}
+                        attachments={plan.attachments || null}
+                        brief={plan.brief || ""}
+                        onClear={() => setClearedLists((c) => ({ ...c, [plan.key]: JSON.stringify(plan.items) }))}
+                        onDelete={null}
+                      />
+                    </div>
+                  );
+                })()}
                 {attached &&
                   listsShown
                     // THE PANE IS THE TAB'S OWN ROWS — one mapping decides, and `all` is not a
@@ -7827,37 +7864,6 @@ const countdown = (str, now = Date.now()) => {
                         onDelete={l.key === DEFAULT_LIST_KEY ? null : () => deleteRunRecord(l.key)}
                       />
                     ))}
-                {/* THE SESSION'S OWN PLAN IS PINNED, NOT TABBED — his design, 2026-11-09: *"take
-                    the default list and have it always show, like at the bottom or something."* It
-                    is the one list that is always relevant: it is what this agent is doing right
-                    now, it has no source and therefore no kind, and under the old everything-else
-                    bucket it shared a pane with skill runs and could be scrolled past. Below every
-                    pane it is always the last thing in the drawer, whichever tab is open.
-
-                    IT IS NOT A RUN AND IS NOT BECOMING ONE — no source, no nudge, no record of a
-                    procedure followed, no 🗑 (there is no record to delete; withDefaultList
-                    synthesises the row when the session has written no plan). It wears "default",
-                    filled, for exactly that reason. */}
-                {attached && (() => {
-                  const plan = listsShown.find((l) => !l.source);
-                  if (!plan) return null;
-                  return (
-                    <div className={`${CLASSNAME}__bandplan`}>
-                      <WorkList
-                        key={plan.key}
-                        runKey={plan.key}
-                        items={plan.items}
-                        source={plan.source}
-                        projectCode={projectCode}
-                        status={plan.status || null}
-                        attachments={plan.attachments || null}
-                        brief={plan.brief || ""}
-                        onClear={() => setClearedLists((c) => ({ ...c, [plan.key]: JSON.stringify(plan.items) }))}
-                        onDelete={null}
-                      />
-                    </div>
-                  );
-                })()}
               </>
             );
           })()}

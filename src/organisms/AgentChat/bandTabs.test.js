@@ -1,4 +1,4 @@
-import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, DEFAULT_LIST_KEY, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
+import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, DEFAULT_LIST_KEY, readBandTab, writeBand, TAB_KEY, showsPlan, BAND_KINDS } from "./bandTabs";
 
 // THE BAND'S THREE TABS ARE A FIXED ROW. His ruling, 2026-11-07, said once and then repeated per
 // kind because I shipped only the first of them: *"the list should exist down there empty instead
@@ -308,5 +308,35 @@ describe("the head's open-run segment carries a tone", () => {
   it("says nothing when no run is open — a tone on a zero would be a warning about nothing", () => {
     expect(bandHead({ jobs: 1 }).some((s) => s.tone)).toBe(false);
     expect(bandHead({}).some((s) => s.tone)).toBe(false);
+  });
+});
+
+// ---- THE PLAN LEADS `runs`, AND APPEARS NOWHERE ELSE (2026-11-09) ----------------------------
+// His correction: "make the default list show at the top of runs only… and then it can go away
+// from the other tabs." It had been pinned below every pane, which repeated one sourceless row
+// under five headings that each promise to be about one KIND of work.
+describe("showsPlan — the session's own plan belongs to the runs tab alone", () => {
+  it("shows on `all`, the tab that already shows every list", () => {
+    expect(showsPlan("all")).toBe(true);
+  });
+
+  it("and on no other kind's tab — a list with no source has no kind", () => {
+    for (const t of ["jobs", "lanes", "skills", "assignment", "corrections"])
+      expect(showsPlan(t)).toBe(false);
+  });
+
+  it("nothing active, nothing invented", () => {
+    // The band renders no tabs at all when everything is empty (`active: ""`), and a plan drawn
+    // against no active tab would be a row with no pane to sit in.
+    expect(showsPlan("")).toBe(false);
+    expect(showsPlan(null)).toBe(false);
+    expect(showsPlan(undefined)).toBe(false);
+  });
+
+  it("every tab the band can draw is covered by this rule, one way or the other", () => {
+    // THE GUARD THAT SURVIVES A NEW KIND: a tab added to BAND_KINDS gets an answer here without
+    // anybody remembering to come back, and the only `true` is the one that is meant to be.
+    const answered = BAND_KINDS.map((k) => k.key).filter((k) => showsPlan(k));
+    expect(answered).toEqual(["all"]);
   });
 });

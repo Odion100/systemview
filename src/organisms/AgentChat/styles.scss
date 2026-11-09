@@ -3805,7 +3805,10 @@ $sv-board-states: (
 // in the drawer whichever tab is open.
 .agent-chat__bandplan {
   flex: none;
-  border-top: 1px solid var(--sv-border);
+  // THE HAIRLINE IS BELOW IT, because the plan now LEADS the runs tab rather than closing every
+  // pane. A border-top over the first thing in a scroll area draws a line against the pane's own
+  // edge; the separation that is wanted is between the plan and the sourced runs under it.
+  border-bottom: 1px solid var(--sv-border);
 }
 .agent-chat__worklist-headrow {
   display: flex;
