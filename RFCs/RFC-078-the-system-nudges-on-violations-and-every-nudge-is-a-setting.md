@@ -573,6 +573,8 @@ deletion can take them. The withdrawn work is part of what this document cost an
 ::commit{sha=cd3415b6}
 ::commit{sha=f7fb5575}
 ::commit{sha=dae0c11f}
+::commit{sha=d644f489}
+::commit{sha=b415ce75}
 :::
 
 ## STATUS — withdrawn in part 2026-11-09
