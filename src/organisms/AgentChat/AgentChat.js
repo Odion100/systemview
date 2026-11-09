@@ -54,7 +54,6 @@ import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
-import { hasHostJobs, jobRuns, rateJobRun, markJobState, jobStates, hasJobState } from "../../utils/hostJobs";
 import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, readBandTab, writeBand, TAB_KEY, DEFAULT_LIST_KEY } from "./bandTabs";
 // AS runNowLine, NOT nowLine — this file already has a local `nowLine` deep inside the panel (the
 // live-speech line), and an import shadowed by a const 5,000 lines later is legal JavaScript and a
@@ -64,7 +63,6 @@ import { runDelete } from "./runDelete";
 import NudgeCog from "./NudgeCog";
 import BandSettings from "./BandSettings";
 import { unseenSubagents } from "./unseenSubagents";
-import { chipFor, menuFor } from "./jobState";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
 import SEND_ICON from "../../assets/send.png";
 import { LINKISH, shortUrl, collectLinks, pathHref } from "./chatLinks";
@@ -981,319 +979,6 @@ function useRunDelete({ onDelete, done = 0, total = 0, abandoned = false, accoun
   return { del, confirm };
 }
 
-function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChildren, laneCount = 0, standingLanes = [], status = null, attachments = null, onDelete = null }) {
-  const jobId = String(source || "").slice(4);
-  const [open, setOpen] = useState(false);
-  const [rec, setRec] = useState(null);
-  const [rating, setRating] = useState(0);
-  // the mark's menu, and the words it offers — read from the shell, never a copy kept here
-  const [menu, setMenu] = useState(false);
-  const [vocab, setVocab] = useState([]);
-  const canMark = hasJobState() && !!rec;
-  useEffect(() => {
-    if (!menu || vocab.length) return;
-    let live = true;
-    jobStates().then((v) => live && setVocab(Array.isArray(v) ? v : []));
-    return () => { live = false; };
-  }, [menu, vocab.length]);
-  const done = (items || []).filter((t) => t.state === "done").length;
-  const total = (items || []).length;
-  const complete = total > 0 && done === total;
-  // The same declared ending the skill rows wear — a job run can be abandoned with its account too.
-  const abandoned = status && /abandon/i.test(String(status.text || ""));
-  const accounted = isAccounted(attachments);
-  // The same countdown the skill rows wear — a job run is as nudgeable as a skill run, and the
-  // selector's `picks` answer is what decides which single row counts down (see useNudgeEta).
-  const eta = useNudgeEta({ source, runKey: runId || "", projectCode, off: complete });
-  // His 🗑 — deletes the RECORD (the × beside it only clears the view). Done deletes plain;
-  // not-done arms into the confirm. See useRunDelete.
-  const runDel = useRunDelete({ onDelete, done, total, abandoned: !!abandoned, accounted });
-
-  // Re-read on every change to the list, and once more when it completes — the report is filed in
-  // the same breath as the last item, so a single read at mount would always miss it.
-  useEffect(() => {
-    if (!hasHostJobs()) return;
-    let alive = true;
-    const pull = async () => {
-      const runs = await jobRuns(jobId);
-      if (!alive) return;
-      const rows = Array.isArray(runs) ? runs : [];
-      // THIS ROW'S RUN, NEVER THE NEWEST. `rows[0]` put the latest record on EVERY card of the
-      // job — his catch, 2026-10-14: two proactive-work cards, different worklists, yet the same
-      // report and the same 16:28 stamp, because both were wearing the newest run's record. The
-      // row's key IS the run id on both containers (the strip's disk rows slice it off the owner,
-      // the live fold keys on `ev.run`), and the job record shares that id — so the card asks for
-      // its own. No fallback to rows[0] when the id misses: the newest record as a stand-in is
-      // exactly the lie this fixes, and "cannot read" is already this card's honest word for it.
-      const mine = runId ? rows.find((r) => r.id === runId) || null : rows[0] || null;
-      setRec(mine);
-      setRating(Number((mine || {}).rating || 0));
-      // THE LANES THIS RUN CUT, reported upward — the record is the job's (his design: the job
-      // refers to the lane, never the reverse), and the STRIP is where the organising happens, so
-      // the parent needs the claim to pull those rows under this card.
-      if (onLanes) onLanes(runId, ((mine && mine.lanes) || []).map((l) => l.branch));
-    };
-    pull();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId, runId, done, total, complete]);
-  // A cleared card releases its claim — its lanes return to the flat strip rather than vanishing
-  // with the card that was holding them.
-  useEffect(() => () => { if (onLanes) onLanes(runId, null); }, [runId, onLanes]);
-
-  const report = rec && rec.report && rec.report.path ? rec.report : null;
-  // THE RECORD'S OWN LANES, AND WHICH ARE ALREADY IN — his walk, 2026-10-16: a card that only
-  // nests lanes still standing in the strip shows history as laneless, and "finished" says nothing
-  // about whether he already committed the work and moved on. A recorded lane whose strip row is
-  // GONE was cleared through the one door that refuses anything not verifiably in the tree — so
-  // row-gone IS the honest signal for landed, with no new derivation invented here.
-  const recLanes = (rec && Array.isArray(rec.lanes) ? rec.lanes : []).filter((l) => l && l.branch);
-  const landedLanes = recLanes.filter((l) => !standingLanes.includes(l.branch));
-  const allLanded = complete && recLanes.length > 0 && landedLanes.length === recLanes.length;
-  // THE CHIP IS HIS, WHEN HE SAYS SO — see ./jobState.js for which of the three facts wins and why.
-  const chip = chipFor(rec, { complete, allLanded });
-  const state = chip.label;
-  const rate = async (n) => {
-    setRating(n);
-    await rateJobRun(jobId, (rec && rec.id) || "", n);
-  };
-  // HIS MARK — optimistic on the record the card already holds, then the disk's answer replaces it,
-  // so a shell that refuses cannot leave the chip lying about what was saved.
-  const mark = async (word) => {
-    setMenu(false);
-    setRec((cur) => (cur ? { ...cur, state: word } : cur));
-    const saved = await markJobState(jobId, (rec && rec.id) || "", word);
-    if (saved) setRec(saved);
-  };
-
-  if (!total) return null;
-  return (
-    <div className={`${CLASSNAME}__jobrun${complete ? ` ${CLASSNAME}__jobrun--done` : ""}`}>
-      {/* THE WHOLE BAR IS THE DOOR — his catch, 2026-10-12: *"oh, 'cause I gotta click directly on
-          the title."* Exactly: the only targets were the name and the chevron, so a press anywhere
-          else on a row that LOOKS like one button did nothing. Same rule the lane row already
-          follows ("the whole row is the door"). The × stops propagation so clearing never opens
-          the thing it is removing. */}
-      {/* THE TOP BLOCK: head row + title line on the left, the × CENTERED against both — his
-          correction, 2026-10-17: "it doesn't need to be in either row." */}
-      <div className={`${CLASSNAME}__jobrun-top`}>
-      <div
-        className={`${CLASSNAME}__jobrun-topmain`}
-        role="button"
-        tabIndex={0}
-        title={open ? "collapse this run" : "expand this run — why it fired, its report, its steps"}
-        onClick={() => setOpen(!open)}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(!open); } }}
-      >
-      {/* the door is the WHOLE block — head row AND the title line (his catch: "it's only working
-          on the first row") */}
-      <div className={`${CLASSNAME}__jobrun-head`}>
-        <span className={`${CLASSNAME}__jobrun-badge`}>⚙</span>
-        {/* THE NAME WEARS THE SOURCE-BADGE GRAMMAR every other row uses for its source — hollow,
-            same size, same shape. A job IS its source; what made this row look like another species
-            was the costume, not the content. */}
-        <span className={`${CLASSNAME}__worklist-source ${CLASSNAME}__jobrun-name`}>{(rec && rec.job) || jobId}</span>
-        {/* THE WORD IS A DOOR when this shell can record his mark — a CUSTOM menu, not a native
-            select (his call: *"it doesn't have to be a built-in selector if that doesn't style
-            nicely. I prefer custom ones."*). It keeps the chip's own costume either way, so the
-            row reads the same whether the mark is his or derived. stopPropagation: the chip sits
-            inside the card's expand door, and pressing it must not also open the card. */}
-        {canMark ? (
-          <span className={`${CLASSNAME}__jobrun-statewrap`}>
-            <button
-              type="button"
-              className={`${CLASSNAME}__jobrun-state${allLanded ? ` ${CLASSNAME}__jobrun-state--landed` : ""}${chip.mine ? ` ${CLASSNAME}__jobrun-state--mine` : ""} ${CLASSNAME}__jobrun-state--pressable`}
-              title={chip.title}
-              onClick={(e) => { e.stopPropagation(); setMenu((m) => !m); }}
-            >
-              {state}
-            </button>
-            {menu && (
-              <span className={`${CLASSNAME}__jobrun-statemenu`} onClick={(e) => e.stopPropagation()}>
-                {menuFor(vocab, chip.mine ? state : "").map((row) => {
-                  const clear = typeof row !== "string" && row.clear;
-                  return (
-                    <button
-                      key={clear ? "__clear" : row}
-                      type="button"
-                      className={`${CLASSNAME}__jobrun-stateopt${clear ? ` ${CLASSNAME}__jobrun-stateopt--clear` : ""}`}
-                      onClick={() => mark(clear ? "" : row)}
-                    >
-                      {clear ? row.label : row}
-                    </button>
-                  );
-                })}
-              </span>
-            )}
-          </span>
-        ) : (
-          <span className={`${CLASSNAME}__jobrun-state${allLanded ? ` ${CLASSNAME}__jobrun-state--landed` : ""}${chip.mine ? ` ${CLASSNAME}__jobrun-state--mine` : ""}`} title={chip.title}>{state}</span>
-        )}
-        <span className={`${CLASSNAME}__worklist-count`}>{done}/{total}</span>
-        <span className={`${CLASSNAME}__worklist-bar${complete ? ` ${CLASSNAME}__worklist-bar--done` : ""}`}>
-          <span className={`${CLASSNAME}__worklist-fill`} style={fillStyle(done, total)} />
-        </span>
-        {eta != null ? (
-          <span
-            className={`${CLASSNAME}__worklist-nudgeeta`}
-            title="when the idle nudge is due — the selector picked THIS run"
-          >
-            {eta > 0 ? `nudge ~${eta}s` : "nudge due — next idle tick"}
-          </span>
-        ) : null}
-        {/* CLOSED, THE BAR STILL CARRIES THE ONE THING THAT NEEDS HIM. Collapsing must not hide a
-            handover — a report filed and never read is the failure this card exists against — so
-            the waiting mark rides the bar itself and the chip is what expanding reveals. */}
-        {!open && report && (
-          <span className={`${CLASSNAME}__jobrun-waiting`} title={`a report is waiting: ${report.label || report.path}`}>
-            report waiting
-          </span>
-        )}
-        {!open && complete && !report && (
-          <span className={`${CLASSNAME}__jobrun-none`} title={rec ? "this run filed no report" : "cannot read the run record from here"}>
-            {rec ? "no report" : "cannot read"}
-          </span>
-        )}
-        {!open && (recLanes.length > 0 || laneCount > 0) && (
-          <span className={`${CLASSNAME}__jobrun-lanecount`} title={`this run cut ${recLanes.length || laneCount} lane${(recLanes.length || laneCount) === 1 ? "" : "s"} — expand to see them`}>
-            {recLanes.length || laneCount} lane{(recLanes.length || laneCount) === 1 ? "" : "s"}
-          </span>
-        )}
-        {/* WHEN IT RAN. A finished run with no time on it is a row you cannot place in the day —
-            and these sit in a strip beside other runs. Finished time once it is finished, started
-            time while it is still going, because that is the one that is still moving. */}
-        {rec && (rec.finishedAt || rec.startedAt) && (
-          <span
-            className={`${CLASSNAME}__jobrun-when`}
-            title={`${rec.finishedAt ? "finished" : "started"} ${moment(rec.finishedAt || rec.startedAt).format("ddd D MMM, h:mm:ss a")}`}
-          >
-            {moment(rec.finishedAt || rec.startedAt).format("D MMM h:mm a")}
-          </span>
-        )}
-        {/* WHAT IT IS DOING RIGHT NOW — the one thing every ordinary row leads with and a job card
-            never said. His ask, 2026-11-09: the job rows "could use a redesign to look similar to
-            the regular list… it's really not special anymore." The card said the job's name, its
-            state, its count and when it ran, and never the step it was standing on — so of the
-            four kinds of run in this drawer, the one that runs unattended was the only one you
-            could not read a progress sentence off. Same grammar, same class, same fallbacks as
-            WorkList: the active item, or plainly that there is none. */}
-        <span className={`${CLASSNAME}__worklist-now`}>
-          {runNowLine(items, { complete: "run complete", idle: "nothing active" })}
-        </span>
-        <span className={`${CLASSNAME}__jobrun-chev`}>{open ? "▾" : "▸"}</span>
-      </div>
-      {/* WHAT THE RUN DID, as its own quiet line — his correction, 2026-10-17: the work-title in
-          the head row "displaced everything", so the head keeps its original shape and the record's
-          report label rides UNDER it, subtle, truncating. */}
-      {report && report.label ? <div className={`${CLASSNAME}__jobrun-title`} title={report.label}>{report.label}</div> : null}
-      </div>
-      {(complete || (abandoned && accounted)) && onClear && (
-        <button
-          type="button"
-          className={`${CLASSNAME}__worklist-clear ${CLASSNAME}__jobrun-clear`}
-          title={complete ? "Clear this run from your view" : "Clear the abandoned run from your view — its account stays attached to the record"}
-          onClick={(e) => { e.stopPropagation(); onClear(); }}
-        >
-          ×
-        </button>
-      )}
-      {runDel.del}
-      </div>
-      {runDel.confirm}
-
-      {/* A JOB RUN IS A BAR UNTIL YOU OPEN IT — his call, 2026-10-12, on the first one that ever
-          ran: *"the job needs to be able to show on the chat as just a bar that can be expanded.
-          So what I saw was to me expanded."* He was right and `open` was only ever gating the item
-          list, so a "closed" card was still three rows deep: the head, the `why` sentence, and the
-          report row with its five stars. Everything below this line is now behind the chevron; the
-          bar keeps the progress, the state, and a mark when something is waiting on him. */}
-      {/* WHAT THIS RUN ATTACHED — the same chips the skill rows wear, and a job run had none: its
-          attachments were stored and counted toward "accounted" while no surface would open them.
-          Above the steps, because the product is what you came to the expanded row for. */}
-      {open && <RunAttachments attachments={attachments} projectCode={projectCode} />}
-      {open && rec && rec.why && <div className={`${CLASSNAME}__jobrun-why`}>{rec.why}</div>}
-      {/* WHY IT WAS WORKED ON — his walk, 2026-10-16: the evaluation verdict exists on the board
-          and in the report, but the row never said it. When the record carries one, the card does. */}
-      {open && rec && rec.verdict && <div className={`${CLASSNAME}__jobrun-verdict`}>⚖ {rec.verdict}</div>}
-
-      {/* THE HANDOVER, AS A REAL CHIP — the report already lives in the reports panel, so this is a
-          pointer to it and not a second copy (RFC-066 §5, settled by deleting the alternative). */}
-      {open && report && (
-        <div className={`${CLASSNAME}__jobrun-report`}>
-          <span className={`${CLASSNAME}__jobrun-waiting`}>waiting for you</span>
-          <FileLink label={report.path} attrs={{ project: projectCode }} />
-          <span className={`${CLASSNAME}__jobrun-rate`}>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                className={`${CLASSNAME}__jobrun-star${n <= rating ? ` ${CLASSNAME}__jobrun-star--on` : ""}`}
-                title={`rate this run ${n}/5`}
-                onClick={() => rate(n)}
-              >
-                ★
-              </button>
-            ))}
-          </span>
-        </div>
-      )}
-      {/* FINISHED AND NOTHING FILED IS A FACT, not a blank. A job whose handover never arrived is
-          the case the account exists for, so the card says so rather than looking unfinished.
-          BUT ONLY IF THE RECORD WAS READABLE: without a `jobs:read` grant the shell hands this
-          window no way to look, and "filed no report" would be a claim about a file nobody opened.
-          Not being able to see is its own sentence. */}
-      {open && complete && !report && (
-        <div className={`${CLASSNAME}__jobrun-report`}>
-          <span className={`${CLASSNAME}__jobrun-none`}>
-            {rec ? "finished, and filed no report" : "finished — cannot read the run record from here"}
-          </span>
-        </div>
-      )}
-
-      {/* THE LANES THIS RUN CUT, UNDER THE CARD THAT CUT THEM — his design, 2026-10-14: *"the
-          lanes can be organized under the jobs… the whole point is it's organized properly in the
-          strip."* These are the SAME rows the flat strip would draw (same component, same panel,
-          same delete), rendered by the parent and handed in — the record names the branches, the
-          strip does the join, and nothing is stored twice. */}
-      {open && laneChildren}
-      {/* THE LANES THAT ALREADY LEFT — the record keeps what the live strip forgets. A standing
-          lane renders as its real row above (laneChildren); a recorded lane with no row left was
-          brought in and cleared, and history should still say it existed: branch, commit, landed. */}
-      {open && landedLanes.length > 0 && (
-        <div className={`${CLASSNAME}__jobrun-lanes`}>
-          {landedLanes.map((l) => (
-            <div key={l.branch} className={`${CLASSNAME}__jobrun-reclane`} title={`${l.branch}${l.commit ? ` @ ${l.commit}` : ""} — its row was cleared through the door that only clears work verifiably in the tree`}>
-              <span className={`${CLASSNAME}__jobrun-reclane-branch`}>⌁ {l.branch}</span>
-              {l.repo && (
-                <span className={`${CLASSNAME}__lane-repo`} title={`cut in ${l.repo}`}>{String(l.repo).split("/").pop()}</span>
-              )}
-              {l.commit ? <code className={`${CLASSNAME}__jobrun-reclane-commit`}>{String(l.commit).slice(0, 7)}</code> : null}
-              <span className={`${CLASSNAME}__jobrun-landed`}>landed</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {open && (
-        <ul className={`${CLASSNAME}__worklist-items`}>
-          {items.map((t) => (
-            <li key={t.id} className={`${CLASSNAME}__worklist-item ${CLASSNAME}__worklist-item--${t.state}`}>
-              <span className={`${CLASSNAME}__worklist-mark`}>{{ done: "✓", active: "▸", pending: "·" }[t.state] || "·"}</span>
-              <span className={`${CLASSNAME}__worklist-text`}>{t.text}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-// THE NUDGE COUNTDOWN IS THE SELECTOR'S ANSWER, NOT THE ROW'S OPINION (his, 2026-10-26: "I saw two
-// things counting down at the same time… but you only got one nudge, it says ×2 next to it"). Each
-// row deriving its own eligibility drew N countdowns for ONE nudge — the shell's selector picks
-// exactly one run. The nudge door now answers `picks` per project, computed by the SAME pickNudge
-// that fires, so a row counts down only when it IS the pick and a countdown is a promise the shell
-// will keep. An older shell answers no `picks` map at all; the row falls back to the old
-// source-eligibility clock rather than going dark on a shell that cannot say better.
 function useNudgeEta({ source = "", runKey = "", projectCode = "", off = false }) {
   const [eta, setEta] = useState(null);
   useEffect(() => {
@@ -6312,23 +5997,6 @@ const countdown = (str, now = Date.now()) => {
   // this session's live lane events overlay them (freshest items win) but never own the row's
   // existence. clearedLists still applies — after his confirmed delete the run file is gone, and
   // the fingerprint is what keeps the session's own event echo from resurrecting the row.
-  // WHICH LANES THE JOB CARDS CLAIM — { runId: [branch, ...] }, reported by each JobRun as its
-  // record arrives and released when the card leaves. The job's record names the branches (his
-  // design: the job refers to the lane); the strip joins here at render, so the relation is stored
-  // exactly once. Guarded against no-op writes or every report would re-render the strip forever.
-  const [jobLaneClaims, setJobLaneClaims] = useState({});
-  const claimLanes = useCallback((runId, branches) => {
-    setJobLaneClaims((cur) => {
-      if (branches == null) {
-        if (!(runId in cur)) return cur;
-        const next = { ...cur };
-        delete next[runId];
-        return next;
-      }
-      if (JSON.stringify(cur[runId] || []) === JSON.stringify(branches)) return cur;
-      return { ...cur, [runId]: branches };
-    });
-  }, []);
   const lanesShown = (() => {
     const rows = new Map();
     for (const r of work.standingRuns || []) {
@@ -7931,7 +7599,12 @@ const countdown = (str, now = Date.now()) => {
                 onDelete={() => deleteRunRecord(l.key)}
               />
             );
-            const claimed = new Set(Object.values(jobLaneClaims).flat());
+            // EVERY LANE IS ITS OWN ROW NOW. A job card used to CLAIM the branches its record
+            // named and nest them under itself, so a claimed lane was filtered out of this pane —
+            // and that was the last thing in this drawer where one kind of run contained another.
+            // His instruction, 2026-11-09: a lane is a worklist like everything else here. The
+            // relation is not lost, it just is not drawn as containment: the job record still names
+            // the branches it cut, and the lane rows stand in the pane that is about lanes.
             const laneOf = (l) => String(l.source || "").slice(5);
             return (
               <>
@@ -7957,7 +7630,7 @@ const countdown = (str, now = Date.now()) => {
                     does not exist, which is the same fault as a tab that can only say "nothing
                     here". */}
                 {attached && bandShown.active === "lanes" && (() => {
-                  const branchRows = lanesShown.filter((l) => !claimed.has(laneOf(l)));
+                  const branchRows = lanesShown;
                   const both = branchRows.length > 0 && unseenShown.length > 0;
                   const cap = (text) => <div className={`${CLASSNAME}__bandsec`}>{text}</div>;
                   return (
@@ -8030,26 +7703,16 @@ const countdown = (str, now = Date.now()) => {
                           ? "corrections"
                           : "lists")
                     )
-                    .map((l) =>
-                    l.source.startsWith("job:") ? (
-                      <JobRun
-                        key={l.key}
-                        runId={l.key === "session" ? null : l.key}
-                        items={l.items}
-                        source={l.source}
-                        projectCode={projectCode}
-                        onLanes={claimLanes}
-                        standingLanes={lanesShown.map(laneOf)}
-                        laneCount={(jobLaneClaims[l.key] || []).length && lanesShown.filter((x) => (jobLaneClaims[l.key] || []).includes(laneOf(x))).length}
-                        laneChildren={
-                          <div className={`${CLASSNAME}__jobrun-lanes`}>
-                            {lanesShown.filter((x) => (jobLaneClaims[l.key] || []).includes(laneOf(x))).map(renderLaneRow)}
-                          </div>
-                        }
-                        onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
-                        onDelete={l.key === "session" ? null : () => deleteRunRecord(l.key)}
-                      />
-                    ) : (
+                    .map((l) => (
+                      /* ONE ROW COMPONENT FOR EVERY KIND OF RUN — his instruction, 2026-11-09, and
+                         he had to give it twice because my first pass only made the job card LOOK
+                         like a row: *"you could literally just take the other list and use it
+                         instead of this shit… it's a regular list like the rest, that first says
+                         job."* The principle he put under it is the part worth keeping: **anything
+                         you could do on any worklist should be visible on any worklist.** A second
+                         component for one kind of run is how a capability ends up belonging to a
+                         kind — attachments were job-only once, the brief would have been
+                         correction-only, and each one had to be discovered missing. */
                       <WorkList
                         key={l.key}
                         runKey={l.key}
@@ -8065,8 +7728,7 @@ const countdown = (str, now = Date.now()) => {
                         // is none. A 🗑 there would be a control that deletes nothing.
                         onDelete={l.key === DEFAULT_LIST_KEY ? null : () => deleteRunRecord(l.key)}
                       />
-                    ),
-                  )}
+                    ))}
               </>
             );
           })()}

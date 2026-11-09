@@ -3774,12 +3774,6 @@ $sv-board-states: (
     align-items: center;
   }
 }
-.agent-chat__jobrun-report {
-  // a flex row only shrinks its items when they are allowed to — without this the chip keeps its
-  // intrinsic width and the `max-width: 100%` above never bites
-  min-width: 0;
-  > * { min-width: 0; }
-}
 
 .agent-chat__worklist {
   flex: none;
@@ -4738,194 +4732,12 @@ $sv-board-states: (
 // one row begins, no tint and no radius. What remains job-specific moves into the CONTENT, where it
 // belongs — the ⚙ badge, the pressable state chip, the report mark, the lane count, the timestamp.
 // Those are facts about the run; the box was a claim about its importance.
-.agent-chat__jobrun {
-  flex: none;
-  padding: 2px 8px 4px;
-  font-size: 12px;
-  border-top: 1px solid var(--sv-border-soft);
-}
 // DONE IS STILL SAID, and still at the left edge where he reads it — but as a hairline on the rule
 // every row already has, rather than as a second background colour. The progress bar beside the
 // count is the loud statement; this is the glance.
-.agent-chat__jobrun--done {
-  border-top-color: color-mix(in srgb, #63b98a 45%, var(--sv-border-soft));
-}
 // THE LANES NESTED UNDER THEIR JOB CARD — a left rule and an indent, so they read as the card's
 // produce rather than more siblings; the rows inside are the flat strip's own, untouched.
-.agent-chat__jobrun-lanes {
-  margin: 2px 4px 4px 16px;
-  padding-left: 6px;
-  border-left: 2px solid var(--sv-border, rgba(128, 128, 128, 0.3));
-}
-.agent-chat__jobrun-lanecount {
-  flex: none;
-  font-size: 10px;
-  color: var(--sv-text-faint);
-  border: 1px solid var(--sv-border);
-  border-radius: 8px;
-  padding: 0 5px;
-}
 
-.agent-chat__jobrun-head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-  cursor: pointer; // the whole bar opens it — see the note in JobRun
-}
-.agent-chat__jobrun-badge { font-size: 12px; opacity: 0.85; }
-// THE JOB'S NAME IS ITS SOURCE BADGE, so this rule no longer flattens one. It used to zero the
-// border, background and padding — written when the name was bare text inside a card — and left in
-// place it would have won on cascade order and undone the badge the row now wears, which is the
-// quiet way a shared grammar fails: the class is applied, the costume is overridden, and only the
-// screen says so. What stays here is what is genuinely job-specific: it is PRESSABLE (the name
-// opens the job's own document), so it carries a cursor and the weight that says so.
-.agent-chat__jobrun-name {
-  cursor: pointer;
-  font-family: inherit;
-  font-weight: 700;
-  color: var(--sv-text-strong);
-  opacity: 0.85; // a shade stronger than a plain source badge — it is a door, not a label
-}
-// THE TOP BLOCK — head row + title line left, the × centered against BOTH rows (his correction:
-// "it doesn't need to be in either row").
-.agent-chat__jobrun-top {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.agent-chat__jobrun-topmain {
-  flex: 1;
-  min-width: 0;
-  cursor: pointer; // the door is the whole block — head row and title line together
-}
-// WHAT THE RUN DID — the record's report label as its own quiet line under the head (his
-// correction, 2026-10-17: in the head row it displaced everything). Truncates, never wraps, so
-// the × and the pills keep their row to themselves.
-.agent-chat__jobrun-title {
-  margin: 1px 6px 0 19px;
-  font-size: 11px;
-  color: var(--sv-text-muted, #8a8f98);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-// THE STATE BADGE CARRIES ITS OWN CONTRAST — his report, 2026-10-12: *"this status badge,
-// finished, needs to stand out more in light and dark mode. Can barely see it."*
-//
-// It was 10px uppercase inherited text at `opacity: 0.7`, which is the worst of both worlds: the
-// size and the letter-spacing already cost legibility, and then 30% of what was left was thrown
-// away. Worse, it had no colour of its own, so it inherited the bubble's and was dim on BOTH
-// themes rather than being tuned wrong for one.
-//
-// The fix is the one `__jobrun-waiting` below already uses and is the reason that chip is readable:
-// a FILLED PILL with dark ink. A pill supplies its own figure/ground, so it reads identically in
-// light and dark instead of needing a value per theme — and the two states are then distinguishable
-// at a glance by hue rather than by reading a tiny word. Both pairs clear 6:1.
-.agent-chat__jobrun-state {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 5px 8px;
-  margin: 0 5px; // room AROUND the pill as well as inside it — his ask, horizontally
-  border-radius: 5px;
-  // RUNNING — the same amber the card's own left border wears, so the row reads as one state.
-  color: #4a3206;
-  background: #e2ad42;
-}
-// FINISHED — the green the done card already uses, and the state he was squinting at.
-.agent-chat__jobrun--done .agent-chat__jobrun-state {
-  color: #0f2418;
-  background: #63b98a;
-}
-// FINISHED · LANDED — the state past finished (his walk, 2026-10-16: "so I know we already
-// committed the work and moved on"). A cooler pill than the green: nothing here waits on anyone.
-.agent-chat__jobrun--done .agent-chat__jobrun-state--landed {
-  color: #122033;
-  background: #8fb8e8;
-}
-// WHY IT WAS WORKED ON — the evaluation verdict off the run record, same quiet register as `why`
-// but marked as a judgment, not a trigger.
-.agent-chat__jobrun-verdict {
-  margin: 3px 0 0 19px;
-  font-size: 11px;
-  color: var(--sv-text-muted, #8a8f98);
-}
-// A RECORDED LANE WHOSE ROW ALREADY LEFT — history the live strip forgets: branch, commit, landed.
-.agent-chat__jobrun-reclane {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin: 2px 0 0 19px;
-  font-size: 11px;
-  color: var(--sv-text-muted, #8a8f98);
-}
-.agent-chat__jobrun-reclane-commit {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 10px;
-}
-.agent-chat__jobrun-landed {
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #122033;
-  background: #8fb8e8;
-}
-.agent-chat__jobrun-chev { font-size: 10px; opacity: 0.6; }
-// WHEN IT RAN — quiet, monospaced so a column of these lines up, and it never competes with the
-// state pill beside it.
-.agent-chat__jobrun-when {
-  font-family: ui-monospace, Menlo, monospace;
-  font-size: 10px;
-  color: var(--sv-text-muted, #8a8f98);
-  white-space: nowrap;
-}
-// THE × GOES TO THE FAR END — his ask. `margin-left: auto` on the last item is what pushes it,
-// which also means everything before it keeps its natural spacing instead of being stretched.
-.agent-chat__jobrun-clear { margin-left: auto; }
-.agent-chat__jobrun-why {
-  margin: 3px 0 0 19px;
-  font-size: 11px;
-  font-style: italic;
-  color: var(--sv-text-muted, #8a8f98);
-}
-.agent-chat__jobrun-report {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin: 5px 0 1px 19px;
-}
-.agent-chat__jobrun-waiting {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-  color: #0f2418;
-  background: #63b98a;
-}
-.agent-chat__jobrun-none {
-  font-size: 11px;
-  color: #c9524b;
-}
-// THE RATING, WHERE THE REPORT IS READ — the one place the engine's rate verb was always meant to
-// be captured from. Quiet until hovered, because it is an invitation and not a demand.
-.agent-chat__jobrun-rate { display: inline-flex; gap: 1px; }
-.agent-chat__jobrun-star {
-  border: 0;
-  background: none;
-  padding: 0 1px;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--sv-border-soft, rgba(0, 0, 0, 0.2));
-}
-.agent-chat__jobrun-star:hover { color: #d19a2e; }
-.agent-chat__jobrun-star--on { color: #d19a2e; }
 
 // THE HEAD KEEPS ITS FACE. His correction, 2026-10-19: *"you weren't supposed to change the style
 // of the headers. You're just supposed to make them clickable."* So the head's layout rules are the
@@ -5984,60 +5796,8 @@ $sv-board-states: (
   .agent-chat__unseen-why { color: #ff8a80; }
 }
 
-// HIS MARK ON A JOB RUN — the chip keeps its costume (same size, same uppercase, same radius) and
-// gains a press. A button carries browser chrome by default, so every one of those is reset here:
-// the point is that the row looks identical whether the word is his or derived.
-.agent-chat__jobrun-statewrap { position: relative; display: inline-flex; flex: none; }
-button.agent-chat__jobrun-state {
-  border: none;
-  font-family: inherit;
-  line-height: inherit;
-}
-.agent-chat__jobrun-state--pressable {
-  cursor: pointer;
-  &:hover { filter: brightness(1.08); }
-}
-// HIS word reads differently from a derived one — indigo, because the chip is now a statement with
-// an author and the amber/green pair is what the DISK says.
-.agent-chat__jobrun-state--mine {
-  color: #e8e9ff;
-  background: #4a4aa8;
-}
-.agent-chat__jobrun--done .agent-chat__jobrun-state--mine { color: #e8e9ff; background: #4a4aa8; }
 // The menu: a small custom list, anchored under the chip. Not a native select (his preference) —
 // and `z-index` above the strip's own rows so it is not clipped by the card below it.
-.agent-chat__jobrun-statemenu {
-  position: absolute;
-  top: calc(100% + 3px);
-  left: 4px;
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  min-width: 132px;
-  padding: 3px;
-  border-radius: 7px;
-  border: 1px solid var(--sv-border);
-  background: var(--sv-surface);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
-}
-.agent-chat__jobrun-stateopt {
-  border: none;
-  background: none;
-  color: var(--sv-text, #d7d9e0);
-  font: inherit;
-  font-size: 11px;
-  text-align: left;
-  padding: 5px 7px;
-  border-radius: 5px;
-  cursor: pointer;
-  &:hover { background: rgba(74, 74, 168, 0.28); }
-}
-.agent-chat__jobrun-stateopt--clear {
-  color: var(--sv-text-faint, #8a8f98);
-  border-top: 1px solid var(--sv-border);
-  margin-top: 2px;
-  font-style: italic;
-}
 
 // THE LANE ROW SAYS WHAT THE WORK IS — his, 2026-10-31: *"I want to be able to easily look at it,
 // know what the branch is and know what the work is. Not have to guess."* The branch name is a
