@@ -1,4 +1,4 @@
-::report{id="The janitor ate the account that documented it" as=account retain=24h}
+::report{id="The janitor ate the account that documented it" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 ::members{who=systemview-test}
 

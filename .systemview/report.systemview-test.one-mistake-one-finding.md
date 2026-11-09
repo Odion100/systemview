@@ -1,4 +1,4 @@
-::report{id="commitLinks caught me three times, so one mistake is now one finding" as=account retain=24h}
+::report{id="commitLinks caught me three times, so one mistake is now one finding" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 Seventh sitting. A nudged run closed the honest way, a use-pass that **caught me rather than the
 code**, and the fix is to the door that should have caught it the first time.

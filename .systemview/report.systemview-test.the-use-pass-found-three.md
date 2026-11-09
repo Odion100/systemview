@@ -1,4 +1,4 @@
-::report{id="A use-pass found three things five card-reading sittings did not" as=account retain=24h}
+::report{id="A use-pass found three things five card-reading sittings did not" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 Sixth proactive sitting, and the first one that **used** a surface instead of reading about it. The
 job names that door as the richest evidence and sets one surface per run as the floor; five sittings

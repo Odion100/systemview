@@ -1,4 +1,4 @@
-::report{id="The fixture that could not survive a hub boot now rests torn down" as=account retain=24h}
+::report{id="The fixture that could not survive a hub boot now rests torn down" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 Eighth proactive sitting. Two picks, both of the same shape — **a door that only breaks when a
 process restarts** — and a use-pass that caught two more of my own `Serves:` mistakes.

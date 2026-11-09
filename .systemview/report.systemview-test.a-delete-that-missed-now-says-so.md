@@ -1,4 +1,4 @@
-::report{id="A delete that missed now says so, and an invisible run says it is invisible" as=account retain=24h}
+::report{id="A delete that missed now says so, and an invisible run says it is invisible" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 # A delete that missed now says so, and an invisible run says it is invisible
 

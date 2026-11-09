@@ -1,4 +1,4 @@
-::report{id="A hung spec now fails with a timeout, not a page of undefined" as=account retain=24h}
+::report{id="A hung spec now fails with a timeout, not a page of undefined" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 A proactive sitting, fired on idle. Two cards closed on EVIDENCE rather than on code, one real
 build, one detector deliberately **not** shipped because the cheap version of it was wrong.

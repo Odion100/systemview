@@ -1,4 +1,4 @@
-::report{id="The tour run closes with an account, because a card is not one" as=account retain=12h}
+::report{id="The tour run closes with an account, because a card is not one" as=account retain=12h retired=2026-11-09 retiredAs=expired}
 
 The `skill:how-we-work-tour` run has been nudging at 1/3 with *"Play the ENTIRE tour"* active. It was
 declared abandoned hours ago **and the nudging never stopped** — this is the account that actually

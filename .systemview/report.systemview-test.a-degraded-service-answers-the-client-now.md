@@ -1,4 +1,4 @@
-::report{id="A degraded service answers the client now, so one dead wire no longer ends the run" as=account retain=24h}
+::report{id="A degraded service answers the client now, so one dead wire no longer ends the run" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 Ninth proactive sitting. The use-pass caught **my own regression from the sixth** — the degrade that was
 supposed to keep one dead wire from ending a run was ending it outright — and the second pick closed

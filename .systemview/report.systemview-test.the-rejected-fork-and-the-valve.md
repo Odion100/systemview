@@ -1,4 +1,4 @@
-::report{id="The rejected fork is drawn, and the valve says what it did" as=account retain=24h}
+::report{id="The rejected fork is drawn, and the valve says what it did" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 # The rejected fork is drawn, and the valve says what it did
 

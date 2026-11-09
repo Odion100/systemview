@@ -1,4 +1,4 @@
-::report{id="A record whose branch is gone can finally be cleared" as=account retain=24h}
+::report{id="A record whose branch is gone can finally be cleared" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 Third proactive sitting. One fix, in autobot, to a trap that cost you a hand-cleanup: deleting a
 lane with plain git left a run record that **nothing in the system could reach**, nudging about a

@@ -1,4 +1,4 @@
-::report{id="Three reds, named once — and the guard found a fifth" as=account retain=24h}
+::report{id="Three reds, named once — and the guard found a fifth" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 Fourth proactive sitting. One refinement that moves no pixels, one pick measured and **refused**,
 and two cards closed — one of them in the opposite direction to its own premise.

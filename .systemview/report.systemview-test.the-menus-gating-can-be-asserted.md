@@ -1,4 +1,4 @@
-::report{id="The menu's gating can be asserted, and two cards were already closed" as=account retain=24h}
+::report{id="The menu's gating can be asserted, and two cards were already closed" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 A second proactive sitting, fired on idle. One build, two cards closed on evidence — and the
 pattern across both sittings is worth naming: **four of the five cards I opened tonight were

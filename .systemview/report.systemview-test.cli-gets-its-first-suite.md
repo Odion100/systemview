@@ -1,4 +1,4 @@
-::report{id="The command surface gets its first suite, where the secrets are" as=account retain=24h}
+::report{id="The command surface gets its first suite, where the secrets are" as=account retain=24h retired=2026-11-09 retiredAs=expired}
 
 Fifth proactive sitting. `cli/` had **zero** test files — not failing, none — while the window
 carried 59 suites and the hub 6. It has one now, and the subject was chosen by where a wrong answer

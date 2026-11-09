@@ -1,4 +1,4 @@
-::report{id="The drawer lane's run is abandoned where you stopped it" as=account retain=12h}
+::report{id="The drawer lane's run is abandoned where you stopped it" as=account retain=12h retired=2026-11-09 retiredAs=expired}
 
 `lane:lane/drawer-work-in-flight` has been nudging at 1/8 since you stopped its builder. This is the
 account that ends the run — **not the lane**, which still stands for your word.
