@@ -85,15 +85,21 @@ A reference to a **region of the window** rather than to data — `chat`, `tv`, 
 `scratchpad`, `navigator`. Clicking points at it; nothing is written anywhere. This is what lets you
 teach the layout on the fly instead of describing it. An unknown region renders dashed.
 
-## `:report[…]` — link to a report
+## Linking a report — a plain `:file` chip
 
 ```markdown
-:report[The agent face stops going through the CLI]
+:file[reports/the-subject-of-the-report.md]
+:file[reports/the-subject-of-the-report.md]{project=<code>}   a report in ANOTHER repo
 ```
 
-Opens a filed report by its title. Reports are markdown files committed visibly in the repo — **title them by
-SUBJECT, never by position** ("the next iteration" only works once). A report about a file should
-open with a `:file` chip so the artifact is one click away.
+A report is a **registered document**: its `::report` leaf is what identifies it, and the file embed
+renders a registered document as a report. Pointing at the file is the whole mechanism.
+
+**Never `:report[…]`.** It resolves a title through its own path and navigates on top of the open
+document, so one reference puts the same report in two tabs.
+
+Reports are markdown files committed visibly in the repo — **title them by SUBJECT, never by
+position** ("the next iteration" only works once).
 
 ## `::chart{…}` — a live chart
 

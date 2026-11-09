@@ -109,23 +109,17 @@ scratch pad"* — without a built-in tour. An unknown region renders dashed: :ui
 
 ---
 
-## `:report[…]` — link to a report
+## Linking a report — `:file[…]`
 
 ```markdown
-:report[.systemview/report.systemview-test.Context-hooks-the-plan.md]{title="the hook plan"}
+:file[reports/the-subject-of-the-report.md]
 ```
 
-| Attribute | Means |
-|---|---|
-| *(label)* | the report's path — `.systemview/report.<projectCode>.<slug>.md` |
-| `title=` | what the chip reads; defaults to the slug, de-slugged |
-| `project=` | overrides the project; rarely needed |
+A report is a **registered document** — its `::report` leaf identifies it, and the file embed renders
+a registered document as a report. Pointing at the file is the whole mechanism.
 
-**This one navigates.** Unlike `:ns` and `:file` there is no reveal-first step — the whole point of
-a report link is *go read this*, so it opens the Stage tab on that document.
-
-The path names its own project, so a chip can point at another project's report without
-`project=`. A chip with no path renders dead rather than guessing.
+**Never `:report[…]`.** Unlike `:ns` and `:file` it navigates instead of revealing, on top of
+resolving, so a single reference leaves the same report sitting in two tabs.
 
 ---
 

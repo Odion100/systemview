@@ -55,14 +55,16 @@ commit offer, a question: write the block in your reply.
 | a diff | `::diff[api/index.js]` |
 | a commit offer | `::commit{message="fix(chat): …"}` |
 | a question with choices | `::question[Which one?]{options="a\|b"}` |
-| a clickable reference | `:file[path#L10-20]` · `:ns[Math.add]` · `:report[.systemview/report.<pc>.<Name>.md]{title="…"}` · `:ui[nav]` |
+| a clickable reference | `:file[path#L10-20]` · `:ns[Math.add]` · `:ui[nav]` |
+| a report, or any document | `:file[path]` — a registered document renders as what it is; never `:report[…]` |
 
 Notes that matter:
 
 - **Underscores are never italic** and `a * b` is never italic — identifiers and math stay literal.
-- **Link the thing you're talking about.** "The report is ready" without a `:report` chip is a
-  missed click. A report about a file opens with a `:file` chip.
-- **Long content and choices go in a DOCUMENT**, with one short line and a `:report` chip in the
+- **Link the thing you're talking about.** "The report is ready" with nothing to press is a missed
+  click — and a report is linked with a plain `:file` chip, like anything else. Never `:report[…]`:
+  it puts the same document in a second tab.
+- **Long content and choices go in a DOCUMENT**, with one short line and a `:file` chip in the
   chat. Write the file with its own leaf, then `mcp__systemview__nav({ projectCode, file })` —
   nothing an agent calls may take his screen.
 - **Never tell him to reload.** Tabs update themselves.
@@ -130,7 +132,6 @@ message lands (up to three per message):
 | --- | --- |
 | `:file[path]` / `:file[path#L40-60]` | a file, or those lines |
 | `:ns[Service.Module.method]` | a node in the tree (fuzzy — `add` works) |
-| `:report[.systemview/report.…md]` | a document |
 | `:ui[<region>]` | a REGION of the window — `nav` `center` `scratchpad` `story` `stage` `tv` `links` `chat` `bot` `reports` `docs` `code` `logs` `tests` `header` |
 
 - **Never send coordinates.** You name a thing; where it is on screen changes with every window size.
