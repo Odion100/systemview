@@ -31,6 +31,11 @@ export const BAND_KINDS = [
   { key: "jobs", label: "job", family: "work", always: true },
   { key: "lanes", label: "lane", family: "work", always: true },
   { key: "lists", label: "list", family: "work", always: true },
+  // A CORRECTION IS A RUN LIKE THE OTHERS — a `correction:` source, owned by the agent that owes
+  // the work, chased until it is finished or abandoned with an account. It gets its own tab rather
+  // than falling into `lists` because the question it answers is different: a list is what THIS
+  // agent decided to do, a correction is what somebody else says it got wrong.
+  { key: "corrections", label: "correction", family: "work", always: true },
 ];
 
 export const TAB_KEY = "sv.chat.bandTab";

@@ -143,3 +143,40 @@ describe("each section states its own absence (c19's other half)", () => {
   });
 });
 
+describe("the manager field — his control over who may assign work", () => {
+  // WHY IT IS HERE AND NOT ON EVERY AGENT'S DEFINITION: the profile's lever is allow/deny per
+  // agent, so gating `assign` that way would mean unchecking a tool on every agent that must not
+  // have it. One name, in the panel he already opens to control the nudging.
+  it("draws with `nobody` as its placeholder, because empty means refused", async () => {
+    doors();
+    render(<BandSettings />);
+    const box = await screen.findByPlaceholderText(/nobody/i);
+    expect(box).toBeTruthy();
+    expect(box.value).toBe("");
+  });
+
+  // A CONTROLLED TEXT INPUT WIRED STRAIGHT TO THE DOOR WRITES ONCE PER CHARACTER, and each of those
+  // is an authority the assign verb would briefly obey. So it commits on blur and nowhere else.
+  it("types without writing, and writes once on blur", async () => {
+    doors();
+    render(<BandSettings />);
+    const box = await screen.findByPlaceholderText(/nobody/i);
+    fireEvent.change(box, { target: { value: "man" } });
+    fireEvent.change(box, { target: { value: "manager" } });
+    expect(writes.length).toBe(0);
+    fireEvent.blur(box);
+    await waitFor(() => expect(writes.length).toBe(1));
+    expect(writes[0].chaserKnobs).toEqual({ manager: "manager" });
+  });
+
+  it("escape abandons the edit without writing anything", async () => {
+    doors();
+    render(<BandSettings />);
+    const box = await screen.findByPlaceholderText(/nobody/i);
+    fireEvent.change(box, { target: { value: "someone-else" } });
+    fireEvent.keyDown(box, { key: "Escape" });
+    fireEvent.blur(box);
+    expect(writes.length).toBe(0);
+  });
+});
+

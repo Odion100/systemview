@@ -24,6 +24,12 @@ import {
 const BandSettings = () => {
   const [tab, setTab] = useState("worklist");
 
+  // ONE FREE-TEXT FIELD, SO ONE DRAFT. A controlled input wired straight to `send` writes once per
+  // CHARACTER: typing a slot name would send `m`, `ma`, `man`… and each of those is an authority the
+  // assign verb would briefly obey. Toggles, numbers and the source buttons are single discrete
+  // acts and still send immediately; only this one commits on blur.
+  const [slotDraft, setSlotDraft] = useState(null);
+
   // ── THE CHASER'S OWN KNOBS ──
   const [settings, setSettings] = useState(null);
   const [door, setDoor] = useState("asking");
@@ -151,6 +157,23 @@ const BandSettings = () => {
                       />
                       <em>{UNITS[f.kind]}</em>
                     </span>
+                  )}
+                  {f.kind === "slot" && (
+                    <input
+                      type="text"
+                      className="agent-chat__bandcog-slot"
+                      placeholder="nobody"
+                      value={slotDraft == null ? settings[f.key] || "" : slotDraft}
+                      onChange={(e) => setSlotDraft(e.target.value)}
+                      onBlur={() => {
+                        if (slotDraft != null) send(patchFor(settings, f.key, slotDraft));
+                        setSlotDraft(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.target.blur();
+                        if (e.key === "Escape") setSlotDraft(null);
+                      }}
+                    />
                   )}
                   {f.kind === "sources" && (
                     <span className="agent-chat__bandcog-sources">

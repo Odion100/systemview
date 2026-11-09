@@ -134,7 +134,7 @@ describe("the band", () => {
     expect(BAND_KINDS.some((k) => k.key === "arcs")).toBe(false);
     // The list is the band's floor and is always there, so the honest assertion is that an arc
     // count adds nothing to it.
-    expect(bandTabs({ arcs: 4 }).tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists"]);
+    expect(bandTabs({ arcs: 4 }).tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "corrections"]);
   });
 });
 

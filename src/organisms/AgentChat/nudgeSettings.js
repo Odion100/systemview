@@ -20,6 +20,10 @@ export const SOURCE_CHOICES = [
   { key: "job:", label: "jobs" },
   { key: "skill:", label: "skills" },
   { key: "lane:", label: "lanes" },
+  // A CORRECTION IS WORK SOMEBODY OWES, so it is chased like the rest and switched off here like
+  // the rest. Unticking this is the whole of "stop nudging about corrections" — there is no second
+  // record and no nudge of its own.
+  { key: "correction:", label: "corrections" },
 ];
 
 // THE NUMBER KINDS AND THEIR UNIT. Here rather than in the component, so a field declaring a kind
@@ -28,7 +32,7 @@ export const SOURCE_CHOICES = [
 // it knew about and the fourth fell through every branch. `toggle` and `sources` render themselves;
 // everything else is a number and needs a unit, even when the unit is empty.
 export const UNITS = { minutes: "min", hours: "hrs", count: "", percent: "%" };
-export const RENDERABLE = ["toggle", "sources", ...Object.keys(UNITS)];
+export const RENDERABLE = ["toggle", "sources", "slot", ...Object.keys(UNITS)];
 
 export const FIELDS = [
   {
@@ -74,6 +78,15 @@ export const FIELDS = [
     help: "context fill past which a nudge would spend what the agent needs to finish",
   },
   { key: "sources", kind: "sources", label: "which runs count", help: "the session's own plan has no source and is never nudged" },
+  // WHO MAY ASSIGN WORK TO ANOTHER AGENT — his control, and it lives here rather than on every
+  // agent's definition because the profile's lever is allow/deny per agent: gating it there would
+  // mean unchecking a tool on every agent that must not have it. EMPTY MEANS NOBODY, never anyone.
+  {
+    key: "manager",
+    kind: "slot",
+    label: "manager",
+    help: "the one agent that may assign work to another — a correction. Empty means nobody can",
+  },
   {
     key: "keepHours",
     kind: "hours",
@@ -105,7 +118,8 @@ export function patchFor(settings, key, raw) {
     const want = Array.isArray(raw) ? raw.filter((s) => SOURCE_CHOICES.some((c) => c.key === s)) : [];
     const same = want.length === (cur.sources || []).length && want.every((s) => (cur.sources || []).includes(s));
     return same ? null : { sources: want };
-  } else next = clampInt(raw, field.min, field.max, cur[key]);
+  } else if (field.kind === "slot") next = String(raw == null ? "" : raw).trim();
+  else next = clampInt(raw, field.min, field.max, cur[key]);
   if (next === cur[key]) return null;
   return { [key]: next };
 }

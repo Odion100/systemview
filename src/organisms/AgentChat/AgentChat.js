@@ -6330,7 +6330,14 @@ const countdown = (str, now = Date.now()) => {
   const [bandSettings, setBandSettings] = useState(false);
 
   const bandJobs = listsShown.filter((l) => l.source.startsWith("job:"));
-  const bandLists = listsShown.filter((l) => !l.source.startsWith("job:"));
+  // A CORRECTION IS SOMEBODY ELSE'S JUDGMENT OF THIS AGENT'S WORK, so it does not belong in the
+  // pane that holds what this agent decided to do. Split out BEFORE `lists`, which is the
+  // everything-else bucket — forget this and a correction renders as an ordinary list and the tab
+  // beside it stays permanently empty.
+  const bandCorrections = listsShown.filter((l) => l.source.startsWith("correction:"));
+  const bandLists = listsShown.filter(
+    (l) => !l.source.startsWith("job:") && !l.source.startsWith("correction:")
+  );
   const bandShown = bandTabs(
     {
       jobs: bandJobs.length,
@@ -6341,6 +6348,7 @@ const countdown = (str, now = Date.now()) => {
       // subagent must be reachable even with no lane registered at all, which is the case that was
       // broken — and the parts write the label, so the tab never counts a subagent as a lane.
       lanes: { lanes: lanesShown.length, subagents: unseenShown.length },
+      corrections: bandCorrections.length,
     },
     bandTab,
   );
@@ -7962,7 +7970,14 @@ const countdown = (str, now = Date.now()) => {
                   )}
                 {attached &&
                   listsShown
-                    .filter((l) => bandShown.active === (l.source.startsWith("job:") ? "jobs" : "lists"))
+                    .filter((l) =>
+                      bandShown.active ===
+                      (l.source.startsWith("job:")
+                        ? "jobs"
+                        : l.source.startsWith("correction:")
+                          ? "corrections"
+                          : "lists")
+                    )
                     .map((l) =>
                     l.source.startsWith("job:") ? (
                       <JobRun

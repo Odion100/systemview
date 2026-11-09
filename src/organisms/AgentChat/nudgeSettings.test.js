@@ -7,7 +7,7 @@ import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleS
 // render-time crashes once shipped alongside 543 green claims. So the panel is thin on purpose and
 // everything that can be WRONG lives in this module, where it is reachable.
 
-const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, sources: ["job:", "skill:"], keepHours: 12 };
+const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, sources: ["job:", "skill:", "correction:"], keepHours: 12, manager: "" };
 
 describe("a patch is one changed field, or nothing at all", () => {
   it("sends only what actually changed", () => {
@@ -21,8 +21,8 @@ describe("a patch is one changed field, or nothing at all", () => {
     expect(patchFor(S, "idleMin", 20)).toBe(null);
     expect(patchFor(S, "idleMin", "20")).toBe(null);
     expect(patchFor(S, "on", true)).toBe(null);
-    expect(patchFor(S, "sources", ["job:", "skill:"])).toBe(null);
-    expect(patchFor(S, "sources", ["skill:", "job:"])).toBe(null); // order is not a change
+    expect(patchFor(S, "sources", ["job:", "skill:", "correction:"])).toBe(null);
+    expect(patchFor(S, "sources", ["correction:", "skill:", "job:"])).toBe(null); // order is not a change
   });
 
   it("clamps rather than trusting, and falls back on junk", () => {
@@ -43,14 +43,17 @@ describe("a patch is one changed field, or nothing at all", () => {
 
 describe("sources are prefixes the harness actually matches", () => {
   it("toggles one without disturbing the others", () => {
-    expect(toggleSource(S, "lane:")).toEqual(["job:", "skill:", "lane:"]);
-    expect(toggleSource(S, "job:")).toEqual(["skill:"]);
+    expect(toggleSource(S, "lane:")).toEqual(["job:", "skill:", "correction:", "lane:"]);
+    expect(toggleSource(S, "job:")).toEqual(["skill:", "correction:"]);
+    // unticking corrections is the whole of "stop nudging me about those"
+    expect(toggleSource(S, "correction:")).toEqual(["job:", "skill:"]);
   });
 
   // A TEXT BOX WOULD LET HIM TYPE `jobs:` AND WATCH NOTHING HAPPEN FOREVER. The choices are the
   // prefixes the harness compares against, so an unknown one cannot be stored.
   it("drops a source that is not one of the offered prefixes", () => {
     expect(patchFor(S, "sources", ["job:", "jobs:", "nonsense"])).toEqual({ sources: ["job:"] });
+    expect(patchFor(S, "sources", ["corrections:"])).toEqual({ sources: [] }); // the plural is not the prefix
   });
 
   it("every offered choice is a prefix, never a bare word", () => {
@@ -64,7 +67,7 @@ describe("the summary says the real state, including the states that read as bro
     // the cycle's final notice, then the count wraps and nudging continues until the run earns an
     // ending. A summary still reading "3×" would describe the retired silent-timeout behaviour.
     expect(summaryOf(S)).toBe(
-      "nudge — jobs + skills after 20m quiet, every 30m, cycles of 3 · keeps closed runs 12h",
+      "nudge — jobs + skills + corrections after 20m quiet, every 30m, cycles of 3 · keeps closed runs 12h",
     );
   });
 
@@ -88,6 +91,11 @@ describe("the summary says the real state, including the states that read as bro
   });
 });
 
+// The kinds that are NOT numbers. Listed once so the two guards below cannot drift apart about
+// which shape a field is — the bug that would hide is a number field losing its unit while a guard
+// that had quietly stopped covering numbers stayed green.
+const SELF_RENDERING = ["toggle", "sources", "slot"];
+
 describe("every field can be rendered by the panel that exists", () => {
   it("declares a kind the panel knows, and a help line", () => {
     // THE REAL LIST, imported — a hard-coded copy here would pass while the panel rendered an
@@ -96,7 +104,10 @@ describe("every field can be rendered by the panel that exists", () => {
       expect(RENDERABLE).toContain(f.kind);
       expect(typeof f.help).toBe("string");
       expect(f.help.length).toBeGreaterThan(0);
-      if (f.kind !== "toggle" && f.kind !== "sources") {
+      // THREE SHAPES, NOT TWO — and naming the third is the point rather than loosening the
+      // guard: `toggle` and `sources` render themselves, `slot` is a free name with no bounds to
+      // clamp, and EVERYTHING ELSE is a number that owes a min, a max and a unit.
+      if (!SELF_RENDERING.includes(f.kind)) {
         expect(typeof f.min).toBe("number");
         expect(typeof f.max).toBe("number");
       }
@@ -112,7 +123,7 @@ describe("every field can be rendered by the panel that exists", () => {
   // AND EVERY NUMBER KIND HAS A UNIT. The guard above proves a kind is renderable; this proves the
   // render has something to print beside the box, which is the half that makes "12" mean hours.
   it("every number kind carries its unit", () => {
-    FIELDS.filter((f) => f.kind !== "toggle" && f.kind !== "sources").forEach((f) =>
+    FIELDS.filter((f) => !SELF_RENDERING.includes(f.kind)).forEach((f) =>
       expect(typeof UNITS[f.kind]).toBe("string"),
     );
   });

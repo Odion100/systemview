@@ -5683,6 +5683,20 @@ $sv-board-states: (
   }
   em { font-style: normal; color: var(--sv-text-faint); }
 }
+// THE ONE FREE-TEXT KNOB — the manager's slot. Same frame as the number input beside it so the
+// row reads as one family, and left-aligned because a name is read from its start while a number is
+// read from its end. The placeholder says `nobody`, which is the honest default: empty means no
+// agent may assign work, not "anyone may".
+.agent-chat__bandcog-slot {
+  width: 124px;
+  font: inherit;
+  color: var(--sv-text);
+  background: var(--sv-bg);
+  border: 1px solid var(--sv-border);
+  border-radius: 3px;
+  padding: 1px 4px;
+  &::placeholder { color: var(--sv-text-faint); font-style: italic; }
+}
 .agent-chat__bandcog-sources { display: inline-flex; gap: 4px; }
 .agent-chat__bandcog-src {
   border: 1px solid var(--sv-border);

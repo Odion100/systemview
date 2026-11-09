@@ -11,8 +11,8 @@ import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, DEFAULT_LIST_K
 // pane that shows none — and the counts are what these claims hold to that.
 describe("the work band is tabs — one per type of work", () => {
   it("draws every kind, whatever has rows, and carries each one's real count", () => {
-    const { tabs } = bandTabs({ jobs: 2, lanes: 0, lists: 0 });
-    expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 2], ["lanes", 0], ["lists", 0]]);
+    const { tabs } = bandTabs({ jobs: 2, lanes: 0, lists: 0, corrections: 0 });
+    expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 2], ["lanes", 0], ["lists", 0], ["corrections", 0]]);
   });
 
   it("keeps the stored choice while it still has rows", () => {
@@ -32,13 +32,13 @@ describe("the work band is tabs — one per type of work", () => {
   // surface you cannot put the first thing on.
   it("draws every kind with nothing standing at all — a surface you can put the first thing on", () => {
     const { tabs, active } = bandTabs({});
-    expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 0], ["lanes", 0], ["lists", 0]]);
+    expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 0], ["lanes", 0], ["lists", 0], ["corrections", 0]]);
     expect(active).toBe("jobs");
   });
 
   it("orders them the way the head reads them — jobs, lanes, lists, then what is owed", () => {
-    const { tabs } = bandTabs({ jobs: 1, lanes: 1, lists: 1 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists"]);
+    const { tabs } = bandTabs({ jobs: 1, lanes: 1, lists: 1, corrections: 1 });
+    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "corrections"]);
   });
 
   // THE BAND IS WORK IN FLIGHT, AND NOTHING ELSE — his ruling, 2026-11-06, once the dashboard
@@ -49,7 +49,7 @@ describe("the work band is tabs — one per type of work", () => {
   // BAND_KINDS does not name can never draw a tab, however many rows it reports.
   it("gives no tab to a kind that moved to the dashboard, however many rows it has", () => {
     const { tabs } = bandTabs({ owed: 3, reports: 9, rfcs: 4, arcs: 2, gaps: 7 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists"]);
+    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "corrections"]);
     expect(tabs.every((t) => t.n === 0)).toBe(true);
   });
 
@@ -122,7 +122,7 @@ describe("the work band is tabs — one per type of work", () => {
   // inside the lane tab. Only the second one is left, so it is worth claiming on its own.
   it("still folds the lane tab's two parts into one tab, ignoring a document count beside it", () => {
     const { tabs } = bandTabs({ lanes: { lanes: 1, subagents: 1 }, reports: { "": 1, spec: 2 } });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists"]);
+    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "corrections"]);
     const lane = tabs.find((t) => t.key === "lanes");
     expect(lane.n).toBe(2);
     expect(lane.parts).toEqual({ lanes: 1, subagents: 1 });
@@ -139,9 +139,9 @@ describe("the work band is tabs — one per type of work", () => {
 // the one that becomes configurable, and the band has to carry the distinction before anything can
 // render it. Reports sits in it by default because of where it lives, not because it is special.
 describe("a tab says which family it belongs to", () => {
-  it("calls jobs, lists and lanes work", () => {
+  it("calls jobs, lanes, lists and corrections work", () => {
     const { tabs } = bandTabs({ jobs: 1, lists: 1, lanes: 1 });
-    expect(tabs.map((t) => t.family)).toEqual(["work", "work", "work"]);
+    expect(tabs.map((t) => t.family)).toEqual(["work", "work", "work", "work"]);
   });
 
   it("has one family left, because one kind of thing is left", () => {
@@ -256,3 +256,23 @@ describe("a sourceless row is the plan, whichever side it arrived from", () => {
     expect(synth.key).toBe(listKey("", "session"));
   });
 });
+
+describe("a correction is a run, and it gets its own tab", () => {
+  // WHY NOT `lists`: a list is what THIS agent decided to do; a correction is somebody else's
+  // judgment of its work, opened as a run owned by the agent that owes it. Same shape, different
+  // question — so the pane is separate and the tab stands even at zero, like the other three.
+  it("counts correction runs, and says it in the band's own words", () => {
+    const { tabs } = bandTabs({ corrections: 3 });
+    expect(tabs.find((t) => t.key === "corrections").n).toBe(3);
+    expect(bandLabel("corrections", 1)).toBe("1 correction");
+    expect(bandLabel("corrections", 3)).toBe("3 corrections");
+  });
+
+  it("stands with nothing owed, because the pane is where the first one lands", () => {
+    const owed = bandTabs({ jobs: 3, lanes: 2, lists: 1 }).tabs.find((t) => t.key === "corrections");
+    expect(owed).toBeTruthy();
+    expect(owed.n).toBe(0);
+    expect(owed.family).toBe("work");
+  });
+});
+
