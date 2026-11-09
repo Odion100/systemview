@@ -408,8 +408,8 @@ file it saves to; `context("the ::test block")` for the label grammar that point
   every method on it is callable remotely, synchronous or async. You are not writing a harness or
   an adapter; you are handing over the object you already have, and the live system becomes the
   fixture. (Write real glue only where the thing is not an object you can hold — the CLI needed a
-  child process because its own state had to stay isolated: `test/service/CLI/index.js`, "change
-  CLI code, re-run the test.")
+  child process because its own state had to stay isolated, and the wrapper earns its place by
+  keeping the loop honest: change the code, re-run the test.)
 - **Another language, or anything that is not an object you can hold** — WRAP IT, and the wrapper
   is a legitimate artifact rather than a workaround. A JavaScript wrapper that calls out — to a
   CLI, to a library, to Python — is a route available today: the wrapper is the object SystemLynx

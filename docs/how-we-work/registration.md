@@ -38,7 +38,7 @@ counts, approvals waiting, `parsed`) — what the last parse saw, at that time, 
 
 ## What done means, per kind
 
-Declared in one place (autobot `electron/markdown/blocks.cjs`), read off the document:
+Declared in one place — the harness's own block parser — and read off the document:
 
 | kind | done when | stays listed after done |
 |---|---|---|
