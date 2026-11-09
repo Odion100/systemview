@@ -367,6 +367,92 @@ writes, no drain job, no hook, no nudge record entry, no MCP server of its own. 
 was built, shipped and withdrawn in a day. The withdrawal is the dated note at the end of this
 document, and the reason it was right is in §1.5: the title never said how a violation is found.
 
+::::claim[While no agent is named as manager, asking to assign work is refused whoever asks — a blank authority admits nobody rather than everybody]{id=c67}
+:::run{title="the empty field, through the real handler — refused, nothing written, and the refusal said"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["an empty manager field refuses everybody — a blank authority is not a permissive one"] }){title="autobot tests/worklist.js — the door called with nobody named"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
+:::
+::::
+::::claim[When an agent that is not the named manager asks to assign work, it is refused, the refusal names whose job it is, and nothing is written]{id=c68}
+:::run{title="the authority gate, by name — and the three refusals that are not about authority"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["assigning is the named manager's, and the refusal says whose it is", "no owner, yourself, and an empty list are each refused with the reason — and none of them writes"] }){title="autobot tests/worklist.js — the door, not the module"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
+:::
+::::
+::::claim[When the manager assigns work, the run that appears belongs to the agent that owes it and says who sent it]{id=c69}
+:::run{title="the write itself: whose run it is, and the source that names the sender"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["the manager's assign opens a run owned by the agent that owes it, sourced correction:<manager>"] }){title="autobot tests/worklist.js"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
+:::
+::::
+::::claim[While an assigned run is open, a later session of the agent that owes it is the one chased — the chase follows the agent, not the session that sent the work]{id=c70}
+:::run{title="the half that makes it a correction rather than a message"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["an assigned run is chased in the owing agent's NEXT session, not lost with the one that sent it"] }){title="autobot tests/worklist.js — placeOf and sameAgent over the written run"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
+:::
+::::
+::::claim[While corrections are among the sources the chaser counts, an open one is chased on his existing settings; take them out of that list and it is not]{id=c71}
+:::run{title="his control, both ways — nothing new was built for it"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["the chaser counts a correction because `correction:` is in its sources, and nothing else was needed"] }){title="autobot tests/worklist.js"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
+:::
+::::
+::::claim[When a correction is finished, its record is kept as long as a job's or a lane's rather than as long as a session's list — so one finished in the evening is still there in the morning]{id=c72}
+:::run{title="both ends of the window, on a CLOSED run — which is the only state where it bites"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["a CLOSED correction is kept the work window, not the list window — one submitted in the evening survives the night"] }){title="autobot tests/worklist.js — the janitor itself answers"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
+:::
+::::
+::::claim[While the band is showing, corrections have a tab of their own that stands whether or not any are owed, and an assigned run never draws in the list pane]{id=c73}
+:::run{title="the band's own suite as a door — the tab, its count, and the floor it stands on"}
+- Test.BandPanel.band({}){title="src/organisms/AgentChat/bandTabs.test.js — the corrections tab by name"}
+  - results.suiteProducedResults = true
+  - results.failed = 0
+  - results.correctionsCountsItsRuns = true
+  - results.theTabStandsAtZero = true
+:::
+::::
+::::claim[When he types a name into the manager field, nothing is written until he commits the edit — and leaving it empty is what refuses everybody]{id=c74}
+:::run{title="the panel's own suite as a door — the default, the blur, and the abandon"}
+- Test.BandPanel.settings({}){title="src/organisms/AgentChat/BandSettings.test.js — the manager field by name"}
+  - results.suiteProducedResults = true
+  - results.failed = 0
+  - results.managerDrawsNobodyAsItsDefault = true
+  - results.typingWritesNothingUntilBlur = true
+  - results.escapeAbandonsTheEdit = true
+:::
+::::
+
+**Do these claims add up to the intent?** Yes, and the intent here is narrow: an isolated agent can
+hand a correction to the agent whose work it is, it arrives rather than waiting to be found, and he
+controls both who may send one and whether they are chased. The authority is claimed from both
+sides — nobody named refuses everybody (c67), and a named manager is the only one admitted (c68).
+The write is claimed for whose run it is (c69) and for surviving the session that sent it (c70),
+which is the difference between a correction and a message. His control is claimed as the thing he
+already has (c71) rather than as a new switch. The record lasting long enough to be read is claimed
+on a closed run (c72), because that is the only state where the window bites. And the two surfaces
+are claimed where he meets them: the tab (c73) and the field (c74).
+
+**What is NOT claimed, and each is deliberate.** CLOSING a correction carries no claim of its own
+because it is not new behaviour — every item done, or abandoned with an account, is c13 and c14
+doing the work they were already built for; a second claim here would be a copy of theirs that
+could drift. The REFUSAL REACHING THE CHAT is asserted inside c67's case and not raised to its own
+sentence, because the channel is the one every other refusal in this session already rides. And
+nothing claims that the manager judges WELL — that is conduct, it lives in the role's own document,
+and a claim an RFC can only verify by watching an agent behave well is a hope.
+
 ## 3 · Slices, in landing order
 
 **Four of the original eight landed and stay** — the chaser's closed-condition (§2.4), the settings

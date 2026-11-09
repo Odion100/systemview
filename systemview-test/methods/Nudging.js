@@ -31,6 +31,7 @@ const SUITES = {
   context: "tests/context.js",
   docs: "tests/docs.js",
   announce: "tests/markdown-announce.js",
+  worklist: "tests/worklist.js",
 };
 
 module.exports = {

@@ -32,12 +32,33 @@ module.exports = {
       aWorklistKnobGoesToTheChasersDoor: passed(run, "a worklist knob goes to the chaser's door and nowhere else"),
       aCompactionKnobGoesToTheValvesDoor: passed(run, "an auto-compaction knob goes to the valve's door"),
 
+      // §2.8 — THE MANAGER FIELD. Its placeholder is the honest default, and it commits on blur
+      // because a text input wired straight to the door writes once per character.
+      managerDrawsNobodyAsItsDefault: passed(run, "draws `nobody` as its placeholder"),
+      typingWritesNothingUntilBlur: passed(run, "types without writing, and writes once on blur"),
+      escapeAbandonsTheEdit: passed(run, "escape abandons the edit without writing anything"),
+
       // c19 — the two older sections, rehoused with everything they had.
       worklistKnobsAllPresent: passed(run, "the worklist knobs are all present on their own tab"),
       compactionKnobsAllPresent: passed(run, "the auto-compaction knobs are all present on theirs"),
       eachSectionStatesItsOwnAbsence:
         passed(run, "the worklist section says so when its own door is missing") &&
         passed(run, "the valve says so when ITS door is missing"),
+    };
+  },
+
+  // THE BAND'S OWN SUITE, a second door for the same reason as the first: the tab table and its
+  // counts are pure data, asserted in their own jest suite, and a claim about what the band DRAWS
+  // has to read that suite rather than my description of it.
+  async band() {
+    const run = jest("AgentChat/bandTabs\\.test");
+    return {
+      suiteProducedResults: (run.tests || 0) > 0,
+      failed: run.failed || 0,
+      whyNot: run.why || "",
+      correctionsCountsItsRuns: passed(run, "counts correction runs, and says it in the band's own words"),
+      theTabStandsAtZero: passed(run, "stands with nothing owed, because the pane is where the first one lands"),
+      everyKindIsDrawn: passed(run, "draws every kind with nothing standing at all"),
     };
   },
 };
