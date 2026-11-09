@@ -48,8 +48,10 @@ every item on it is done — nothing else marks it complete.
    the real steps you are about to take, named for the work in front of you, covering the steps
    below without transcribing them. A copied-out procedure records nothing; a list of what you are
    actually doing shows how you read it, which is where a misread becomes visible before the output
-   is wrong. `job:`, `skill:` and `lane:` are the ONLY prefixes the system knows — any other is
-   written to disk, draws no row, and is never nudged, so it runs unheld and invisible.
+   is wrong. `job:`, `skill:` and `lane:` are the prefixes YOU write. There is a fourth the
+   system reads — `correction:`, written by the assign verb when work is handed to ANOTHER agent,
+   never chosen for a list of your own. Any other prefix is written to disk, draws no row, and is
+   never nudged, so it runs unheld and invisible.
 2. **Mark one active** as you reach it and **done** as you finish it. `set` REPLACES the whole
    list, so send every item every time — one omitted item is one deleted item. A list written once
    and never moved is indistinguishable from a procedure abandoned at step 1.
