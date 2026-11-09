@@ -55,8 +55,10 @@ import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { hasHostJobs, jobRuns, rateJobRun, markJobState, jobStates, hasJobState } from "../../utils/hostJobs";
-import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, readBandTab, writeBand, TAB_KEY } from "./bandTabs";
+import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, readBandTab, writeBand, TAB_KEY, DEFAULT_LIST_KEY } from "./bandTabs";
+import { runDelete } from "./runDelete";
 import NudgeCog from "./NudgeCog";
+import BandSettings from "./BandSettings";
 import { unseenSubagents } from "./unseenSubagents";
 import { chipFor, menuFor } from "./jobState";
 import { deleteReport as deleteReportFile, reportIndexSets, listReports } from "../../utils/reportOps";
@@ -913,7 +915,69 @@ function RunAttachments({ attachments, projectCode }) {
   );
 }
 
-function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChildren, laneCount = 0, standingLanes = [], status = null, attachments = null }) {
+// THE DELETE IS HIS, FOR EVERY RUN — his ask, 2026-11-07: *"I need to be able to delete anything…
+// jobs, or list or whatever it is"*, because the nudge is aimed at the agent and he wants to be
+// able to stop it himself: *"they're nudging you — I want to stop myself."* The lane rows had a 🗑
+// and the job and skill cards had only the ×, which clears the VIEW and leaves the record on disk,
+// nudging.
+//
+// SAME GESTURE AS THE LANE ROW, SAME CLASSES, so the strip has one delete idiom: the 🗑 at the end
+// of the row, and the two-step confirm under it for anything not done — press once, the control
+// turns into the question; press "yes, delete" and the record is unlinked. A DONE run (or one
+// abandoned WITH its account) deletes plain, no confirm — its ending is already on the record.
+// What the confirm says is decided in runDelete.js, not here, for the same reason laneConfirm()
+// exists: the control and its warning must never disagree about the same run.
+//
+// IT DELETES THE RECORD, NOT THE VIEW. The press goes through the same door the lane 🗑 uses
+// (deleteLaneRun → worklist.deleteRun, which unlinks the run file), so the nudging stops because
+// the run is GONE — the × beside it stays the view-clear it always was.
+function useRunDelete({ onDelete, done = 0, total = 0, abandoned = false, accounted = false }) {
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  if (!onDelete) return { del: null, confirm: null };
+  const d = runDelete({ done, total, abandoned, accounted });
+  const fire = async (e) => {
+    e.stopPropagation();
+    setBusy(true);
+    setErr("");
+    try {
+      await onDelete();
+      return; // the row is gone — nothing left to un-busy
+    } catch (e2) {
+      setErr((e2 && e2.message) || "delete failed");
+    }
+    setBusy(false);
+  };
+  const press = (e) => {
+    e.stopPropagation();
+    if (d.plain) return fire(e);
+    setArmed((a) => !a);
+    return undefined;
+  };
+  const del = (
+    <button
+      type="button"
+      className={`${CLASSNAME}__lane-del`}
+      title={d.plain ? "delete this run's record" : "delete this run — it is not done, so it asks first"}
+      onClick={press}
+    >
+      🗑
+    </button>
+  );
+  const confirm =
+    armed && !d.plain ? (
+      <div className={`${CLASSNAME}__lane-confirm`} onClick={(e) => e.stopPropagation()}>
+        <span className={d.warn ? `${CLASSNAME}__lane-confirm-warn` : ""}>{d.text}</span>
+        <button type="button" disabled={busy} onClick={fire}>yes, delete</button>
+        <button type="button" disabled={busy} onClick={(e) => { e.stopPropagation(); setArmed(false); }}>no</button>
+        {err && <span className={`${CLASSNAME}__lane-confirm-warn`}>{err}</span>}
+      </div>
+    ) : null;
+  return { del, confirm };
+}
+
+function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChildren, laneCount = 0, standingLanes = [], status = null, attachments = null, onDelete = null }) {
   const jobId = String(source || "").slice(4);
   const [open, setOpen] = useState(false);
   const [rec, setRec] = useState(null);
@@ -937,6 +1001,9 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
   // The same countdown the skill rows wear — a job run is as nudgeable as a skill run, and the
   // selector's `picks` answer is what decides which single row counts down (see useNudgeEta).
   const eta = useNudgeEta({ source, runKey: runId || "", projectCode, off: complete });
+  // His 🗑 — deletes the RECORD (the × beside it only clears the view). Done deletes plain;
+  // not-done arms into the confirm. See useRunDelete.
+  const runDel = useRunDelete({ onDelete, done, total, abandoned: !!abandoned, accounted });
 
   // Re-read on every change to the list, and once more when it completes — the report is filed in
   // the same breath as the last item, so a single read at mount would always miss it.
@@ -1112,7 +1179,9 @@ function JobRun({ items, source, projectCode, runId, onClear, onLanes, laneChild
           ×
         </button>
       )}
+      {runDel.del}
       </div>
+      {runDel.confirm}
 
       {/* A JOB RUN IS A BAR UNTIL YOU OPEN IT — his call, 2026-10-12, on the first one that ever
           ran: *"the job needs to be able to show on the chat as just a bar that can be expanded.
@@ -1252,7 +1321,7 @@ function useNudgeEta({ source = "", runKey = "", projectCode = "", off = false }
   return eta;
 }
 
-function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null }) {
+function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null, onDelete = null }) {
   const [open, setOpen] = useState(false);
   const done0 = (items || []).filter((t) => t.state === "done").length;
   const complete0 = items && items.length ? done0 === items.length : true;
@@ -1262,6 +1331,15 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
   const abandoned = status && /abandon/i.test(String(status.text || ""));
   const accounted = isAccounted(attachments);
   const eta = useNudgeEta({ source, runKey, projectCode, off: complete0 || (abandoned && accounted) });
+  // His 🗑 — deletes the RECORD (the × beside it only clears the view). Done deletes plain;
+  // not-done arms into the confirm. See useRunDelete.
+  const runDel = useRunDelete({
+    onDelete,
+    done: done0,
+    total: (items || []).length,
+    abandoned: !!abandoned,
+    accounted,
+  });
   if (!items || !items.length) return null;
   const done = items.filter((t) => t.state === "done").length;
   // FINISHED IS HIS TO CLEAR — his call, and it removes the reliance on agent manners: a completed
@@ -1349,7 +1427,9 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
           ×
         </button>
       )}
+      {runDel.del}
       </div>
+      {runDel.confirm}
       {open && (
         <>
         {/* WHAT THE RUN POINTS AT, FIRST (his: "I can't see a report... it should be at the top
@@ -6065,6 +6145,28 @@ const countdown = (str, now = Date.now()) => {
     }
   };
   const [deletedLanes, setDeletedLanes] = useState(() => readDeletedLanes(deletedLanesKey));
+  // DELETING A RUN'S RECORD, FOR EVERY KIND OF ROW — lanes, job runs and lists all reach the same
+  // door (`worklist.deleteRun`; the transport's name says lane and its body never did). One
+  // definition because the three rows must not drift about what a delete means, and because the
+  // remembering half is the subtle part: the session's own event echo replays on every refresh, so
+  // a deleted key has to OUTLIVE the page or the row comes back. `listsShown` already filters on
+  // this set, which is why job runs and lists need nothing else to stay gone.
+  const deleteRunRecord = useCallback(
+    async (key) => {
+      await work.deleteLaneRun(key);
+      setDeletedLanes((prev) => {
+        const next = new Set(prev);
+        next.add(key);
+        try {
+          window.localStorage.setItem(deletedLanesKey, JSON.stringify([...next]));
+        } catch {
+          /* private mode — the row stays gone for this page life, as before */
+        }
+        return next;
+      });
+    },
+    [work, deletedLanesKey],
+  );
   useEffect(() => {
     setDeletedLanes(readDeletedLanes(deletedLanesKey));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6077,6 +6179,11 @@ const countdown = (str, now = Date.now()) => {
   const pickBandTab = (k) => {
     setBandTab(k);
     writeBand(TAB_KEY, k);
+    // SETTINGS IS ONE OF THE TABS, so picking a kind of work leaves it — his rule: "settings is
+    // just like another tab… [a work tab] shouldn't be selected if the settings are selected."
+    // One selection across the whole row, or two things read selected at once and the pane shows
+    // neither of them convincingly.
+    setBandSettings(false);
     // pressing a count in the head is also how you OPEN the band — his flow: the head says
     // "3 lanes", you press it, you are looking at the lanes
     setStripOpen(true);
@@ -6216,6 +6323,12 @@ const countdown = (str, now = Date.now()) => {
   ]);
   // WHICH TABS THE BAND HAS, and which one is showing — decided from what has rows (see
   // bandTabs.js), so the head's highlight and the pane below can never disagree.
+  // THE SETTINGS PANE'S OWN STATE (RFC-078 §2.5) — here rather than in the cog, because the pane is
+  // a SIBLING of the tab row and a child of that flex row could only have drawn over the band.
+  // Deliberately not persisted: a tab choice is where he left off and worth remembering, while a
+  // settings panel left open across every reopen is a panel in the way.
+  const [bandSettings, setBandSettings] = useState(false);
+
   const bandJobs = listsShown.filter((l) => l.source.startsWith("job:"));
   const bandLists = listsShown.filter((l) => !l.source.startsWith("job:"));
   const bandShown = bandTabs(
@@ -7712,7 +7825,7 @@ const countdown = (str, now = Date.now()) => {
                     <button
                       key={tb.key}
                       type="button"
-                      className={`${CLASSNAME}__bandtab ${CLASSNAME}__bandtab--${tb.family || "work"}${bandShown.active === tb.key ? ` ${CLASSNAME}__bandtab--on` : ""}`}
+                      className={`${CLASSNAME}__bandtab ${CLASSNAME}__bandtab--${tb.family || "work"}${!bandSettings && bandShown.active === tb.key ? ` ${CLASSNAME}__bandtab--on` : ""}`}
                       onClick={() => pickBandTab(tb.key)}
                     >
                       {bandLabel(tb.key, tb.n, tb.parts)}
@@ -7727,11 +7840,20 @@ const countdown = (str, now = Date.now()) => {
                       pinned beside it and never moves. Everything in the drawer is a list of steps
                       with an owner and a completion state, so the thing that configures the nudge
                       belongs where the lists are. */}
-                  <NudgeCog />
+                  <NudgeCog open={bandSettings} onToggle={setBandSettings} />
                 </div>
               )}
 
-              <div className={`${CLASSNAME}__strip`}>
+              {/* THE SETTINGS AS A PANE IN THE BAND (RFC-078 §2.5, c15) — "treat it like a tab
+                  below", never a popup over the band. It sits BESIDE the tab row rather than inside
+                  it, which is the whole reason the open state lives here and not in the cog: a
+                  child of that flex row could only ever have drawn over the band it belongs to.
+                  What marks settings as the visible pane is the COG'S own underline, not anything
+                  happening to the row: it is one tab among the others and it is marked like one
+                  (c18, and his correction — "we have a border on the bottom and that's enough"). */}
+              {bandSettings && <BandSettings />}
+
+              <div className={`${CLASSNAME}__strip${bandSettings ? ` ${CLASSNAME}__strip--off` : ""}`}>
           {/* ONE RENDERER FOR A LANE ROW, flat or nested — the row, its in-place panel, its
               delete. Defined here (not a component) so it closes over every handler the flat strip
               already wired. */}
@@ -7746,21 +7868,7 @@ const countdown = (str, now = Date.now()) => {
                 delegated={!!laneLogFor(l.source).events}
                 brief={laneLogFor(l.source).brief || ""}
                 events={laneLogFor(l.source).events || null}
-                onDelete={async () => {
-                  await work.deleteLaneRun(l.key);
-                  // the session's own event echo of this run must not resurrect the row — and the
-                  // transcript replays on every refresh, so this has to outlive the page.
-                  setDeletedLanes((prev) => {
-                    const next = new Set(prev);
-                    next.add(l.key);
-                    try {
-                      window.localStorage.setItem(deletedLanesKey, JSON.stringify([...next]));
-                    } catch {
-                      /* private mode — the row stays gone for this page life, as before */
-                    }
-                    return next;
-                  });
-                }}
+                onDelete={() => deleteRunRecord(l.key)}
               />
             );
             const claimed = new Set(Object.values(jobLaneClaims).flat());
@@ -7872,6 +7980,7 @@ const countdown = (str, now = Date.now()) => {
                           </div>
                         }
                         onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
+                        onDelete={l.key === "session" ? null : () => deleteRunRecord(l.key)}
                       />
                     ) : (
                       <WorkList
@@ -7883,6 +7992,10 @@ const countdown = (str, now = Date.now()) => {
                         status={l.status || null}
                         attachments={l.attachments || null}
                         onClear={() => setClearedLists((c) => ({ ...c, [l.key]: JSON.stringify(l.items) }))}
+                        // THE SESSION'S OWN PLAN HAS NO RECORD TO DELETE — it is the session
+                        // file's, not a run's, and withDefaultList synthesises its row when there
+                        // is none. A 🗑 there would be a control that deletes nothing.
+                        onDelete={l.key === DEFAULT_LIST_KEY ? null : () => deleteRunRecord(l.key)}
                       />
                     ),
                   )}

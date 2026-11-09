@@ -14,7 +14,13 @@
 // argument; `- Math.add({ "a": 1 }){title="adds two"}` is an argument and a label. The test is the
 // separator: attributes are `key=`, JSON is `"key":`. A trailing group that parses as JSON, or that
 // does not open with a bare word and an `=`, is left alone as data.
-const ATTR_TAIL = /\{\s*([A-Za-z_][\w-]*)\s*=\s*([\s\S]*?)\s*\}\s*$/;
+// THE VALUE MAY NOT CONTAIN A BRACE, and that bound is what makes this match the LAST `{k=v}` on
+// the line rather than the first one that can reach the end. With `[\s\S]*?` a step whose PAYLOAD
+// carried interactive-markdown syntax lost everything after it: `… "a marked ::claim{subscribe=}
+// fires …"){title="…"}` matched at `{subscribe=`, the lazy value swallowed the rest to the final
+// brace, and the step's JSON was cut mid-string — so the argument fell back to a STRING and the
+// call went out malformed. Measured 2026-11-08 on a spec that merely QUOTED a block's syntax.
+const ATTR_TAIL = /\{\s*([A-Za-z_][\w-]*)\s*=\s*((?:[^}\\]|\\.)*)\s*\}\s*$/;
 export function splitStepAttrs(body) {
   const m = ATTR_TAIL.exec(String(body || ""));
   if (!m) return { body, attrs: {} };

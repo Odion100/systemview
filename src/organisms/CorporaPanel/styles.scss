@@ -171,6 +171,43 @@
     margin-left: 8px;
     opacity: 0.75;
   }
+  // RFC-078 §2.6 — a MACHINE-FED corpus reads apart from the authored handbooks: prose where a
+  // glob corpus shows a path, and the chip below naming what feeds it. Keyed off the `registry`
+  // flag the record already carries — one fact, no second copy.
+  &__root--registry {
+    font-family: inherit;
+    font-style: italic;
+
+    b { font-style: normal; }
+  }
+  &__fed {
+    font-size: 10px;
+    font-style: normal;
+    padding: 1px 6px;
+    margin-right: 6px;
+    border-radius: 3px;
+    border: 1px solid #d9a441;
+    color: #d9a441;
+  }
+  // his statement on how to read hits from this shelf, legible on the row it governs
+  &__treatment {
+    font-size: 11px;
+    font-style: italic;
+    color: var(--sv-text-muted);
+    margin-top: 2px;
+    max-width: 52ch;
+  }
+  &__formrow--treatment {
+    display: block;
+    margin-top: 2px;
+  }
+  &__treatnote {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--sv-text-faint);
+    margin-top: 3px;
+    max-width: 78ch;
+  }
   &__kind {
     font-size: 10px;
     padding: 1px 6px;

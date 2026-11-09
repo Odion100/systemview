@@ -4,6 +4,11 @@ import { normalizeState, normalizeKind, ordinalOf, claimAt } from "../claims";
 import { owesOf } from "../claimRows";
 import { useBlockFailure } from "../blockFailure";
 
+// HOW LONG A MARK MAY SIT UNPROVED BEFORE ITS AUTHOR IS TOLD. Long enough to cover mark-then-prove
+// as one motion, short enough that a mark genuinely left bare still gets reported while the window
+// is open. The reader's `unproved` badge is immediate and unaffected by this.
+const UNPROVED_GRACE_MS = 60000;
+
 // `::claim[do this → this should happen]{id=…}` — a statement somebody can check, and the mark.
 //
 // It reads like the numbered claim it replaces and it can be PRESSED: met, not met, or back to
@@ -66,14 +71,30 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
   // AN UNPROVED MARK TELLS THE AGENT THAT MADE IT — same line ::commit carries, same once-only
   // key. The row already says `unproved` to the reader; the writer is the one who can embed the
   // proof or take the mark off, and until now nobody told them.
+  //
+  // BUT NOT THE INSTANT IT APPEARS, because unproved is a NORMAL TRANSIENT STATE in the order the
+  // work is actually done. `rfc-execution` prescribes "verify, mark, THEN prove" — the mark lands
+  // through one door and the fold is embedded by a later edit — so every correctly-authored claim
+  // passes through marked-and-unproved on its way to being held. Firing immediately nudges the
+  // author FOR FOLLOWING THE PROCEDURE, and the once-only key means that false nudge is the only
+  // one they ever get about this claim.
+  //
+  // Measured 2026-11-08, twice in one session: c33 and then c39 were marked, given their folds
+  // minutes later, and the steer still arrived describing the gap — pointing a reader at a document
+  // that was already correct. The badge below is NOT delayed; the reader sees `unproved` the moment
+  // it is true. Only the writer's nudge waits, because the writer is mid-sentence.
   const report = useBlockFailure();
   useEffect(() => {
-    if (unproved)
+    if (!unproved) return undefined;
+    const t = setTimeout(() => {
       report({
         kind: "claim",
         ref: attrs.id || statement,
         reason: "marked met with no proof embedded — it does not count as met",
       }).catch(() => {});
+    }, UNPROVED_GRACE_MS);
+    // The cleanup IS the fix: embed the fold and this unmounts before it ever fires.
+    return () => clearTimeout(t);
   }, [unproved, attrs.id, statement, report]);
   // RFC-075 round two — A CLAIM KNOWS ITS REVIEWERS (his: "the badges show up because the claim
   // knows who the reviewer is. And you check it off"). `reviewers=` declares who owes this claim a

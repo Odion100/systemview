@@ -10,7 +10,7 @@ import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, DEFAULT_LIST_K
 // get wrong in a way he feels is the other direction — a tab bar that says there is work beside a
 // pane that shows none — and the counts are what these claims hold to that.
 describe("the work band is tabs — one per type of work", () => {
-  it("draws all three, whatever has rows, and carries each kind's real count", () => {
+  it("draws every kind, whatever has rows, and carries each one's real count", () => {
     const { tabs } = bandTabs({ jobs: 2, lanes: 0, lists: 0 });
     expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 2], ["lanes", 0], ["lists", 0]]);
   });
@@ -30,13 +30,13 @@ describe("the work band is tabs — one per type of work", () => {
   // HIS RULING, 2026-11-07: *"the list should exist down there empty instead of disappearing…
   // default list always."* The band used to render nothing at all when nothing stood, which is a
   // surface you cannot put the first thing on.
-  it("draws all three with nothing standing at all — a surface you can put the first thing on", () => {
+  it("draws every kind with nothing standing at all — a surface you can put the first thing on", () => {
     const { tabs, active } = bandTabs({});
     expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 0], ["lanes", 0], ["lists", 0]]);
     expect(active).toBe("jobs");
   });
 
-  it("orders them the way the head reads them — jobs, lanes, lists", () => {
+  it("orders them the way the head reads them — jobs, lanes, lists, then what is owed", () => {
     const { tabs } = bandTabs({ jobs: 1, lanes: 1, lists: 1 });
     expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists"]);
   });

@@ -3502,7 +3502,18 @@ $sv-board-states: (
 .agent-chat__workband {
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  // THE DRAWER HOLDS ITS OWN FLOOR, because it was the only region in this column without one and
+  // so it was always the one that lost. `.agent-chat__list` (the conversation) is `flex: 1` with
+  // `min-height: 120px`; the drawer was `flex: 0 1 <n>%` with `min-height: 0`, which means
+  // shrinkable all the way to nothing. Any time the column ran short the conversation held its 120
+  // and the drawer absorbed every pixel of the squeeze — its tabs and the top of its pane were cut
+  // off, which reads as the chat sitting ON TOP of the drawer rather than beside it. It is not a
+  // z-index and nothing was ever hovering: it was one region with a floor and one without.
+  //
+  // The floor is the drawer's own CHROME — the resize seam, the head line and the tab row — so the
+  // thing you steer it with can never be the thing that disappears. Below that it still gives way,
+  // because a drag to the bottom is how he closes it and that must keep working.
+  min-height: 84px;
   // THE DRAWER'S TOP EDGE IS VISIBLE EVEN WHEN YOUR POINTER IS NOWHERE NEAR IT. The resize handle
   // (`.panel-divider--h`) only paints on hover, which means finding the grab line was a hunt —
   // his words: *"it's hard to see where you resize that sometimes."* A hairline says where the
@@ -5332,21 +5343,41 @@ $sv-board-states: (
   flex: none;
   display: flex;
   align-items: center;
-  padding: 0 4px 0 6px; // it sits outside the scroller now, so it owns its own breathing room
+  // THE SAME VERTICAL BOX A TAB GETS — `3px` on top and none beneath, mirroring
+  // `.agent-chat__bandtabs`, because the selected cog now draws the tab row's underline and a line
+  // 3px out of true reads worse than no line at all. Horizontally it still owns its breathing room:
+  // it sits outside the scroller.
+  padding: 3px 4px 0 6px;
 }
 .agent-chat__bandcog-btn {
   border: none;
   background: none;
   font: inherit;
-  font-size: 11px;
+  // BIGGER THAN THE TAB TEXT BESIDE IT, on purpose and at his ask: the tabs are words and this is a
+  // glyph, so matching their 11px made it read as the smallest thing in a row it is equal to.
+  font-size: 15px;
   line-height: 1;
   color: var(--sv-text-faint);
   padding: 2px 6px 3px;
   border-bottom: 2px solid transparent; // the same held-open line the tabs keep, so nothing shifts
   cursor: pointer;
+  // STRETCHED, so its bottom edge is the row's bottom edge — that is what puts its underline on the
+  // same line as every tab's. The glyph stays centred inside the stretched box.
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
   &:hover { color: var(--sv-text); }
 }
-.agent-chat__bandcog-btn--on { color: var(--sv-text); }
+// THE COG TAKES THE SAME SELECTION AS THE TABS, because it IS one of them — the settings panel is a
+// tab that takes the selection, not a thing that opens beside it. Colour alone cannot carry that: a
+// resting tab is `--sv-text-muted` and goes to `--sv-text` on hover, so a selected cog that only
+// brightened read identically to a hovered tab. The line is what marks it apart, and it is the same
+// line the tab row already uses — one selection grammar across the whole row.
+.agent-chat__bandcog-btn--on {
+  color: var(--sv-text);
+  border-bottom: 2px solid var(--sv-indigo);
+  margin-bottom: -1px;
+}
 
 // THE PANEL OPENS UPWARD. The band sits at the bottom of the chat column, so a panel dropping down
 // would open off-screen — the one layout fact that decides this.
@@ -5389,6 +5420,190 @@ $sv-board-states: (
 .agent-chat__bandcog-sec--off {
   visibility: hidden;
   pointer-events: none;
+}
+
+// ── THE SETTINGS AS A BAND PANE (RFC-078 §2.5, slice 3.6) ──────────────────────────────────────
+// His shape: *"use that bottom area where the tabs are for the settings instead of something that
+// pops up"* — treat it like a tab below. So this is IN the flow beneath the tab row, not absolutely
+// positioned over it, and every layout fact the popup needed disappears with it: nothing opens
+// upward, nothing is bottom-anchored, and the header cannot move because it is not holding a
+// floating box up. What survives is the one-section-at-a-time stack, which is still what keeps a
+// tall section from pushing the chat off screen.
+// THE STRIP STANDS DOWN WHILE SETTINGS IS THE SELECTION — settings is a TAB, so it REPLACES what
+// the pane is showing the way switching between jobs and lanes does. It used to render below the
+// strip, which made two surfaces visible at once and left a work tab reading selected beside it.
+.agent-chat__strip--off {
+  display: none;
+}
+.agent-chat__bandset {
+  flex: 1 1 auto;
+  padding: 7px 10px 8px;
+  border-bottom: 1px solid var(--sv-border);
+  background: var(--sv-surface);
+  font-size: 11px;
+  color: var(--sv-text);
+  // A PANE, NOT A PORTHOLE AND NOT A TOWER — the same bound the popup earned, for the same reason:
+  // the band lives at the bottom of the chat column and a settings section taller than the space
+  // would eat the conversation. Only the body scrolls.
+  max-height: min(46vh, 440px);
+  display: flex;
+  flex-direction: column;
+}
+.agent-chat__bandset-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  // NO STACK HERE, AND THAT IS THE DIFFERENCE FROM THE POPUP. The floating panel stacked every
+  // section in one grid cell so its height could not change between tabs — it was bottom-anchored,
+  // so a shorter section moved its HEADER down and the tabs jumped under the pointer. In flow at
+  // the bottom of the column the tabs are at the TOP of the pane and nothing below them moves
+  // anything, so the stack bought nothing and cost a hole: the pane reserved the height of its
+  // tallest section while showing one line of text.
+}
+// Only the visible section is in the layout now, so an absent door draws one line and not a box.
+.agent-chat__bandset .agent-chat__bandcog-sec--off {
+  display: none;
+}
+
+// THE SELECTION LIVES ON THE COG, NOT ON THE ROW (c18, and his correction: "there's no need to turn
+// the background of the entire top row of all the tabs — we have a border on the bottom and that's
+// enough"). Settings is one tab among the others, so it is marked the way every other tab is marked:
+// its own underline, full-strength glyph, and nothing happening to the row it sits in.
+
+// ── WHAT IS OWED — RFC-078 §2.8, the audit queue as rows ──────────────────────────────────────
+// Grouped by who owes what. The group head is the agent's name and its count; each row leads with
+// the correction's own words, because that is the thing being asked for — the target, the author
+// and the age are the supporting line underneath, in the band's quiet register.
+.agent-chat__owedgroup {
+  padding: 4px 0 6px;
+  border-bottom: 1px solid var(--sv-border);
+  &:last-of-type { border-bottom: 0; }
+}
+.agent-chat__owedwho {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sv-text-muted);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.agent-chat__owedn {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--sv-text-faint);
+}
+.agent-chat__owedrow { padding: 3px 0 2px; }
+.agent-chat__owedtext {
+  font-size: 11px;
+  color: var(--sv-text);
+  line-height: 1.35;
+}
+.agent-chat__owedmeta {
+  display: flex;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--sv-text-faint);
+  margin-top: 1px;
+}
+.agent-chat__owedtarget { color: var(--sv-text-muted); }
+// `margin-left: auto` so the age sits at the far end of its line, the way every other age in this
+// band does — the one thing a reader scans a column of these for.
+.agent-chat__owedage { margin-left: auto; }
+
+// ── ONE ROW PER NUDGE IN THE RECORD (c16) ──
+.agent-chat__bandset-row {
+  border-bottom: 1px solid var(--sv-border);
+  padding: 4px 0;
+  &:last-of-type { border-bottom: 0; }
+}
+// OFF IS VISIBLY OFF. A switch you have to read to interpret is a switch that gets misread, and the
+// whole point of the record is that he can see what is watching.
+.agent-chat__bandset-row--off {
+  opacity: 0.55;
+}
+.agent-chat__bandset-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+// THE SWITCH SITS OUTSIDE THE PRESS, so flipping a nudge off never costs an expand.
+.agent-chat__bandset-sw {
+  flex: none;
+  margin: 0;
+}
+.agent-chat__bandset-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  &:hover .agent-chat__bandset-id { text-decoration: underline; }
+}
+.agent-chat__bandset-id {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.agent-chat__bandset-sum {
+  color: var(--sv-text-muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+// WHICH HALF JUDGED IT — a run-state nudge has no document behind it, so a reader who knows that
+// stops looking for one.
+.agent-chat__bandset-tag {
+  flex: none;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  border: 1px solid var(--sv-border);
+  color: var(--sv-text-muted);
+}
+.agent-chat__bandset-fields {
+  padding: 4px 0 6px 22px;
+}
+// The chaser's own knobs, nested under its row (c36) — indented so the two files read apart.
+.agent-chat__bandset-own {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--sv-border);
+}
+.agent-chat__bandset-scope {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  input { width: 150px; }
+}
+// THE MESSAGE AND WHAT WOULD ARRIVE WITHOUT IT — the field is an override, so the line it overrides
+// is shown beneath it rather than implied (c1).
+.agent-chat__bandset-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+  textarea {
+    width: 100%;
+    font: inherit;
+    resize: vertical;
+  }
+  em {
+    font-style: normal;
+    font-size: 10px;
+    color: var(--sv-text-muted);
+    &.is-authored { color: var(--sv-accent); }
+  }
 }
 // The two settings groups as tabs — one section at a time is what keeps the panel inside the window.
 .agent-chat__bandcog-tabs {

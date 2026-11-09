@@ -93,6 +93,12 @@ module.exports = {
       saysByEyeOnAnExperientialClaim: passed(run, "says `by eye` on an experiential claim"),
       byEyeRidesTheKindAloneUnmarked: passed(run, "says `by eye` with no mark anywhere"),
       asksNothingOfAnUnmarkedClaim: passed(run, "asks nothing of an UNMARKED claim"),
+      // RFC-078 c29's render half — THE UNFILLED BADGE IS THE VISIBLE OBLIGATION. A claim naming a
+      // reviewer who has not signed draws that name dashed beside the filled ones, and the fill is
+      // the signature. Transcribed here because the claim is about what a reader SEES, and the only
+      // place that is asserted is this suite's badge-grammar case.
+      aDeclaredReviewerRendersUnfilled: passed(run, "a dashed ✓ is the invitation, a fill is the signature"),
+      andFillingItIsItsOwnSeparateAct: passed(run, "countersigns — by= grows, nothing else moves"),
       // c18's render half — the bar REPORTS the axis, over the behavioural denominator
       theBarReportsSpecdOverBehavioral: passed(run, "spec'd counts over the BEHAVIOURAL claims"),
       nothingOwedDrawsNoTag: passed(run, "nothing owed draws no owed tag at all"),

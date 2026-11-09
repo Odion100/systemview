@@ -18,7 +18,12 @@ const fmtWhen = (iso) => {
   return isNaN(d.getTime()) ? String(iso) : d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 };
 
-const BLANK = { name: "", kind: "permanent", root: "", glob: "**/*.md", exclude: "", agents: "everyone" };
+const BLANK = { name: "", kind: "permanent", root: "", glob: "**/*.md", exclude: "", agents: "everyone", treatment: "" };
+
+// RFC-078 §2.6 — the derived baseline a registry-fed corpus earns by construction. Shown here so
+// the form can say what already prints under every answer; the words themselves live in docs.cjs
+// (treatmentOf), and this copy is display-only.
+const DERIVED_NOTE = "auto-generated from this project's registered documents — work history, not doctrine";
 
 // WHO CARRIES IT, as a word. `kind` says how long a corpus lives; `agents` says whose unscoped
 // search reads it, and they were one field until a question about report subtypes came back
@@ -177,7 +182,9 @@ export default function CorporaPanel() {
 
   const save = async () => {
     const d = editing;
-    if (!d.name.trim() || !d.root.trim()) return setSay("a corpus needs a name and a root");
+    // A REGISTRY-FED CORPUS HAS NO ROOT TO DEMAND — the registry is its feed, and the harness
+    // keeps that feed whatever this form sends (RFC-078 §2.6: one fact, no second copy).
+    if (!d.name.trim() || (!d.registry && !String(d.root || "").trim())) return setSay("a corpus needs a name and a root");
     setBusy("save");
     // THE UNTICKED FILES ARE THE EXCLUDES. An exact path is a valid pattern that matches only
     // itself, so nothing here needs him to write one — the list he just read IS the config.
@@ -186,10 +193,16 @@ export default function CorporaPanel() {
     const r = await saveCorpus({
       name: d.name.trim(),
       kind: d.kind,
-      root: d.root.trim(),
-      glob: d.glob.trim() || "**/*.md",
-      exclude: [...new Set([...dropped, ...typed])],
+      ...(d.registry
+        ? {}
+        : {
+            root: d.root.trim(),
+            glob: d.glob.trim() || "**/*.md",
+            exclude: [...new Set([...dropped, ...typed])],
+          }),
       agents: d.agents,
+      // always sent, even empty — an empty string is how a statement is taken back
+      treatment: String(d.treatment || "").trim(),
     });
     setBusy("");
     if (r.error) return setSay(r.error);
@@ -265,19 +278,30 @@ export default function CorporaPanel() {
       {editing ? (
         <div className="corpora__form">
           {/* STEP ONE IS A BUTTON, not a text field. Adding one document is the common case and it
-              must not require understanding a pattern language. */}
-          <div className="corpora__pick">
-            <button onClick={() => pick("file")}>Choose a document…</button>
-            <button onClick={() => pick("dir")}>Choose a folder…</button>
-            {editing.root ? (
+              must not require understanding a pattern language. A REGISTRY-FED corpus has nothing
+              to pick — its files are the project's registered documents, and offering a folder
+              picker here would be offering to break that. */}
+          {editing.registry ? (
+            <div className="corpora__pick">
+              <span className="corpora__fed">machine-fed</span>
               <span className="corpora__picked">
-                {editing.root}
-                {editing.glob && editing.glob !== "**/*.md" ? <b>/{editing.glob}</b> : <i> · all markdown, any depth</i>}
+                fed by the <b>{editing.registry}</b> registry — its files are that project's registered documents
               </span>
-            ) : (
-              <span className="corpora__hint">pick one file, or a folder and tick what you want from it</span>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="corpora__pick">
+              <button onClick={() => pick("file")}>Choose a document…</button>
+              <button onClick={() => pick("dir")}>Choose a folder…</button>
+              {editing.root ? (
+                <span className="corpora__picked">
+                  {editing.root}
+                  {editing.glob && editing.glob !== "**/*.md" ? <b>/{editing.glob}</b> : <i> · all markdown, any depth</i>}
+                </span>
+              ) : (
+                <span className="corpora__hint">pick one file, or a folder and tick what you want from it</span>
+              )}
+            </div>
+          )}
 
           {scanning ? <div className="corpora__hint">looking…</div> : null}
 
@@ -322,6 +346,27 @@ export default function CorporaPanel() {
                 <option value="working">working — an agent's scratch, droppable</option>
               </select>
             </label>
+          </div>
+
+          {/* RFC-078 §2.6 — THE TREATMENT: his statement on how to read hits from this shelf.
+              It prints at the bottom of any retrieval answer carrying this corpus's hits —
+              instructions where the results are, not metadata in a manual. A registry-fed corpus
+              already carries a derived baseline nobody authored; what he writes here prints on
+              top of it. Saved into the same corpora.json entry everything else on this form is. */}
+          <div className="corpora__formrow corpora__formrow--treatment">
+            <label className="corpora__treatlabel">
+              treatment — how to read hits from this shelf
+              <input
+                value={editing.treatment || ""}
+                onChange={(e) => setEditing({ ...editing, treatment: e.target.value })}
+                placeholder="e.g. the vendor's word — quote it, never paraphrase it"
+              />
+            </label>
+            <div className="corpora__treatnote">
+              {editing.registry
+                ? `This corpus is machine-fed, so every answer already says "${DERIVED_NOTE}" — whatever you write here prints on top of that line.`
+                : "Prints at the bottom of any retrieval answer that carries this corpus's hits. Leave it empty to say nothing."}
+            </div>
           </div>
 
           {/* WHO CARRIES IT — a separate question from how long it lives, and the one that was
@@ -372,7 +417,7 @@ export default function CorporaPanel() {
           )}
 
           <div className="corpora__formacts">
-            <button onClick={save} disabled={busy === "save" || !editing.root}>{busy === "save" ? "saving…" : "save"}</button>
+            <button onClick={save} disabled={busy === "save" || (!editing.registry && !editing.root)}>{busy === "save" ? "saving…" : "save"}</button>
             <button className="corpora__ghost" onClick={() => { setEditing(null); setSel(null); }}>cancel</button>
           </div>
         </div>
@@ -387,7 +432,16 @@ export default function CorporaPanel() {
             <tr key={c.name} className={open === c.name ? "is-open" : ""}>
               <td>
                 <button className="corpora__name" onClick={() => (open === c.name ? (setOpen(null), setPlan(null)) : readCuts(c.name))}>{c.name}</button>
-                <div className="corpora__root">{c.root}<span className="corpora__glob">{c.glob}</span></div>
+                {/* RFC-078 §2.6 — A MACHINE-FED CORPUS READS APART FROM THE AUTHORED HANDBOOKS,
+                    keyed off the same `registry` flag that feeds it: one fact, no second copy. */}
+                {c.registry ? (
+                  <div className="corpora__root corpora__root--registry">
+                    <span className="corpora__fed">machine-fed</span> from the <b>{c.registry}</b> registry — work history, not doctrine
+                  </div>
+                ) : (
+                  <div className="corpora__root">{c.root}<span className="corpora__glob">{c.glob}</span></div>
+                )}
+                {c.treatment ? <div className="corpora__treatment">“{c.treatment}”</div> : null}
               </td>
               <td><span className={`corpora__kind corpora__kind--${c.kind}`}>{c.kind}</span></td>
               {/* A WORKING CORPUS HAS NO AUDIENCE TO SHOW — it is invisible unless somebody names
@@ -423,7 +477,7 @@ export default function CorporaPanel() {
                 <div className="corpora__acts">
                 <button onClick={() => readCuts(c.name)} disabled={busy === `plan:${c.name}`}>{busy === `plan:${c.name}` ? "…" : "read the cuts"}</button>
                 <button onClick={() => runIndex(c.name)} disabled={busy === `index:${c.name}`}>{busy === `index:${c.name}` ? "indexing…" : c.chunks ? "re-index" : "index"}</button>
-                <button className="corpora__ghost" onClick={() => setEditing({ name: c.name, kind: c.kind, root: c.root, glob: c.glob, exclude: "", agents: c.agents === undefined ? "everyone" : c.agents })}>edit</button>
+                <button className="corpora__ghost" onClick={() => setEditing({ name: c.name, kind: c.kind, root: c.root || "", glob: c.glob || "**/*.md", exclude: "", agents: c.agents === undefined ? "everyone" : c.agents, treatment: c.treatment || "", ...(c.registry ? { registry: c.registry } : {}) })}>edit</button>
                 {/* ALWAYS OFFERED, unlike the old `drop` which hid itself once the chunks were gone —
                     leaving a corpus that could not be deleted from the row it was listed on. */}
                 <button className="corpora__danger" onClick={() => runDelete(c.name, c.chunks)} disabled={busy === `drop:${c.name}`}>delete</button>

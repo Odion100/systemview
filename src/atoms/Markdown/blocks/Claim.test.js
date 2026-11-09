@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import Claim from "./Claim";
 import Claims from "./Claims";
 import { MarkdownWriteProvider, MarkdownMembersProvider } from "../context";
@@ -352,7 +352,7 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
     ":::",                                                                   // 15
   ].join("\n");
 
-  const at = (line, attrs, kind = "leaf") => {
+  const at = (line, attrs, kind = "leaf") =>
     render(
       <MarkdownMembersProvider value={{ source: DOC }}>
         <MarkdownWriteProvider value={{ editable: true, setAttr: jest.fn() }}>
@@ -360,7 +360,6 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
         </MarkdownWriteProvider>
       </MarkdownMembersProvider>,
     );
-  };
 
   it("says `no spec` on a behavioural claim that is marked with nothing the loop runs", () => {
     at(2, { id: "c1", state: "met", by: "sv", at: "1" });
@@ -430,14 +429,44 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
 
   // AND THE WRITER HEARS IT — the row said `unproved` to the reader while the agent that made the
   // mark was never told, so it stood until he caught it by eye.
-  it("reports an unproved mark to the agent that made it", () => {
+  // AND IT WAITS A BEAT FIRST, because `rfc-execution` prescribes "verify, mark, THEN prove": the
+  // mark lands through one door and the fold arrives in a later edit, so EVERY correctly-authored
+  // claim passes through marked-and-unproved. Firing instantly nudged the author for following the
+  // procedure — measured twice in one session (c33, then c39 on RFC-078), each time describing a
+  // gap that was closed minutes before the message landed, and the once-only key means that false
+  // nudge is the only one they would ever get about that claim.
+  it("reports an unproved mark to the agent that made it — after the grace period", () => {
+    jest.useFakeTimers();
     mockReported.mockClear();
     at(2, { id: "c1", state: "met", by: "sv", at: "1" });
+    expect(mockReported).not.toHaveBeenCalled(); // not yet — the author may still be embedding it
+    act(() => { jest.advanceTimersByTime(60000); });
     expect(mockReported).toHaveBeenCalledWith({
       kind: "claim",
       ref: "c1",
       reason: "marked met with no proof embedded — it does not count as met",
     });
+    jest.useRealTimers();
+  });
+
+  it("the READER is not made to wait — the badge is there immediately", () => {
+    jest.useFakeTimers();
+    at(2, { id: "c1", state: "met", by: "sv", at: "1" });
+    expect(screen.getByText("unproved")).toBeTruthy(); // no timers advanced
+    jest.useRealTimers();
+  });
+
+  // THE CLEANUP IS THE FIX: embed the fold inside the window and the pending nudge is cleared
+  // rather than delivered about a document that is now correct.
+  it("says nothing when the fold arrives before the grace period is up", () => {
+    jest.useFakeTimers();
+    mockReported.mockClear();
+    const { unmount } = at(2, { id: "c1", state: "met", by: "sv", at: "1" });
+    act(() => { jest.advanceTimersByTime(30000); });
+    unmount(); // the proof landed; this claim re-renders held
+    act(() => { jest.advanceTimersByTime(60000); });
+    expect(mockReported).not.toHaveBeenCalled();
+    jest.useRealTimers();
   });
 
   it("reports nothing about a claim that is actually held", () => {
