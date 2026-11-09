@@ -20,7 +20,7 @@
 // those are pinned as assertions inside the suite and have no single function to dial.
 const fs = require("fs");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const { spawn } = require("child_process");
 
 const REPO = path.resolve(__dirname, "..", "..");
 const AUTOBOT = path.join(path.dirname(REPO), "..", "autobot");
@@ -60,24 +60,49 @@ const stampOf = (file) => {
   return parts.join("|");
 };
 
+// NOT spawnSync, AND THIS IS THE REASON — the Test service is HOSTED INSIDE THE HUB'S OWN PROCESS
+// (RFC-027), so a synchronous two-minute child blocks the hub's event loop and the window with it.
+// Measured 2026-11-09: running this document's proofs took the hub to zero responses, he reported
+// "the hub is unreachable", and the honest cause was this function rather than anything in the
+// suite. An async child yields between ticks, so the hub keeps answering while the suite runs.
+//
+// IN FLIGHT IS SHARED TOO, not just the finished answer: eight claims citing one suite arrive
+// within milliseconds of each other, so without this the first eight calls would each start their
+// own child and the cache would only help the ninth.
+const INFLIGHT = new Map();
+
 function runSuite(file) {
   const key = `${file}@${stampOf(file)}`;
   const hit = RUNS.get(key);
-  if (hit && Date.now() - hit.at < TTL_MS) return hit.out;
-  const res = spawnSync(process.execPath, [path.join(AUTOBOT, file)], {
-    cwd: AUTOBOT,
-    encoding: "utf8",
-    timeout: 300000,
-    maxBuffer: 16 * 1024 * 1024,
+  if (hit && Date.now() - hit.at < TTL_MS) return Promise.resolve(hit.out);
+  if (INFLIGHT.has(key)) return INFLIGHT.get(key);
+  const p = new Promise((resolve) => {
+    const child = spawn(process.execPath, [path.join(AUTOBOT, file)], { cwd: AUTOBOT });
+    let stdout = "";
+    let stderr = "";
+    let done = false;
+    const finish = (status) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      const out = { stdout, stderr, status };
+      RUNS.clear(); // one suite's answer at a time — this door is walked a document at a time
+      RUNS.set(key, { at: Date.now(), out });
+      INFLIGHT.delete(key);
+      resolve(out);
+    };
+    const timer = setTimeout(() => {
+      try { child.kill("SIGKILL"); } catch {}
+      stderr += `\n[Test.suite] killed after 300s — the suite did not finish`;
+      finish(-1);
+    }, 300000);
+    child.stdout.on("data", (d) => { stdout += d; });
+    child.stderr.on("data", (d) => { stderr += d; });
+    child.on("error", (e) => { stderr += String((e && e.message) || e); finish(-1); });
+    child.on("close", (code) => finish(code === null ? -1 : code));
   });
-  const out = {
-    stdout: String(res.stdout || ""),
-    stderr: String(res.stderr || ""),
-    status: res.status === null ? -1 : res.status,
-  };
-  RUNS.clear(); // one suite's answer at a time — this door is walked a document at a time
-  RUNS.set(key, { at: Date.now(), out });
-  return out;
+  INFLIGHT.set(key, p);
+  return p;
 }
 
 const SUITES = {
@@ -146,7 +171,7 @@ module.exports = {
   // the suite's own `ok  <name>` lines, so the fragments a reader sees in the spec are the
   // behaviours the claim is actually about. `missing` is pipe-wrapped because the run-block check
   // grammar has no array form, and it names what was NOT found rather than only counting.
-  suite({ name = "", want = [] } = {}) {
+  async suite({ name = "", want = [] } = {}) {
     const file = SUITES[name];
     if (!file) return { ok: false, error: `unknown suite — one of: ${Object.keys(SUITES).join(", ")}` };
     // ONE SPAWN PER SUITE, SHARED BY EVERY CLAIM THAT CITES IT — and this is a facilitation, never
@@ -160,7 +185,7 @@ module.exports = {
     // mtime+size AND the newest mtime under the agents directory the suites exercise, so editing
     // either the test or the code under test invalidates it; the ten-minute ceiling is only there
     // so an unrelated change nobody stamped cannot outlive a session.
-    const out = runSuite(file);
+    const out = await runSuite(file);
     // THE SUITES DO NOT AGREE ON THEIR OWN FORMAT, and that mattered silently: most print
     // `  ok  <name>` per passing check, but tests/docs.js prints `  ✓ <name>`. A parser that knew
     // only the first read ZERO named cases out of that suite, so `checkCount` was 0, any `want`

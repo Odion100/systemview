@@ -32,11 +32,15 @@ module.exports = {
       aWorklistKnobGoesToTheChasersDoor: passed(run, "a worklist knob goes to the chaser's door and nowhere else"),
       aCompactionKnobGoesToTheValvesDoor: passed(run, "an auto-compaction knob goes to the valve's door"),
 
-      // §2.8 — THE MANAGER FIELD. Its placeholder is the honest default, and it commits on blur
-      // because a text input wired straight to the door writes once per character.
-      managerDrawsNobodyAsItsDefault: passed(run, "draws `nobody` as its placeholder"),
-      typingWritesNothingUntilBlur: passed(run, "types without writing, and writes once on blur"),
-      escapeAbandonsTheEdit: passed(run, "escape abandons the edit without writing anything"),
+      // §2.8 — THE MANAGER FIELD, which he is PICKED from rather than typed into (his correction,
+      // 2026-11-09). The three cases this used to transcribe — the placeholder, the commit-on-blur
+      // and the escape — went with the text input, and a door naming a case that no longer exists
+      // answers `false` for a reason that has nothing to do with the behaviour: the claim reads
+      // unmet when what actually happened is that the case was renamed. Repointed at what exists.
+      managerOffersEveryDefinedAgent: passed(run, "offers every defined agent, with nobody as the default"),
+      pickingOneWritesItOnce: passed(run, "picking one writes it once"),
+      nobodyIsAChoiceHeCanReturnTo: passed(run, "returning to nobody is a choice he can make"),
+      anEmptyRosterSaysSo: passed(run, "says the roster is empty rather than drawing a menu of one"),
 
       // c19 — the two older sections, rehoused with everything they had.
       worklistKnobsAllPresent: passed(run, "the worklist knobs are all present on their own tab"),

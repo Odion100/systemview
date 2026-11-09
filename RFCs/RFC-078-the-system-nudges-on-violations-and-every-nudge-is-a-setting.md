@@ -141,7 +141,7 @@ build.
 ::commit{sha=3272744b}
 ::commit{sha=b4013448}
 :::
-::::claim[When a knob in the settings panel is changed, the harness's own door is what receives it — one field at a time, and the panel keeps no copy of the value]{id=c17 state=met by=systemview-test at=1794230000000 note="RE-CUT, because the half this claim used to be about is withdrawn: it said the RECORD file is what changes, and there is no record. What never depended on it is the reason the claim exists at all — the harness reads these values on every idle tick and every usage report, so a value the window kept would be a setting that changes nothing, and that bug is silent and looks like the knob working. Asserted fresh, since the cases it used to rest on went with the list: a worklist knob reaches the chaser's door and only the chaser's, an auto-compaction knob reaches the valve's, each carrying exactly one field, and the two never cross. Seen RED under mutation — making the worklist section drop its send fails 'a worklist knob goes to the chaser's door and nowhere else'. The panel re-reads the door's answer rather than storing one, which is what makes a clamped or refused value visible at once instead of looking accepted until the next open."}
+::::claim[When a knob in the settings panel is changed, the harness's own door is what receives it — one field at a time, and the panel keeps no copy of the value]{id=c17 state=met by=systemview-test at=1794230000000 note="RE-CUT, because the half this claim used to be about is withdrawn: it said the RECORD file is what changes, and there is no record. What never depended on it is the reason the claim exists at all — the harness reads these values on every idle tick and every usage report, so a value the window kept would be a setting that changes nothing, and that bug is silent and looks like the knob working. Asserted fresh, since the cases it used to rest on went with the list: a worklist knob reaches the chaser's door and only the chaser's, an auto-compaction knob reaches the valve's, each carrying exactly one field, and the two never cross. Seen RED under mutation — making the worklist section drop its send fails 'a worklist knob goes to the chaser's door and nowhere else'. The panel re-reads the door's answer rather than storing one, which is what makes a clamped or refused value visible at once instead of looking accepted until the next open." told=systemview-test}
 :::run{title="both doors, one field each, and the panel holding nothing of its own"}
 - Test.BandPanel.settings({}){title="src/organisms/AgentChat/BandSettings.test.js — the two write paths by name"}
   - results.suiteProducedResults = true
@@ -352,6 +352,32 @@ rather than assumed:
   correction is work with an artifact behind it, so the regex gains `correction:` — miss this one
   line and a correction submitted in the evening is swept before anybody reads it.
 
+**AND IT CARRIES PROSE, because a list of steps cannot say why it exists.** His ask,
+2026-11-09: *"they need to be able to submit more words than"* a worklist item. A step is
+one clause of work; a correction also has to carry what was violated, where, and what the
+sender saw — and that will not fit in a step without turning the step into a paragraph
+nobody can check off. So the record gains ONE prose field beside the items, capped at 2,000
+characters, written at the open and never by the owing agent: it is the sender's statement,
+not a status (a status is the owner's voice) and not a first item (an item is work, and this
+is not). Anything longer than a paragraph is a document, and `attach({kind=report})` already
+points a run at one.
+
+**THREE THINGS WERE FOUND BY SENDING ONE RATHER THAN BY SPECIFYING IT**, and all three would
+have shipped:
+
+- **`save()` carries every key a writer does not own BY HAND** — its own comment says so — so
+  the first item the owing agent ticked would have erased the brief. `all()` builds an explicit
+  row too, so the band would never have seen it.
+- **`stripRuns` was a membership list** filtered to `lane:`/`job:`/`skill:`. An assigned run
+  never reached the window from disk at all: the tab could only ever have been empty, and the
+  row would have lived exactly as long as the owing session kept re-writing it from a live
+  event.
+- **The write is not the arrival.** Both test runs were on disk, `stripRuns` returned them
+  first, and the owing agent's band read *"0 corrections"* — because everything that re-reads
+  the run files rides an event the session itself caused, and this one comes from outside it.
+  `assign` announces `run.assigned` into the owing agent's sessions now, the same shape as a
+  removed lane announced to every watcher; a refusal announces nothing, because nothing landed.
+
 **Closing it is the rule that already exists, and that is his too:** *"the correction would have to
 be explicitly abandoned or completely checked off."* Every item done closes it; declaring it
 abandoned stops the chase only with an account attached, which is §2.4's fix (c13, c14) doing the
@@ -367,7 +393,7 @@ writes, no drain job, no hook, no nudge record entry, no MCP server of its own. 
 was built, shipped and withdrawn in a day. The withdrawal is the dated note at the end of this
 document, and the reason it was right is in §1.5: the title never said how a violation is found.
 
-::::claim[While no agent is named as manager, asking to assign work is refused whoever asks — a blank authority admits nobody rather than everybody]{id=c67}
+::::claim[While no agent is named as manager, asking to assign work is refused whoever asks — a blank authority admits nobody rather than everybody]{id=c67 state=met by=systemview-test at=1794237652075 note="Asserted through the real MCP handler held out of toolsFor, not the module: with the manager field empty, a would-be manager calling assign is refused, nothing is written (runsFor the target reads 0), and the refusal is SAID into the session rather than only returned. Named check green in the live Test door — 87 assertions, missing '||'. Physically, the field is not empty right now (it reads 'manager'), so the blank state is covered by the suite and not by a live call." told=systemview-test}
 :::run{title="the empty field, through the real handler — refused, nothing written, and the refusal said"}
 - Test.Nudging.suite({ "name": "worklist", "want": ["an empty manager field refuses everybody — a blank authority is not a permissive one"] }){title="autobot tests/worklist.js — the door called with nobody named"}
   - results.suitePassed = true
@@ -375,7 +401,7 @@ document, and the reason it was right is in §1.5: the title never said how a vi
   - results.missing = "||"
 :::
 ::::
-::::claim[When an agent that is not the named manager asks to assign work, it is refused, the refusal names whose job it is, and nothing is written]{id=c68}
+::::claim[When an agent that is not the named manager asks to assign work, it is refused, the refusal names whose job it is, and nothing is written]{id=c68 state=met by=systemview-test at=1794237658342 note="Green in the suite through the door: a non-manager is refused BY NAME ('that is manager'), writes nothing, and the three non-authority refusals (no owner, yourself, an empty list) each carry their reason and write nothing. NOT COVERED PHYSICALLY, and recorded that way deliberately — the manager session exercised assign four times today and passed the gate every time, so it only ever saw the permitted branch and cannot see this one by construction. Closing that needs a live session that is not the named manager; what to check is that the refusal carries the field's value, not just a no." told=systemview-test}
 :::run{title="the authority gate, by name — and the three refusals that are not about authority"}
 - Test.Nudging.suite({ "name": "worklist", "want": ["assigning is the named manager's, and the refusal says whose it is", "no owner, yourself, and an empty list are each refused with the reason — and none of them writes"] }){title="autobot tests/worklist.js — the door, not the module"}
   - results.suitePassed = true
@@ -383,7 +409,7 @@ document, and the reason it was right is in §1.5: the title never said how a vi
   - results.missing = "||"
 :::
 ::::
-::::claim[When the manager assigns work, the run that appears belongs to the agent that owes it and says who sent it]{id=c69}
+::::claim[When the manager assigns work, the run that appears belongs to the agent that owes it and says who sent it]{id=c69 state=met by=systemview-test at=1794237663420 note="Proved physically as well as in the suite. The manager session called assign four times against this agent today; four run records exist under session:systemview-test:assigned, sourced correction:manager, owned by the agent that owes the work and not by the sender. Its answer named the target and the run id each time — verbatim: 'assigned to systemview-test — 1 step and a brief (373c), source correction:manager, run rmw9ej8jh00.'" told=systemview-test}
 :::run{title="the write itself: whose run it is, and the source that names the sender"}
 - Test.Nudging.suite({ "name": "worklist", "want": ["the manager's assign opens a run owned by the agent that owes it, sourced correction:<manager>"] }){title="autobot tests/worklist.js"}
   - results.suitePassed = true
@@ -391,7 +417,7 @@ document, and the reason it was right is in §1.5: the title never said how a vi
   - results.missing = "||"
 :::
 ::::
-::::claim[While an assigned run is open, a later session of the agent that owes it is the one chased — the chase follows the agent, not the session that sent the work]{id=c70}
+::::claim[While an assigned run is open, a later session of the agent that owes it is the one chased — the chase follows the agent, not the session that sent the work]{id=c70 state=met by=systemview-test at=1794237668415 note="placeOf on the written run answers the owing agent, and nudge.sameAgent reads a DIFFERENT session of that agent as the same agent while rejecting another agent's. Green in the suite. The live half is weaker than it looks and is worth saying: the four runs sent today survived a shell restart and are still in this agent's band under a new session, which is the same property from the other end." told=systemview-test}
 :::run{title="the half that makes it a correction rather than a message"}
 - Test.Nudging.suite({ "name": "worklist", "want": ["an assigned run is chased in the owing agent's NEXT session, not lost with the one that sent it"] }){title="autobot tests/worklist.js — placeOf and sameAgent over the written run"}
   - results.suitePassed = true
@@ -399,7 +425,7 @@ document, and the reason it was right is in §1.5: the title never said how a vi
   - results.missing = "||"
 :::
 ::::
-::::claim[While corrections are among the sources the chaser counts, an open one is chased on his existing settings; take them out of that list and it is not]{id=c71}
+::::claim[While corrections are among the sources the chaser counts, an open one is chased on his existing settings; take them out of that list and it is not]{id=c71 state=met by=systemview-test at=1794237673558 note="sourceCounts('correction:manager', DEFAULTS.sources) is true and the same call against ['job:','skill:'] is false — so his control is the list he already had, both ways, and nothing was built for it. Confirmed on his live file: ~/.autobot/nudge.json carries 'correction:' among sources, set through the band's own settings." told=systemview-test}
 :::run{title="his control, both ways — nothing new was built for it"}
 - Test.Nudging.suite({ "name": "worklist", "want": ["the chaser counts a correction because `correction:` is in its sources, and nothing else was needed"] }){title="autobot tests/worklist.js"}
   - results.suitePassed = true
@@ -407,7 +433,7 @@ document, and the reason it was right is in §1.5: the title never said how a vi
   - results.missing = "||"
 :::
 ::::
-::::claim[When a correction is finished, its record is kept as long as a job's or a lane's rather than as long as a session's list — so one finished in the evening is still there in the morning]{id=c72}
+::::claim[When a correction is finished, its record is kept as long as a job's or a lane's rather than as long as a session's list — so one finished in the evening is still there in the morning]{id=c72 state=met by=systemview-test at=1794237678911 note="Asserted on a CLOSED run at both ends of the window — still present after pruning 13 hours past closing (beyond the 12h list window), gone after fifteen days like any other work run. The first version of this check pruned an OPEN run and could never fail, since an open run is never swept at either window; it passed with `correction:` taken straight out of WORK_SOURCE. Re-verified red under that mutation after the fix." told=systemview-test}
 :::run{title="both ends of the window, on a CLOSED run — which is the only state where it bites"}
 - Test.Nudging.suite({ "name": "worklist", "want": ["a CLOSED correction is kept the work window, not the list window — one submitted in the evening survives the night"] }){title="autobot tests/worklist.js — the janitor itself answers"}
   - results.suitePassed = true
@@ -415,7 +441,7 @@ document, and the reason it was right is in §1.5: the title never said how a vi
   - results.missing = "||"
 :::
 ::::
-::::claim[While the band is showing, corrections have a tab of their own that stands whether or not any are owed, and an assigned run never draws in the list pane]{id=c73}
+::::claim[While the band is showing, corrections have a tab of their own that stands whether or not any are owed, and an assigned run never draws in the list pane]{id=c73 state=met by=systemview-test at=1794237684270 note="The band door is green (the tab counts its runs, stands at zero, and every kind is still drawn), and it is confirmed in his live window rather than only in jest: read through the shell's read-only CDP door, the band reads '1 job 0 lanes 4 lists 3 corrections' with three rows whose source badges all say correction:manager, and none of them in the lists pane. The tab stood at '0 corrections' before any arrived, which is the floor half." told=systemview-test}
 :::run{title="the band's own suite as a door — the tab, its count, and the floor it stands on"}
 - Test.BandPanel.band({}){title="src/organisms/AgentChat/bandTabs.test.js — the corrections tab by name"}
   - results.suiteProducedResults = true
@@ -424,14 +450,50 @@ document, and the reason it was right is in §1.5: the title never said how a vi
   - results.theTabStandsAtZero = true
 :::
 ::::
-::::claim[When he types a name into the manager field, nothing is written until he commits the edit — and leaving it empty is what refuses everybody]{id=c74}
-:::run{title="the panel's own suite as a door — the default, the blur, and the abandon"}
+::::claim[He picks the manager from the agents the harness knows, nobody is one of the choices, and a name that is no longer an agent is shown rather than quietly rewritten]{id=c74 state=met by=systemview-test at=1794237689686 note="Four cases green through the panel's own door: it offers every defined agent with nobody as the default, picking one writes it once, returning to nobody writes the empty authority, and an absent roster says so rather than drawing a menu of one. The door had to be repointed first — it was still transcribing the three text-input cases (placeholder, commit-on-blur, escape) that went with the typed field, and a door naming a case that no longer exists answers false for a reason that has nothing to do with the behaviour. The roster comes from window.systemview.agent.defs, the same door the Agents page uses, so no shell bridge was added." told=systemview-test}
+:::run{title="the panel's own suite as a door — the roster, the pick, and the empty authority"}
 - Test.BandPanel.settings({}){title="src/organisms/AgentChat/BandSettings.test.js — the manager field by name"}
   - results.suiteProducedResults = true
   - results.failed = 0
-  - results.managerDrawsNobodyAsItsDefault = true
-  - results.typingWritesNothingUntilBlur = true
-  - results.escapeAbandonsTheEdit = true
+  - results.managerOffersEveryDefinedAgent = true
+  - results.pickingOneWritesItOnce = true
+  - results.nobodyIsAChoiceHeCanReturnTo = true
+  - results.anEmptyRosterSaysSo = true
+:::
+::::
+
+**This claim was rewritten on 2026-11-09 and the design moved with it.** It used to
+say *"when he types a name… nothing is written until he commits the edit"*, and a typed
+field was his first sight of this panel: *"I don't know why you didn't just give me the
+ability to select the agent or why would I type a specific name in."* He is right, and
+the field was worse than inconvenient — the authority is compared to a session's slot
+exactly, so one typo named an agent that does not exist and produced a refusal that was
+correct and unactionable (*"assigning work is the manager's, and that is managr"*). A
+select cannot misspell, and it is one discrete act, so the draft-and-blur dance that
+existed only because a text input writes once per keystroke went with it.
+
+::::claim[When a correction is assigned with a brief, the owing agent reads the sender's prose above the steps without opening anything, and working the list never rewrites it]{id=c75 state=met by=systemview-test at=1794237696238 note="Four named checks green (the brief on the record, surviving the owner working the list, absent when none was sent, capped at the write) and confirmed in his live window: two of the three correction rows render their prose with the row CLOSED — 'Arrival test, 2026-11-09…' and 'Physical test of the assign verb…' — read off the live DOM, not claimed. It was inside the fold first and he caught it: 'if the corrections has briefs, I don't see a brief.' Two defects found by sending a real one: save() carries unowned keys by hand, so the first ticked item would have erased the sender's words, and all() builds an explicit row, so the band would never have seen it. The cap is visible at the call site — the manager measured his own brief at 373 characters and the answer said (373c)." told=systemview-test}
+:::run{title="the record, the row, and the absence — through the real MCP handler"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["a brief rides the record beside the steps, and the door confirms one arrived", "working the list never rewrites the brief — it is the sender's statement, not a status", "a correction with no brief leaves the key off the record and an empty string on the row", "the brief is capped where it is written — prose that wants a document has to be one"] }){title="autobot tests/worklist.js — the brief, its survival, its absence and its cap"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
+:::
+::::
+::::claim[While a correction is open, it draws in the owing agent's band read off disk, and in no other agent's]{id=c76 state=met by=systemview-test at=1794237701218 note="stripRuns returns every correction run for the owing agent and none for the sender, asserted from both sides. This claim exists because the behaviour did not: the filter was a membership list reading lane:/job:/skill: only, so an assigned run never reached the window from disk and the tab built for it could only ever have been empty — the row would have lived exactly as long as the owing session kept re-writing it from a live event. Found while wiring the brief, mutation-verified red with `correction:` removed." told=systemview-test}
+:::run{title="the strip is a membership list, and a run kind missing from it draws a tab that can only be empty"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["an assigned run reaches the owing agent's band from disk, and only the owing agent's"] }){title="autobot tests/worklist.js — stripRuns, from both sides"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
+:::
+::::
+::::claim[When the manager assigns work, the owing agent's open window learns of it without that agent doing anything — and a refused assign tells nobody]{id=c77 state=met by=systemview-test at=1794237708245 note="Proved by a deliberate experiment rather than by the assertion alone. The manager was asked to send one correction while this agent touched NOTHING in its own session; the live band went from 2 corrections to 3, with the new brief rendered, read off the DOM between its call and any local write. Before the fix the same test failed in the open: two runs on disk, stripRuns returning them first, the band reading '0 corrections' — everything that re-reads the run files rides an event the session itself caused, and this one comes from outside it. assign now announces run.assigned into the owing agent's sessions (the shape lane.removed already used) and laneTick treats it as a re-read; a refusal announces nothing, asserted. The manager named its own half of this: it had reported the first two runs 'landed' off the writer's receipt rather than off the owing agent's band." told=systemview-test}
+:::run{title="the write is not the arrival — the announce, and the silence on a refusal"}
+- Test.Nudging.suite({ "name": "worklist", "want": ["an assign announces itself into the owing agent's sessions — the write is not the arrival", "a refused assign announces nothing — only a write that happened is told"] }){title="autobot tests/worklist.js — the handler's announcement, collected at the door"}
+  - results.suitePassed = true
+  - results.matchedAll = true
+  - results.missing = "||"
 :::
 ::::
 
@@ -607,6 +669,10 @@ lost once already — so they live here, at the document level, where nothing bu
 deletion can take them. The withdrawn work is part of what this document cost and stays walkable.
 
 :::details{summary="what built RFC-078 — every commit, in order"}
+::commit{sha=56e32c94}
+::commit{sha=f22c697b}
+::commit{sha=38b4fb3c}
+::commit{sha=6609507}
 ::commit{sha=eeb8202f}
 ::commit{sha=442d8aa}
 ::commit{sha=a94ba8d}
@@ -662,11 +728,26 @@ deletion can take them. The withdrawn work is part of what this document cost an
 ::commit{sha=d644f489}
 :::
 
-## STATUS — withdrawn in part 2026-11-09
+## STATUS — withdrawn in part, and §2.8 built 2026-11-09
 
-The sections that remain are built and marked. §2.8 is designed and NOT built: it carries no claims
-yet and no code, by the procedure rather than by neglect — nothing is a claim before the verdict,
-and the approval above is unpressed. The count below is derived from the blocks in this file and is
-typed nowhere.
+The automation is withdrawn — the judges, the nudge record, the two clocks and the audit queue are
+gone from the tree, and the dated note above is their record rather than a plan. What remains of the
+original design is built and marked: §2.4's closed-condition, §2.5's settings in the band, §2.6's
+corpus treatment line and §2.7's manager.
+
+§2.8 is built. A correction is a worklist run owned by the agent that owes it, opened by
+`mcp__worklist__assign` under one authority — the manager he names in the band's own settings —
+carrying prose beside its steps and announcing itself into the owing agent's sessions. The count
+below is derived from the blocks in this file and is typed nowhere.
+
+**Its approval block is deliberately UNPRESSED.** The build ran on his explicit go in conversation,
+which is the gate the procedure allows; the verdict is his to write and nobody else's, and the
+document says draft until he does.
+
+**TWO THINGS THIS WALK DOES NOT CLAIM, both named rather than left to be inferred.** The authority
+REFUSAL has never been exercised by a live session that is not the manager — the manager passed the
+gate on all four of its calls and cannot see that branch by construction, so c68 rests on the suite
+alone and closing it needs another agent. And the blank-authority state (c67) is asserted the same
+way, because the field on his machine is not blank.
 
 ::claims
