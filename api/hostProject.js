@@ -148,14 +148,14 @@ module.exports = function createHostProject(hubPort = 3000) {
       try {
         const live = await startHosted(entry.projectDir, entry.folder, entry.live.port);
         entry.live = live;
+        entry.dead = false;
       } catch (err) {
-        hosting.delete(key);
-        entry.watchers.forEach((w) => { try { w.close(); } catch {} });
         // THE FOLDER IS THE STATE: deleting it IS deleting the project. Clean the registration
         // (manifest file) and the store entry, or the dead service haunts the nav and every boot
-        // retries a folder that isn't coming back. A broken module file (folder still there) only
-        // unhosts — fix the file and re-host by saving.
+        // retries a folder that isn't coming back.
         if (!fs.existsSync(entry.live.dir)) {
+          hosting.delete(key);
+          entry.watchers.forEach((w) => { try { w.close(); } catch {} });
           deregisterHosted(entry.projectDir, entry.folder);
           try {
             fs.unlinkSync(
@@ -169,7 +169,22 @@ module.exports = function createHostProject(hubPort = 3000) {
             `[SystemView]: ${entry.live.projectCode} — folder deleted, service unhosted and deregistered\n`,
           );
         } else {
-          console.log(`[SystemView]: re-host failed for ${entry.folder}: ${err.message}\n`);
+          // A BROKEN MODULE FILE DOES NOT UNHOST, AND ITS WATCHERS STAY. Closing them made the
+          // promise above — fix the file and re-host by saving — false: nothing was left watching
+          // to notice the fix. Measured 2026-11-09, a file saved mid-write killed the Test
+          // service, every later save was ignored, and the eight claims resting on it read as
+          // unbuildable rather than unmet.
+          entry.dead = true;
+          // AND THE REGISTRATION GOES WITH IT, because it names a port nothing serves. Left
+          // standing, the hub's own client retries that dead URL forever — 18,000 lines of
+          // "Failed to reconnect" in one boot log, and the hub stopped answering at all. Absence
+          // stated beats a row pointing at a corpse.
+          try {
+            ConnectedServices.deleteService(entry.live.projectCode, entry.live.serviceId);
+          } catch {}
+          console.log(
+            `[SystemView]: re-host failed for ${entry.folder} — unserved and deregistered until the file is fixed: ${err.message}\n`,
+          );
         }
         throw err;
       }
@@ -224,18 +239,87 @@ module.exports = function createHostProject(hubPort = 3000) {
   const deregisterHosted = (projectDir, folder) =>
     writeRegistry(readRegistry().filter((e) => !(e.projectDir === projectDir && e.folder === folder)));
 
+  // THE SWITCH. Hosting folders runs INSIDE the hub's own process, which is what makes it a
+  // development convenience rather than a deployment — so it has to be turnable off without
+  // editing the registry: `SYSTEMVIEW_HOST_FOLDERS=0` (or off/false/no) boots a hub that hosts
+  // nothing and SAYS the count it skipped. Default is ON, because the registry is the stated
+  // intent and a hub that quietly stopped honouring it is worse than a noisy one.
+  const hostingOff = () => /^(0|off|false|no)$/i.test(String(process.env.SYSTEMVIEW_HOST_FOLDERS || ""));
+
+  const serviceIdOf = (projectDir, folder) => {
+    try {
+      const c = JSON.parse(
+        fs.readFileSync(path.join(path.resolve(projectDir), folder, "service.json"), "utf8"),
+      );
+      return (c && c.serviceId) || "";
+    } catch {
+      return "";
+    }
+  };
+
+  // A boot host that failed on a broken module file has NO entry and NO watcher, so nothing would
+  // ever notice the fix and the project would stay dead until somebody hosted it by hand. One
+  // watcher per folder, debounced, closing itself the moment the host succeeds.
+  const recovering = new Map();
+  function watchForRecovery(projectDir, folder) {
+    const key = `${path.resolve(projectDir)}|${folder}`;
+    if (recovering.has(key)) return;
+    let timer = null;
+    let w;
+    try {
+      w = fs.watch(path.join(path.resolve(projectDir), folder, "methods"), () => {
+        clearTimeout(timer);
+        timer = setTimeout(async () => {
+          try {
+            const r = await hostProject({ projectDir, folder });
+            try { w.close(); } catch {}
+            recovering.delete(key);
+            console.log(`[SystemView]: ${r.projectCode}.${r.serviceId} recovered — hosted @ ${r.serviceUrl}\n`);
+          } catch {}
+        }, 400);
+      });
+    } catch {
+      return;
+    }
+    recovering.set(key, w);
+  }
+
   // Boot replay: stand every registered folder back up. Folder gone = project deleted (the
   // folder-is-the-state contract) — drop it from the registry instead of retrying forever.
   async function rehostAll() {
+    if (hostingOff()) {
+      console.log(
+        `[SystemView]: folder hosting is OFF (SYSTEMVIEW_HOST_FOLDERS) — ${readRegistry().length} registered folder(s) left unhosted\n`,
+      );
+      return { hosted: 0, skipped: readRegistry().length, off: true };
+    }
+    let hosted = 0;
+    const failed = [];
     for (const e of readRegistry()) {
       try {
         await hostProject({ projectDir: e.projectDir, folder: e.folder });
+        hosted += 1;
       } catch (err) {
         const msg = (err && err.message) || String(err);
-        if (/hosted folder not found/.test(msg)) deregisterHosted(e.projectDir, e.folder);
-        else console.log(`[SystemView]: boot re-host failed for ${e.folder}: ${msg}\n`);
+        if (/hosted folder not found/.test(msg)) {
+          deregisterHosted(e.projectDir, e.folder);
+          continue;
+        }
+        // The registration from its last life names a port THIS boot never bound. Drop it, or
+        // every client in the process spends the boot retrying a corpse — and watch for the fix
+        // instead of leaving the folder dead until a human hosts it by hand.
+        const id = serviceIdOf(e.projectDir, e.folder);
+        if (id) {
+          try { ConnectedServices.deleteService(path.basename(path.resolve(e.projectDir, e.folder)), id); } catch {}
+        }
+        console.log(
+          `[SystemView]: boot re-host failed for ${e.folder} — deregistered, watching for a fix: ${msg}\n`,
+        );
+        watchForRecovery(e.projectDir, e.folder);
+        failed.push(e.folder);
       }
     }
+    return { hosted, failed, off: false };
   }
 
   // Serialized per folder — the boot replay (rehostAll) and the CLI's own boot hosting run
@@ -255,7 +339,13 @@ module.exports = function createHostProject(hubPort = 3000) {
     if (!projectDir || !folder) throw new Error("hostProject: projectDir and folder are required");
     const key = `${path.resolve(projectDir)}|${folder}`;
     const existing = hosting.get(key);
-    if (existing)
+    // A DEAD entry is not a hosted one. It is kept so its watchers survive a broken module file,
+    // and answering `alreadyHosted` off it would hand the caller a URL nothing serves.
+    if (existing && existing.dead) {
+      existing.watchers.forEach((w) => { try { w.close(); } catch {} });
+      hosting.delete(key);
+    }
+    if (existing && !existing.dead)
       return {
         projectCode: existing.live.projectCode,
         serviceId: existing.live.serviceId,
@@ -391,5 +481,5 @@ module.exports = {
     return matches.length > 0;
   }
 
-  return { hostProject, hostedOp, unhost, rehostAll };
+  return { hostProject, hostedOp, unhost, rehostAll, hostingOff };
 };
