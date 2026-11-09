@@ -197,3 +197,72 @@ describe("which sources count — drawn from the harness, not from a copy", () =
     expect(sourceChoices([{ prefix: "newkind:" }])[0].label).toBe("newkind:");
   });
 });
+
+// ---- A KIND THE HARNESS SENDS CAN ACTUALLY BE TURNED ON (2026-11-09) -------------------------
+// THE DEFECT THIS LOCKS DOWN, measured in his window — "I still can't click assignment."
+//
+// The RENDER started deriving its switches from the harness's `kinds` while patchFor went on
+// validating writes against the four-item FALLBACK. So the assignment switch drew, he pressed it,
+// the filter dropped the prefix it had never heard of, `same` came out true, and the patch was
+// null. A control that renders, responds to nothing, and reports no error — the worst of the three
+// outcomes, because the surface looks like it works.
+//
+// Every assertion here is about the WRITE agreeing with what was DRAWN. The render half already
+// had coverage, which is exactly why this got through: both halves were tested, separately, and
+// nothing tested that they were reading one list.
+describe("the write accepts every kind the render offers", () => {
+  const KINDS = [
+    { prefix: "job:", label: "jobs" },
+    { prefix: "lane:", label: "lanes" },
+    { prefix: "skill:", label: "skills" },
+    { prefix: "assignment:", label: "assignment" },
+    { prefix: "correction:", label: "corrections" },
+  ];
+  const live = sourceChoices(KINDS);
+  const cur = { ...S, sources: ["skill:", "lane:", "correction:", "job:"] };
+
+  it("a kind absent from the fallback can be toggled ON", () => {
+    const patch = patchFor(cur, "sources", toggleSource(cur, "assignment:"), live);
+    expect(patch).not.toBe(null);
+    expect(patch.sources).toContain("assignment:");
+  });
+
+  it("…and back OFF again", () => {
+    const on = { ...cur, sources: [...cur.sources, "assignment:"] };
+    const patch = patchFor(on, "sources", toggleSource(on, "assignment:"), live);
+    expect(patch).not.toBe(null);
+    expect(patch.sources).not.toContain("assignment:");
+  });
+
+  it("EVERY kind the render draws survives the write — the guard that generalises", () => {
+    // Not just assignment. Whatever the harness sends, drawing it and being unable to set it is
+    // the same bug wearing a different prefix, so this walks the whole list.
+    for (const c of live) {
+      const from = { ...cur, sources: [] };
+      const patch = patchFor(from, "sources", toggleSource(from, c.key), live);
+      expect(patch).not.toBe(null);
+      expect(patch.sources).toEqual([c.key]);
+    }
+  });
+
+  it("WITHOUT the live list it still drops the unknown kind — which is the bug, pinned", () => {
+    // Kept as a test rather than deleted, because it is the one line that explains why the
+    // parameter exists. Omit the choices and the old behaviour is exactly reproduced.
+    expect(patchFor(cur, "sources", toggleSource(cur, "assignment:"))).toBe(null);
+  });
+
+  it("junk is still refused — the filter was not simply removed", () => {
+    // A stale filter is worse than none, but none is not the fix either: the write still only
+    // accepts prefixes something actually offered.
+    const patch = patchFor(cur, "sources", [...cur.sources, "nonsense:"], live);
+    expect(patch).toBe(null); // nothing real changed, so nothing is written
+    const empty = patchFor(cur, "sources", ["made-up:"], live);
+    expect(empty).toEqual({ sources: [] });
+  });
+
+  it("the summary names a live kind by its LABEL, not its raw prefix", () => {
+    const on = { ...cur, sources: ["assignment:"] };
+    expect(summaryOf(on, live)).toContain("assignment");
+    expect(summaryOf(on, live)).not.toContain("assignment:");
+  });
+});

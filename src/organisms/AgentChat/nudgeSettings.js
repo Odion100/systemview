@@ -143,14 +143,25 @@ const clampInt = (v, lo, hi, fallback) => {
  * One changed field, ready to send. Returns `null` when the edit would change nothing — which is
  * what stops a slider's every intermediate value from becoming a write to disk.
  */
-export function patchFor(settings, key, raw) {
+// `choices` IS THE LIVE LIST THE HARNESS SENT, and passing it is not optional dressing — it is the
+// half that was missing. The RENDER started deriving its switches from the harness's kinds while
+// THIS function went on validating writes against the four-item fallback, so the assignment switch
+// drew, he clicked it, `want` filtered it straight back out, `same` came out true, and the patch
+// was null: a control that renders, responds to nothing, and reports no error. Measured 2026-11-09
+// in his window — "I still can't click assignment."
+//
+// Both halves read one list now. The default keeps the old behaviour for a caller that has no
+// kinds to hand over, which is the only honest fallback: a filter driven by a STALE list is worse
+// than no filter, because it silently discards a value the harness would have accepted.
+export function patchFor(settings, key, raw, choices = SOURCE_CHOICES) {
   const cur = settings || {};
   const field = FIELDS.find((f) => f.key === key);
   if (!field) return null;
   let next;
   if (field.kind === "toggle") next = !!raw;
   else if (field.kind === "sources") {
-    const want = Array.isArray(raw) ? raw.filter((s) => SOURCE_CHOICES.some((c) => c.key === s)) : [];
+    const allowed = Array.isArray(choices) && choices.length ? choices : SOURCE_CHOICES;
+    const want = Array.isArray(raw) ? raw.filter((s) => allowed.some((c) => c.key === s)) : [];
     const same = want.length === (cur.sources || []).length && want.every((s) => (cur.sources || []).includes(s));
     return same ? null : { sources: want };
   } else if (field.kind === "slot") next = String(raw == null ? "" : raw).trim();
@@ -169,7 +180,7 @@ export function toggleSource(settings, key) {
  * The one line the cog shows when the panel is shut — so the state is readable without opening it.
  * It reads the SETTINGS, never a cached belief about them.
  */
-export function summaryOf(settings) {
+export function summaryOf(settings, choices = SOURCE_CHOICES) {
   const s = settings || null;
   if (!s) return "nudge — not available in this shell";
   // RETENTION IS SAID EVEN WHEN NUDGING IS OFF, because the janitor does not care whether anything
@@ -179,7 +190,7 @@ export function summaryOf(settings) {
   if (!s.on) return `nudge — off${keep}`;
   if (!s.giveUpAfter) return `nudge — off (cycle length 0)${keep}`;
   const which = (s.sources || []).length
-    ? (s.sources || []).map((k) => (SOURCE_CHOICES.find((c) => c.key === k) || { label: k }).label).join(" + ")
+    ? (s.sources || []).map((k) => ((Array.isArray(choices) && choices.length ? choices : SOURCE_CHOICES).find((c) => c.key === k) || { label: k }).label).join(" + ")
     : "nothing";
   // "nothing" is said out loud rather than hidden: an empty source list is a real way to turn this
   // off, and a panel that renders it as "on" would be lying about a configuration he set.

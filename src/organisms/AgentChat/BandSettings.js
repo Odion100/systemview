@@ -163,7 +163,7 @@ const BandSettings = () => {
                     <input
                       type="checkbox"
                       checked={!!settings[f.key]}
-                      onChange={(e) => send(patchFor(settings, f.key, e.target.checked))}
+                      onChange={(e) => send(patchFor(settings, f.key, e.target.checked, sourceChoices(kinds)))}
                     />
                   )}
                   {UNITS[f.kind] !== undefined && (
@@ -173,7 +173,7 @@ const BandSettings = () => {
                         min={f.min}
                         max={f.max}
                         value={settings[f.key]}
-                        onChange={(e) => send(patchFor(settings, f.key, e.target.value))}
+                        onChange={(e) => send(patchFor(settings, f.key, e.target.value, sourceChoices(kinds)))}
                       />
                       <em>{UNITS[f.kind]}</em>
                     </span>
@@ -182,7 +182,7 @@ const BandSettings = () => {
                     <select
                       className="agent-chat__bandcog-slot"
                       value={settings[f.key] || ""}
-                      onChange={(e) => send(patchFor(settings, f.key, e.target.value))}
+                      onChange={(e) => send(patchFor(settings, f.key, e.target.value, sourceChoices(kinds)))}
                     >
                       {/* EMPTY IS A REAL CHOICE AND IT IS THE DEFAULT — a blank authority admits
                           nobody, so "nobody" is an option he can return to, never a placeholder
@@ -215,7 +215,7 @@ const BandSettings = () => {
                           type="button"
                           key={c.key}
                           className={`agent-chat__bandcog-src${(settings.sources || []).includes(c.key) ? " agent-chat__bandcog-src--on" : ""}`}
-                          onClick={() => send(patchFor(settings, "sources", toggleSource(settings, c.key)))}
+                          onClick={() => send(patchFor(settings, "sources", toggleSource(settings, c.key), sourceChoices(kinds)))}
                         >
                           {c.label}
                         </button>
@@ -225,7 +225,7 @@ const BandSettings = () => {
                   <span className="agent-chat__bandcog-help">{f.help}</span>
                 </label>
               ))}
-              <div className="agent-chat__bandcog-foot">{summaryOf(settings)}</div>
+              <div className="agent-chat__bandcog-foot">{summaryOf(settings, sourceChoices(kinds))}</div>
             </>
           )}
         </div>
