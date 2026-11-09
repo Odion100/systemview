@@ -11,8 +11,8 @@ import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, DEFAULT_LIST_K
 // pane that shows none — and the counts are what these claims hold to that.
 describe("the work band is tabs — one per type of work", () => {
   it("draws every kind, whatever has rows, and carries each one's real count", () => {
-    const { tabs } = bandTabs({ jobs: 2, lanes: 0, lists: 0, corrections: 0 });
-    expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 2], ["lanes", 0], ["lists", 0], ["corrections", 0]]);
+    const { tabs } = bandTabs({ all: 2, jobs: 2, lanes: 0, skills: 0, assignment: 0, corrections: 0 });
+    expect(tabs.map((t) => [t.key, t.n])).toEqual([["all", 2], ["jobs", 2], ["lanes", 0], ["skills", 0], ["assignment", 0], ["corrections", 0]]);
   });
 
   it("keeps the stored choice while it still has rows", () => {
@@ -32,13 +32,13 @@ describe("the work band is tabs — one per type of work", () => {
   // surface you cannot put the first thing on.
   it("draws every kind with nothing standing at all — a surface you can put the first thing on", () => {
     const { tabs, active } = bandTabs({});
-    expect(tabs.map((t) => [t.key, t.n])).toEqual([["jobs", 0], ["lanes", 0], ["lists", 0], ["corrections", 0]]);
-    expect(active).toBe("jobs");
+    expect(tabs.map((t) => [t.key, t.n])).toEqual([["all", 0], ["jobs", 0], ["lanes", 0], ["skills", 0], ["assignment", 0], ["corrections", 0]]);
+    expect(active).toBe("all");
   });
 
-  it("orders them the way the head reads them — jobs, lanes, lists, then what is owed", () => {
-    const { tabs } = bandTabs({ jobs: 1, lanes: 1, lists: 1, corrections: 1 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "corrections"]);
+  it("puts all first, then the kinds in the order the head reads them", () => {
+    const { tabs } = bandTabs({ all: 4, jobs: 1, lanes: 1, skills: 1, assignment: 1, corrections: 1 });
+    expect(tabs.map((t) => t.key)).toEqual(["all", "jobs", "lanes", "skills", "assignment", "corrections"]);
   });
 
   // THE BAND IS WORK IN FLIGHT, AND NOTHING ELSE — his ruling, 2026-11-06, once the dashboard
@@ -49,21 +49,24 @@ describe("the work band is tabs — one per type of work", () => {
   // BAND_KINDS does not name can never draw a tab, however many rows it reports.
   it("gives no tab to a kind that moved to the dashboard, however many rows it has", () => {
     const { tabs } = bandTabs({ owed: 3, reports: 9, rfcs: 4, arcs: 2, gaps: 7 });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "corrections"]);
+    expect(tabs.map((t) => t.key)).toEqual(["all", "jobs", "lanes", "skills", "assignment", "corrections"]);
     expect(tabs.every((t) => t.n === 0)).toBe(true);
   });
 
   it("and a stored key from the document era falls through to the work that is running", () => {
-    expect(bandTabs({ jobs: 1, reports: 9 }, "reports").active).toBe("jobs");
-    expect(bandTabs({ jobs: 1, reports: 9 }, "reports:spec").active).toBe("jobs");
-    expect(bandTabs({ jobs: 1, owed: 3 }, "owed").active).toBe("jobs");
+    // FALLS THROUGH TO THE FIRST TAB, which is now `all` rather than `jobs` — the point of the
+    // assertion is that a stored key naming a tab that no longer exists cannot leave the band on
+    // nothing, not which tab catches it.
+    expect(bandTabs({ all: 1, jobs: 1, reports: 9 }, "reports").active).toBe("all");
+    expect(bandTabs({ jobs: 1, reports: 9 }, "reports:spec").active).toBe("all");
+    expect(bandTabs({ jobs: 1, owed: 3 }, "owed").active).toBe("all");
   });
 
   it("speaks the head's own words, singular and plural", () => {
     expect(bandLabel("job", 1)).toBe("1 job");
     expect(bandLabel("lanes", 3)).toBe("3 lanes");
-    expect(bandLabel("lists", 1)).toBe("1 list");
-    expect(bandLabel("lists", 4)).toBe("4 lists");
+    expect(bandLabel("all", 1)).toBe("1 run");
+    expect(bandLabel("all", 4)).toBe("4 runs");
   });
 
   // ── THE LANE TAB HOLDS TWO KINDS ────────────────────────────────────────────────────────────
@@ -77,7 +80,7 @@ describe("the work band is tabs — one per type of work", () => {
     // The tab exists either way now; what this still holds is the COUNT — the one that was 0 and
     // deleted the tab, leaving two running subagents nothing on screen could reach.
     expect(tabs.find((t) => t.key === "lanes").n).toBe(2);
-    expect(active).toBe("jobs");
+    expect(active).toBe("all");
   });
 
   it("has a lane tab reading zero when neither kind stands, and keeps him on it", () => {
@@ -122,7 +125,7 @@ describe("the work band is tabs — one per type of work", () => {
   // inside the lane tab. Only the second one is left, so it is worth claiming on its own.
   it("still folds the lane tab's two parts into one tab, ignoring a document count beside it", () => {
     const { tabs } = bandTabs({ lanes: { lanes: 1, subagents: 1 }, reports: { "": 1, spec: 2 } });
-    expect(tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "corrections"]);
+    expect(tabs.map((t) => t.key)).toEqual(["all", "jobs", "lanes", "skills", "assignment", "corrections"]);
     const lane = tabs.find((t) => t.key === "lanes");
     expect(lane.n).toBe(2);
     expect(lane.parts).toEqual({ lanes: 1, subagents: 1 });
@@ -139,9 +142,12 @@ describe("the work band is tabs — one per type of work", () => {
 // the one that becomes configurable, and the band has to carry the distinction before anything can
 // render it. Reports sits in it by default because of where it lives, not because it is special.
 describe("a tab says which family it belongs to", () => {
-  it("calls jobs, lanes, lists and corrections work", () => {
-    const { tabs } = bandTabs({ jobs: 1, lists: 1, lanes: 1 });
-    expect(tabs.map((t) => t.family)).toEqual(["work", "work", "work", "work"]);
+  it("calls every kind work", () => {
+    const { tabs } = bandTabs({ all: 3, jobs: 1, skills: 1, lanes: 1 });
+    // DERIVED, NOT COUNTED — a sixth kind should not break an assertion about families. What this
+    // claims is that EVERY tab declares one and that it is `work`, which is the actual contract.
+    expect(tabs.length).toBeGreaterThan(0);
+    expect(tabs.every((t) => t.family === "work")).toBe(true);
   });
 
   it("has one family left, because one kind of thing is left", () => {
@@ -151,7 +157,7 @@ describe("a tab says which family it belongs to", () => {
   });
 
   it("carries the family through alongside the count, so the render needs no second lookup", () => {
-    const [tab] = bandTabs({ jobs: 4 }).tabs;
+    const tab = bandTabs({ jobs: 4 }).tabs.find((t) => t.key === "jobs");
     expect(tab).toMatchObject({ key: "jobs", n: 4, family: "work" });
   });
 });
@@ -186,7 +192,7 @@ describe("the head speaks work-state", () => {
 
   it("every other segment names the tab it opens", () => {
     for (const s of bandHead({ jobs: 1, lanes: 1, subagents: 1, runs: 1 })) {
-      expect(["jobs", "lanes", "lists"]).toContain(s.tab);
+      expect(["all", "jobs", "lanes", "skills", "assignment", "corrections"]).toContain(s.tab);
     }
   });
 
@@ -269,10 +275,38 @@ describe("a correction is a run, and it gets its own tab", () => {
   });
 
   it("stands with nothing owed, because the pane is where the first one lands", () => {
-    const owed = bandTabs({ jobs: 3, lanes: 2, lists: 1 }).tabs.find((t) => t.key === "corrections");
+    const owed = bandTabs({ all: 6, jobs: 3, lanes: 2, skills: 1 }).tabs.find((t) => t.key === "corrections");
     expect(owed).toBeTruthy();
     expect(owed.n).toBe(0);
     expect(owed.family).toBe("work");
   });
 });
 
+
+// ── AN OPEN RUN IS NOT NEUTRAL ─────────────────────────────────────────────────────────────────
+// His correction, 2026-11-09: "the header says open run… that should actually show in a not a
+// neutral color." Every other segment of that line names work RUNNING; this one names work that
+// has stalled — steps left and nobody moving them — which is the one state the drawer exists to
+// catch. The words were already right; drawn in the same grey as the rest they read as part of an
+// all-fine summary.
+describe("the head's open-run segment carries a tone", () => {
+  it("marks open runs and nothing else", () => {
+    const segs = bandHead({ jobs: 2, lanes: 1, subagents: 1, runs: 3 });
+    const toned = segs.filter((s) => s.tone);
+    expect(toned.map((s) => [s.key, s.tone])).toEqual([["runs", "open"]]);
+  });
+
+  it("is the renderer's hook and not its decision — the tone rides the segment", () => {
+    const [seg] = bandHead({ runs: 1 });
+    expect(seg).toMatchObject({ key: "runs", tone: "open", text: "1 run open" });
+  });
+
+  it("opens the all tab, since the everything-else tab it used to open is gone", () => {
+    expect(bandHead({ runs: 4 })[0].tab).toBe("all");
+  });
+
+  it("says nothing when no run is open — a tone on a zero would be a warning about nothing", () => {
+    expect(bandHead({ jobs: 1 }).some((s) => s.tone)).toBe(false);
+    expect(bandHead({}).some((s) => s.tone)).toBe(false);
+  });
+});

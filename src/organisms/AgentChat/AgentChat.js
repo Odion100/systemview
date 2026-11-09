@@ -54,7 +54,7 @@ import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
-import { bandTabs, bandLabel, bandHead, withDefaultList, listKey, readBandTab, writeBand, TAB_KEY, DEFAULT_LIST_KEY } from "./bandTabs";
+import { bandTabs, tabOfSource, bandLabel, bandHead, withDefaultList, listKey, readBandTab, writeBand, TAB_KEY, DEFAULT_LIST_KEY } from "./bandTabs";
 // AS runNowLine, NOT nowLine — this file already has a local `nowLine` deep inside the panel (the
 // live-speech line), and an import shadowed by a const 5,000 lines later is legal JavaScript and a
 // trap for whoever edits either one next.
@@ -1230,7 +1230,13 @@ function WorkbandHead({ open, segs = [], onToggle, onPick }) {
             {door(s) ? (
               <button
                 type="button"
-                className="agent-chat__workband-seg"
+                // A TONE WHERE THE SEGMENT MEANS SOMETHING IS WRONG — his correction, 2026-11-09:
+                // "the header says open run… that should actually show in a not a neutral color."
+                // Every other segment names work RUNNING; "N runs open" names work STALLED, and in
+                // the same grey as the rest the drawer says all-fine about the one state it exists
+                // to catch. The tone is bandHead's to decide, never this render's — the words and
+                // their weight are one judgement.
+                className={`agent-chat__workband-seg${s.tone ? ` agent-chat__workband-seg--${s.tone}` : ""}`}
                 title={open ? "Put the work band down" : `Open the ${s.tab} tab`}
                 // A COUNT IS A WAY IN, NOT A SWITCH. His correction, 2026-10-19: *"clicking opens
                 // it and closes it — once it's open it just closes it."*
@@ -1243,7 +1249,7 @@ function WorkbandHead({ open, segs = [], onToggle, onPick }) {
                 {s.text}
               </button>
             ) : (
-              <span>{s.text}</span>
+              <span className={s.tone ? `agent-chat__workband-seg--${s.tone}` : undefined}>{s.text}</span>
             )}
           </React.Fragment>
         ))}
@@ -6049,19 +6055,33 @@ const countdown = (str, now = Date.now()) => {
   // settings panel left open across every reopen is a panel in the way.
   const [bandSettings, setBandSettings] = useState(false);
 
-  const bandJobs = listsShown.filter((l) => l.source.startsWith("job:"));
-  // A CORRECTION IS SOMEBODY ELSE'S JUDGMENT OF THIS AGENT'S WORK, so it does not belong in the
-  // pane that holds what this agent decided to do. Split out BEFORE `lists`, which is the
-  // everything-else bucket — forget this and a correction renders as an ordinary list and the tab
-  // beside it stays permanently empty.
-  const bandCorrections = listsShown.filter((l) => l.source.startsWith("correction:"));
-  const bandLists = listsShown.filter(
-    (l) => !l.source.startsWith("job:") && !l.source.startsWith("correction:")
-  );
+  // EVERY KIND GETS ITS OWN PANE, DERIVED FROM ONE MAPPING — his design, 2026-11-09: *"spread out
+  // all the lists into the separate tabs, meaning that skills separately. And assignment"*, plus
+  // *"one of the tabs should have all the lists."* There is no everything-else bucket any more, and
+  // that is the point: a bucket is where a new kind goes to be invisible, which is what happened to
+  // corrections and would have happened to assignment. `tabOfSource` is the single mapping (see
+  // bandTabs.js); forgetting to add a kind here is no longer possible, because nothing here names
+  // a kind.
+  //
+  // THE SESSION'S OWN PLAN IS NOT IN ANY OF THEM. It has no source, so `tabOfSource` answers null
+  // and it falls out of every count — which is correct and deliberate: it is pinned below the panes
+  // (see the default row further down) because it is the one list that is always relevant and must
+  // never be a tab he has to go and find.
+  const byTab = (tab) => listsShown.filter((l) => l.source && tabOfSource(l.source) === tab);
+  const bandJobs = byTab("jobs");
+  const bandSkills = byTab("skills");
+  const bandAssignment = byTab("assignment");
+  const bandCorrections = byTab("corrections");
+  // AND `all` IS EVERY SOURCED ROW, whatever its prefix — including one whose kind nothing reads.
+  // Every other pane is a filter, so a run with an unknown prefix would be invisible in all of
+  // them; this is the pane that cannot lie about what exists.
+  const bandAll = listsShown.filter((l) => l.source);
   const bandShown = bandTabs(
     {
+      all: bandAll.length,
       jobs: bandJobs.length,
-      lists: bandLists.length,
+      skills: bandSkills.length,
+      assignment: bandAssignment.length,
       // TWO SECTIONS, ONE TAB (his ask, 2026-11-01: *"they should show up the same way but without
       // a branch… two sections just logically make sense"*). The lane tab holds work with a branch
       // and work without one, so its count arrives in two parts: the sum buys the tab — a running
@@ -6088,7 +6108,10 @@ const countdown = (str, now = Date.now()) => {
     jobs: inFlight(bandJobs),
     lanes: lanesShown.length,
     subagents: unseenShown.filter((u) => u.state === "running").length,
-    runs: inFlight(bandLists),
+    // EVERY SOURCED RUN, not the everything-else bucket it used to count. The bucket is gone, and
+    // counting one pane here would have made the head quietly stop seeing whole kinds — a stalled
+    // assignment would not have been "in flight" at all.
+    runs: inFlight(bandAll),
   });
   const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open
@@ -7695,13 +7718,14 @@ const countdown = (str, now = Date.now()) => {
                   )}
                 {attached &&
                   listsShown
+                    // THE PANE IS THE TAB'S OWN ROWS — one mapping decides, and `all` is not a
+                    // filter at all: it is every sourced row, so a run whose prefix nothing reads
+                    // is still visible somewhere. The session's plan is excluded here and pinned
+                    // below instead, which is why the test is on `l.source` first.
                     .filter((l) =>
-                      bandShown.active ===
-                      (l.source.startsWith("job:")
-                        ? "jobs"
-                        : l.source.startsWith("correction:")
-                          ? "corrections"
-                          : "lists")
+                      l.source
+                        ? bandShown.active === "all" || bandShown.active === tabOfSource(l.source)
+                        : false
                     )
                     .map((l) => (
                       /* ONE ROW COMPONENT FOR EVERY KIND OF RUN — his instruction, 2026-11-09, and
@@ -7729,6 +7753,37 @@ const countdown = (str, now = Date.now()) => {
                         onDelete={l.key === DEFAULT_LIST_KEY ? null : () => deleteRunRecord(l.key)}
                       />
                     ))}
+                {/* THE SESSION'S OWN PLAN IS PINNED, NOT TABBED — his design, 2026-11-09: *"take
+                    the default list and have it always show, like at the bottom or something."* It
+                    is the one list that is always relevant: it is what this agent is doing right
+                    now, it has no source and therefore no kind, and under the old everything-else
+                    bucket it shared a pane with skill runs and could be scrolled past. Below every
+                    pane it is always the last thing in the drawer, whichever tab is open.
+
+                    IT IS NOT A RUN AND IS NOT BECOMING ONE — no source, no nudge, no record of a
+                    procedure followed, no 🗑 (there is no record to delete; withDefaultList
+                    synthesises the row when the session has written no plan). It wears "default",
+                    filled, for exactly that reason. */}
+                {attached && (() => {
+                  const plan = listsShown.find((l) => !l.source);
+                  if (!plan) return null;
+                  return (
+                    <div className={`${CLASSNAME}__bandplan`}>
+                      <WorkList
+                        key={plan.key}
+                        runKey={plan.key}
+                        items={plan.items}
+                        source={plan.source}
+                        projectCode={projectCode}
+                        status={plan.status || null}
+                        attachments={plan.attachments || null}
+                        brief={plan.brief || ""}
+                        onClear={() => setClearedLists((c) => ({ ...c, [plan.key]: JSON.stringify(plan.items) }))}
+                        onDelete={null}
+                      />
+                    </div>
+                  );
+                })()}
               </>
             );
           })()}

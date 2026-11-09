@@ -14,17 +14,31 @@
 // trusting — `window.systemview.nudge.read()` answers with the harness's own, because a setting the
 // window believes and the harness cannot see is a setting that does nothing.
 
-// SOURCES ARE PREFIXES, not a free-text list, because that is what the harness matches on. Offering
-// a text box here would let him type `jobs:` and watch nothing happen forever.
-export const SOURCE_CHOICES = [
+// THE SWITCHES ARE THE HARNESS'S KINDS, not a list kept here — his ask, 2026-11-09: a kind should
+// arrive with its own switch, and "that could go to the worklist settings as well, as which one
+// counts". This used to be four typed rows, which is one more place a new kind goes missing: it
+// landed in the harness, drew no switch, and he could neither turn it on nor off.
+//
+// THE FALLBACK IS THE ABSENCE LINE IN LIST FORM. An older shell sends no `kinds`, so the panel
+// draws what it knew rather than nothing — a switchless settings pane would read as "there is
+// nothing to configure", which is a claim about the harness the window cannot make.
+export const FALLBACK_SOURCES = [
   { key: "job:", label: "jobs" },
   { key: "skill:", label: "skills" },
   { key: "lane:", label: "lanes" },
-  // A CORRECTION IS WORK SOMEBODY OWES, so it is chased like the rest and switched off here like
-  // the rest. Unticking this is the whole of "stop nudging about corrections" — there is no second
-  // record and no nudge of its own.
   { key: "correction:", label: "corrections" },
 ];
+
+export const sourceChoices = (kinds) =>
+  Array.isArray(kinds) && kinds.length
+    ? kinds
+        .filter((k) => k && k.prefix)
+        .map((k) => ({ key: String(k.prefix), label: String(k.label || k.prefix) }))
+    : FALLBACK_SOURCES;
+
+// Kept as the name the panel already imports; it is the fallback, and the panel prefers the live
+// list whenever the door sends one.
+export const SOURCE_CHOICES = FALLBACK_SOURCES;
 
 // THE NUMBER KINDS AND THEIR UNIT. Here rather than in the component, so a field declaring a kind
 // nothing can render FAILS A TEST instead of drawing a label, a help line and no input — which is

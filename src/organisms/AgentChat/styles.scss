@@ -3799,6 +3799,14 @@ $sv-board-states: (
   color: #fff;
   opacity: 1;
 }
+// THE SESSION'S OWN PLAN, PINNED BELOW THE PANES — his design: "take the default list and have
+// it always show, like at the bottom or something." A rule above it says it is not one of the tabs'
+// rows; it does not scroll with them, because the whole point is that it is always the last thing
+// in the drawer whichever tab is open.
+.agent-chat__bandplan {
+  flex: none;
+  border-top: 1px solid var(--sv-border);
+}
 .agent-chat__worklist-headrow {
   display: flex;
   align-items: center;
@@ -4775,6 +4783,16 @@ $sv-board-states: (
   cursor: pointer;
 }
 .agent-chat__workband-sep { color: inherit; }
+// AN OPEN RUN IS NOT NEUTRAL. Every other segment of this line names work in flight; "N runs open"
+// names work that has STALLED — steps left and nobody moving them — and that is the one thing the
+// drawer exists to catch. In the inherited grey it read as part of the all-fine summary. Amber, the
+// colour this band already uses for a flag, and NO animation: this line is on screen for as long as
+// a run is open, and a permanent animation here is the exact thing that cost a day.
+.agent-chat__workband-seg--open,
+.agent-chat__workband-seg--open:hover {
+  color: var(--sv-amber);
+  font-weight: 700;
+}
 .agent-chat__workband-reports { color: inherit; }
 // A MARKED SEGMENT WEARS THE FLAG CLASS ITSELF, so the colour covers the glyph and the words
 // together — the head before this one did exactly that, and only the inventory counts were muted.

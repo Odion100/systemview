@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listDefs } from "../../utils/hostAgents";
-import { FIELDS, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
+import { FIELDS, SOURCE_CHOICES, sourceChoices, UNITS, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
 import {
   FIELDS as COMPACTION_FIELDS,
   UNITS as COMPACTION_UNITS,
@@ -48,6 +48,9 @@ const BandSettings = () => {
 
   // ── THE CHASER'S OWN KNOBS ──
   const [settings, setSettings] = useState(null);
+  // THE KINDS THE HARNESS SENT, so the switches are the harness's own list rather than a copy kept
+  // here. Absent on an older shell, which is what the fallback in nudgeSettings is for.
+  const [kinds, setKinds] = useState(null);
   const [door, setDoor] = useState("asking");
   const [saving, setSaving] = useState("");
   useEffect(() => {
@@ -63,6 +66,7 @@ const BandSettings = () => {
         const s = r && r.settings;
         if (usable(s)) {
           setSettings(s);
+          setKinds(Array.isArray(r.kinds) ? r.kinds : null);
           setDoor("present");
         } else setDoor("absent");
       })
@@ -206,7 +210,7 @@ const BandSettings = () => {
                   )}
                   {f.kind === "sources" && (
                     <span className="agent-chat__bandcog-sources">
-                      {SOURCE_CHOICES.map((c) => (
+                      {sourceChoices(kinds).map((c) => (
                         <button
                           type="button"
                           key={c.key}

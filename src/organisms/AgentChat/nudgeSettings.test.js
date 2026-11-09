@@ -1,4 +1,4 @@
-import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
+import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable, sourceChoices, FALLBACK_SOURCES } from "./nudgeSettings";
 
 // THE WORKLIST SETTINGS — the knobs, proven without mounting anything.
 //
@@ -149,5 +149,46 @@ describe("retention is a worklist setting, and the panel says so", () => {
     expect(patchFor(S, "keepHours", 0)).toEqual({ keepHours: 1 });
     expect(patchFor(S, "keepHours", 24)).toEqual({ keepHours: 24 });
     expect(patchFor(S, "keepHours", 12)).toBe(null);
+  });
+});
+
+// ── THE SWITCHES ARE THE HARNESS'S KINDS ───────────────────────────────────────────────────────
+// His ask, 2026-11-09: a kind of run should arrive with its own switch — "that could go to the
+// worklist settings as well, as which one counts". The list used to be typed here, which is one
+// more place a new kind goes missing: `correction:` landed in the harness, drew no switch, and he
+// could neither turn it on nor off from the panel built to control exactly that.
+describe("which sources count — drawn from the harness, not from a copy", () => {
+  it("offers a switch per kind the harness sent, in the harness's order", () => {
+    const kinds = [
+      { prefix: "job:", label: "jobs" },
+      { prefix: "lane:", label: "lanes" },
+      { prefix: "skill:", label: "skills" },
+      { prefix: "assignment:", label: "assignment" },
+      { prefix: "correction:", label: "corrections" },
+    ];
+    expect(sourceChoices(kinds).map((c) => c.key)).toEqual([
+      "job:", "lane:", "skill:", "assignment:", "correction:",
+    ]);
+    expect(sourceChoices(kinds).map((c) => c.label)).toEqual([
+      "jobs", "lanes", "skills", "assignment", "corrections",
+    ]);
+  });
+
+  it("falls back to what it knew rather than drawing an empty panel", () => {
+    // A switchless settings pane reads as "there is nothing to configure", which is a claim about
+    // the harness the window is in no position to make.
+    expect(sourceChoices(null)).toBe(FALLBACK_SOURCES);
+    expect(sourceChoices([])).toBe(FALLBACK_SOURCES);
+    expect(sourceChoices("nonsense")).toBe(FALLBACK_SOURCES);
+    expect(FALLBACK_SOURCES.length).toBeGreaterThan(0);
+  });
+
+  it("skips a malformed kind instead of drawing a switch that writes nothing", () => {
+    const got = sourceChoices([{ prefix: "job:", label: "jobs" }, { label: "no prefix" }, null]);
+    expect(got.map((c) => c.key)).toEqual(["job:"]);
+  });
+
+  it("labels a kind by its prefix when the harness sent no label", () => {
+    expect(sourceChoices([{ prefix: "newkind:" }])[0].label).toBe("newkind:");
   });
 });

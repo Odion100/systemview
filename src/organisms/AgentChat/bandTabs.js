@@ -27,16 +27,48 @@
 // whose tabs appear and vanish as runs come and go is a surface you cannot learn, cannot aim at,
 // and cannot put the first thing on. The emptiness rule now governs the ROWS inside a pane — each
 // one says what it has none of — rather than the existence of the pane.
+// ONE TAB PER KIND OF RUN, PLUS "all" — his design, 2026-11-09: *"spread out all the lists into the
+// separate tabs, meaning that skills separately. And assignment"*, and then *"one of the tabs should
+// have all the lists."* The `lists` tab used to be the everything-else bucket, which meant a skill
+// run and an assignment and anything new shared one pane and could not be looked at separately.
+//
+// `all` IS FIRST AND IT IS THE ONE THAT CANNOT LIE. Every other tab is a filter, so a kind nobody
+// thought to give a tab would be invisible — the exact failure `corrections` had before it got one.
+// Whatever a row's source says, it is in `all`.
 export const BAND_KINDS = [
+  { key: "all", label: "run", family: "work", always: true },
   { key: "jobs", label: "job", family: "work", always: true },
   { key: "lanes", label: "lane", family: "work", always: true },
-  { key: "lists", label: "list", family: "work", always: true },
+  { key: "skills", label: "skill", family: "work", always: true },
+  { key: "assignment", label: "assignment", family: "work", always: true },
   // A CORRECTION IS A RUN LIKE THE OTHERS — a `correction:` source, owned by the agent that owes
   // the work, chased until it is finished or abandoned with an account. It gets its own tab rather
-  // than falling into `lists` because the question it answers is different: a list is what THIS
-  // agent decided to do, a correction is what somebody else says it got wrong.
+  // than sharing one because the question it answers is different: a list is what THIS agent
+  // decided to do, a correction is what somebody else says it got wrong.
   { key: "corrections", label: "correction", family: "work", always: true },
 ];
+
+// WHICH SOURCE BELONGS TO WHICH TAB — one mapping, so the tab that counts a row and the pane that
+// draws it can never disagree. `all` is deliberately absent: it is not a kind, it is the absence of
+// a filter, and giving it a prefix here would make it a sixth bucket rows could fall into.
+export const TAB_OF_SOURCE = [
+  { prefix: "job:", tab: "jobs" },
+  { prefix: "lane:", tab: "lanes" },
+  { prefix: "skill:", tab: "skills" },
+  { prefix: "assignment:", tab: "assignment" },
+  { prefix: "correction:", tab: "corrections" },
+];
+
+/**
+ * The tab a source belongs to. A source matching no kind still has a home — `skills` is wrong for
+ * it and `all` is not a bucket, so it answers null and the caller draws it in `all` only. That is
+ * the honest place for a run whose prefix nothing reads: visible, and in no kind's count.
+ */
+export const tabOfSource = (source) => {
+  const s = String(source || "");
+  const hit = TAB_OF_SOURCE.find((k) => s.startsWith(k.prefix));
+  return hit ? hit.tab : null;
+};
 
 export const TAB_KEY = "sv.chat.bandTab";
 
@@ -113,7 +145,13 @@ export const bandHead = ({ jobs = 0, lanes = 0, subagents = 0, runs = 0 } = {}) 
   if (jobs) segs.push({ key: "jobs", tab: "jobs", text: `${plural("job", jobs)} running` });
   if (lanes) segs.push({ key: "lanes", tab: "lanes", text: `${plural("lane", lanes)} out` });
   if (subagents) segs.push({ key: "subagents", tab: "lanes", text: `${plural("subagent", subagents)} running` });
-  if (runs) segs.push({ key: "runs", tab: "lists", text: `${plural("run", runs)} open` });
+  // OPEN RUNS ARE NOT NEUTRAL — his correction, 2026-11-09: "the header says open run… that should
+  // actually show in a not a neutral color." He is right about what the line is FOR: every other
+  // segment here names something RUNNING, and this is the one that names something STALLED — work
+  // with steps left that nobody is moving. Drawn in the same grey as the rest, the drawer says
+  // "all fine" about the only state it exists to catch. `tone` is the renderer's hook; the words
+  // are unchanged, and it points at `all` because the everything-else tab it used to open is gone.
+  if (runs) segs.push({ key: "runs", tab: "all", tone: "open", text: `${plural("run", runs)} open` });
   if (!segs.length) return [{ key: "clear", tab: "", text: "nothing in flight" }];
   return segs;
 };

@@ -134,7 +134,10 @@ describe("the band", () => {
     expect(BAND_KINDS.some((k) => k.key === "arcs")).toBe(false);
     // The list is the band's floor and is always there, so the honest assertion is that an arc
     // count adds nothing to it.
-    expect(bandTabs({ arcs: 4 }).tabs.map((t) => t.key)).toEqual(["jobs", "lanes", "lists", "corrections"]);
+    // DERIVED, so adding a kind of RUN cannot break an assertion about a kind of DOCUMENT. What
+    // this claims is that an arc count buys no tab — not which tabs happen to exist today.
+    expect(bandTabs({ arcs: 4 }).tabs.some((t) => t.key === "arcs")).toBe(false);
+    expect(bandTabs({ arcs: 4 }).tabs).toEqual(bandTabs({}).tabs);
   });
 });
 
