@@ -18,12 +18,67 @@
 // `suite` is the one coarser rung — it executes one of the machinery's OWN smoke suites, by
 // whitelist, and returns its exit. Legitimate where the claim is about construction or wiring:
 // those are pinned as assertions inside the suite and have no single function to dial.
+const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
 const REPO = path.resolve(__dirname, "..", "..");
 const AUTOBOT = path.join(path.dirname(REPO), "..", "autobot");
 const agents = (f) => require(path.join(AUTOBOT, "electron", "agents", f));
+
+// The cache the door's own comment accounts for. Keyed on what could make the answer different,
+// so a hit and a fresh run cannot disagree.
+const RUNS = new Map();
+const TTL_MS = 10 * 60 * 1000;
+
+const stampOf = (file) => {
+  const parts = [];
+  try {
+    const st = fs.statSync(path.join(AUTOBOT, file));
+    parts.push(`${st.mtimeMs}:${st.size}`);
+  } catch {
+    parts.push("gone");
+  }
+  // THE CODE UNDER TEST, not just the test. Keying on the suite file alone would have served a
+  // green from before a module was fixed — the exact failure a cache is supposed to be safe from.
+  try {
+    const dir = path.join(AUTOBOT, "electron", "agents");
+    const newest = fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith(".cjs"))
+      .reduce((m, f) => {
+        try {
+          return Math.max(m, fs.statSync(path.join(dir, f)).mtimeMs);
+        } catch {
+          return m;
+        }
+      }, 0);
+    parts.push(String(newest));
+  } catch {
+    parts.push("0");
+  }
+  return parts.join("|");
+};
+
+function runSuite(file) {
+  const key = `${file}@${stampOf(file)}`;
+  const hit = RUNS.get(key);
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.out;
+  const res = spawnSync(process.execPath, [path.join(AUTOBOT, file)], {
+    cwd: AUTOBOT,
+    encoding: "utf8",
+    timeout: 300000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const out = {
+    stdout: String(res.stdout || ""),
+    stderr: String(res.stderr || ""),
+    status: res.status === null ? -1 : res.status,
+  };
+  RUNS.clear(); // one suite's answer at a time — this door is walked a document at a time
+  RUNS.set(key, { at: Date.now(), out });
+  return out;
+}
 
 const SUITES = {
   nudge: "tests/nudge.js",
@@ -94,27 +149,32 @@ module.exports = {
   suite({ name = "", want = [] } = {}) {
     const file = SUITES[name];
     if (!file) return { ok: false, error: `unknown suite — one of: ${Object.keys(SUITES).join(", ")}` };
-    const res = spawnSync(process.execPath, [path.join(AUTOBOT, file)], {
-      cwd: AUTOBOT,
-      encoding: "utf8",
-      timeout: 120000,
-      maxBuffer: 16 * 1024 * 1024,
-    });
-    const out = String(res.stdout || "");
+    // ONE SPAWN PER SUITE, SHARED BY EVERY CLAIM THAT CITES IT — and this is a facilitation, never
+    // a judgment. Eight of RFC-078's claims assert different NAMED CHECKS inside one suite, and
+    // each call re-ran the whole file: tests/worklist.js takes ~130 seconds, so walking the
+    // document cost twenty minutes and he killed the run rather than wait for it (2026-11-09).
+    // The matching below still happens per call; only the identical spawn is reused.
+    //
+    // WHAT A RED HERE IS AMBIGUOUS BETWEEN — the one sentence a caching door owes its reader: the
+    // suite, or a stale cache. The key is what settles it. It carries the suite file's own
+    // mtime+size AND the newest mtime under the agents directory the suites exercise, so editing
+    // either the test or the code under test invalidates it; the ten-minute ceiling is only there
+    // so an unrelated change nobody stamped cannot outlive a session.
+    const out = runSuite(file);
     // THE SUITES DO NOT AGREE ON THEIR OWN FORMAT, and that mattered silently: most print
     // `  ok  <name>` per passing check, but tests/docs.js prints `  ✓ <name>`. A parser that knew
     // only the first read ZERO named cases out of that suite, so `checkCount` was 0, any `want`
     // would have gone red for a FORMATTING reason rather than a behavioural one, and the only
     // thing left asserting anything was the exit code — while the proof above it looked like a
     // named-check assertion. Found auditing this door against spec-authoring, 2026-11-08.
-    const checks = out
+    const checks = String(out.stdout || "")
       .split("\n")
       .map((l) => l.match(/^\s*(?:ok\s\s+|✓\s+)(.*\S)\s*$/))
       .filter(Boolean)
       .map((m) => m[1]);
     const wanted = (Array.isArray(want) ? want : [want]).map((w) => String(w || "").trim()).filter(Boolean);
     const missing = wanted.filter((w) => !checks.some((c) => c.includes(w)));
-    const exited = res.status === 0;
+    const exited = out.status === 0;
     // NO `ok` FIELD, DELIBERATELY. It used to mean "the suite passed AND every named check was
     // there" — which is the SPEC's conclusion, computed inside the door. A door may call, read,
     // count and hand back what it saw; the moment it decides whether the answer is good, the
@@ -123,13 +183,13 @@ module.exports = {
     // deciding, where a reader can see it: `suitePassed` AND `missing = "||"`.
     return {
       suitePassed: exited,
-      exitCode: res.status === null ? -1 : res.status,
+      exitCode: out.status,
       checkCount: checks.length,
       wantedCount: wanted.length,
       matchedAll: missing.length === 0,
       missing: `|${missing.join("|")}|`,
-      tail: out.trim().slice(-300),
-      ...(res.status !== 0 ? { stderr: String(res.stderr || "").trim().slice(-500) } : {}),
+      tail: String(out.stdout || "").trim().slice(-300),
+      ...(out.status !== 0 ? { stderr: String(out.stderr || "").trim().slice(-500) } : {}),
     };
   },
 };
