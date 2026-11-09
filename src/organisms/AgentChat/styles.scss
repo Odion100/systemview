@@ -5856,6 +5856,19 @@ $sv-board-states: (
 .agent-chat__lane-live--done { color: var(--sv-text-faint); }
 .agent-chat__lane-live--none { color: var(--sv-text-faint); }
 
+// THE COUNTDOWN TO BEING TOLD, beside the liveness pill and deliberately QUIETER than it. The pill
+// is a measurement of what has happened; this is a schedule for what has not. Drawn as loud as the
+// pill, two chips of equal weight would read as two facts about the subagent when one of them is a
+// fact about the SETTINGS. Faint, no border, and gone the moment the threshold is crossed.
+.agent-chat__lane-eta {
+  flex: 0 0 auto;
+  font-size: 10px;
+  padding: 1px 4px;
+  color: var(--sv-text-faint);
+  font-variant-numeric: tabular-nums; // a countdown that reflows every tick is a countdown nobody reads
+  white-space: nowrap;
+}
+
 // FOLLOW IT, AND STAND IT ON THE SIDE. Both open the lane's panel; `follow` says whether there is
 // anything to watch (disabled carries the reason), and ⇱ pops the panel out beside the chat so it
 // stays up while he works instead of scrolling away with the strip.

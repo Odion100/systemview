@@ -1,4 +1,4 @@
-import { laneWork, laneFollow, laneChanges, laneFolds, laneFoldOrder, laneLiveness } from "./laneBlock";
+import { laneWork, laneFollow, laneChanges, laneFolds, laneFoldOrder, laneLiveness, etaWords } from "./laneBlock";
 
 // WHAT EACH SPEC IS DOING: holding the lane block's head to the thing he asked it for — *"know
 // what the branch is and know what the work is. Not have to guess."* The branch was never the
@@ -220,5 +220,98 @@ describe("laneLiveness — elapsed, never a diagnosis", () => {
 
   it("reads `at` as well as `ts`, and takes the newest event", () => {
     expect(laneLiveness({ events: [{ at: NOW - 600_000 }, { ts: NOW - 1_000 }], now: NOW }).text).toBe("working");
+  });
+
+  // ---- THE THRESHOLD IS HIS, AND THE COUNTDOWN IS THE OTHER HALF OF IT ----------------------
+  // It was `mins >= 10`, hardcoded — the row's one judgement, and the only thing on this surface
+  // he could not set. His ask, 2026-11-09: "control how long they can be idle before they update
+  // you", and "there's a countdown right there".
+  describe("the warn threshold is the harness's subagentIdleMin, not a constant in here", () => {
+    it("defaults to 10 — the number it replaced, so no row changes meaning", () => {
+      expect(laneLiveness(at(9 * 60_000)).tone).toBe("");
+      expect(laneLiveness(at(11 * 60_000)).tone).toBe("warn");
+    });
+
+    it("raise it and the amber waits for it", () => {
+      // 25 minutes quiet used to be unconditionally warn. With an hour's tolerance it is not.
+      expect(laneLiveness({ ...at(25 * 60_000), idleMin: 60 })).toMatchObject({ text: "quiet 25m", tone: "" });
+      expect(laneLiveness({ ...at(61 * 60_000), idleMin: 60 }).tone).toBe("warn");
+    });
+
+    it("lower it and the amber comes early", () => {
+      expect(laneLiveness({ ...at(3 * 60_000), idleMin: 2 })).toMatchObject({ text: "quiet 3m", tone: "warn" });
+    });
+
+    it("AN HOUR QUIET IS NOT AUTOMATICALLY WARN — the threshold is the only rule", () => {
+      // The old code warned at every `quiet Nh` unconditionally, which was a SECOND hardcoded
+      // rule hiding under the first. Set a two-hour tolerance and one hour is inside it.
+      expect(laneLiveness({ ...at(1 * 3_600_000), idleMin: 120 })).toMatchObject({ text: "quiet 1h", tone: "" });
+      expect(laneLiveness({ ...at(3 * 3_600_000), idleMin: 120 })).toMatchObject({ text: "quiet 3h", tone: "warn" });
+    });
+
+    it("UNSET and ZERO are different answers, which `|| 10` could not tell apart", () => {
+      // A threshold that is always crossed is not a threshold: every thinking subagent would be
+      // late the instant it stopped typing. So a GIVEN 0 clamps to the one-minute floor...
+      expect(laneLiveness({ ...at(30_000), idleMin: 0 }).tone).toBe("live"); // still under a minute
+      expect(laneLiveness({ ...at(90_000), idleMin: 0 }).tone).toBe("warn");
+      // ...while NO VALUE AT ALL — an older shell that does not send the field — is the 10 it
+      // replaced, not a floor. Read as `|| 10` these two collapse into one and a deliberate 0
+      // silently becomes the most patient setting available.
+      expect(laneLiveness({ ...at(90_000), idleMin: undefined }).tone).toBe("");
+      expect(laneLiveness({ ...at(90_000), idleMin: null }).tone).toBe("");
+      expect(laneLiveness({ ...at(9 * 60_000), idleMin: NaN }).tone).toBe("");
+      expect(laneLiveness({ ...at(11 * 60_000), idleMin: NaN }).tone).toBe("warn");
+    });
+
+    it("eta COUNTS DOWN to the threshold, and is null once it has passed", () => {
+      expect(laneLiveness(at(4 * 60_000)).eta).toBe(6 * 60_000);
+      expect(laneLiveness({ ...at(4 * 60_000), idleMin: 30 }).eta).toBe(26 * 60_000);
+      // PAST IT, NULL — never a negative number dressed as a countdown. The row has something
+      // truer to say by then (how long it has actually been quiet) and the nudge has fired.
+      expect(laneLiveness(at(11 * 60_000)).eta).toBeNull();
+      expect(laneLiveness({ ...at(5_000) }).eta).toBe(10 * 60_000 - 5_000);
+    });
+
+    it("no clock, no countdown — an absence stays an absence", () => {
+      expect(laneLiveness({ events: null, now: NOW }).eta).toBeNull();
+      expect(laneLiveness({ events: [{}], now: NOW }).eta).toBeNull();
+      expect(laneLiveness({ ...at(5_000), finished: true }).eta).toBeNull();
+    });
+  });
+});
+
+// ---- THE COUNTDOWN READS AS WORDS (2026-11-09) ------------------------------------------------
+// His ask: "there's a countdown right there." A bare `~540s` is arithmetic the reader has to do,
+// and this number's whole job is to be glanced at.
+describe("etaWords — the countdown to being told", () => {
+  it("seconds below a minute, minutes above it", () => {
+    expect(etaWords(45_000)).toBe("nudge in 45s");
+    expect(etaWords(9 * 60_000)).toBe("nudge in 9m");
+    expect(etaWords(3 * 3_600_000)).toBe("nudge in 3h");
+  });
+
+  it("MINUTES FLOOR — it never claims more quiet time than is left", () => {
+    // 9m59s reads "9m", not "10m". A countdown that rounds up reads calm right to the moment the
+    // nudge lands, which is the one thing it must not do.
+    expect(etaWords(9 * 60_000 + 59_000)).toBe("nudge in 9m");
+    expect(etaWords(60_000)).toBe("nudge in 1m");
+  });
+
+  it("…and SECONDS CEIL, for the same reason at the other end", () => {
+    expect(etaWords(1)).toBe("nudge in 1s");
+    expect(etaWords(44_100)).toBe("nudge in 45s");
+  });
+
+  it("nothing to count is nothing said — never '0s' and never a negative", () => {
+    expect(etaWords(0)).toBe("");
+    expect(etaWords(-5_000)).toBe("");
+    expect(etaWords(null)).toBe("");
+    expect(etaWords(undefined)).toBe("");
+    expect(etaWords(NaN)).toBe("");
+  });
+
+  it("speaks the drawer's existing countdown vocabulary", () => {
+    // The run countdown says "nudge ~12s"; one idea, one word for it.
+    expect(etaWords(30_000)).toMatch(/^nudge /);
   });
 });

@@ -180,18 +180,63 @@ export function laneFoldOrder({ finished = false } = {}) {
  * A LANE WITH NO LOG GETS NO LIVENESS AT ALL, rather than a reassuring "idle": either it is this
  * agent's own work, or its session ended and the events aged out of memory. Both are "nothing is
  * watching this", which is an absence and is said as one.
+ *
+ * AND THE WARN THRESHOLD IS HIS NUMBER, NOT A CONSTANT IN HERE. It was `mins >= 10`, hardcoded,
+ * which made the row's one judgement — "this has been quiet long enough to look at" — the only
+ * thing on this surface he could not set. His ask, 2026-11-09: *"control how long they can be idle
+ * before they update you."* `idleMin` is the harness's `subagentIdleMin`, the same number the
+ * chaser nudges on, so the amber on the row and the nudge in the chat fire at one threshold instead
+ * of two that drift. The default is 10 because that is what it replaced: no row changes meaning.
+ *
+ * `eta` IS THE COUNTDOWN — ms until this subagent crosses that threshold, null once it has (or when
+ * there is no clock). His ask was for the countdown to be "right there", and a row that can say
+ * "quiet 4m" already holds everything needed to say how long until somebody is told.
  */
-export function laneLiveness({ events = null, finished = false, now = Date.now() } = {}) {
-  if (finished) return { text: "closed", tone: "done", ms: null };
-  if (!events || !events.length) return { text: "", tone: "", ms: null };
+export function laneLiveness({ events = null, finished = false, now = Date.now(), idleMin = 10 } = {}) {
+  if (finished) return { text: "closed", tone: "done", ms: null, eta: null };
+  if (!events || !events.length) return { text: "", tone: "", ms: null, eta: null };
   const last = events.reduce((t, e) => Math.max(t, Number((e && (e.ts || e.at)) || 0)), 0);
-  if (!last) return { text: "", tone: "", ms: null };
+  if (!last) return { text: "", tone: "", ms: null, eta: null };
   const ms = Math.max(0, now - last);
-  if (ms < 60000) return { text: "working", tone: "live", ms };
+  // UNSET AND ZERO ARE DIFFERENT ANSWERS, and `|| 10` could not tell them apart — it read a
+  // deliberate 0 as "nobody said", which is the opposite of what 0 means. So: no value at all
+  // (an older shell that does not send the field) falls back to the 10 this replaced; a value
+  // that IS given is clamped to a one-minute floor, matching the harness's own clamp, because 0
+  // would make every thinking subagent instantly late and a threshold always crossed is not one.
+  const asked = idleMin === null || idleMin === undefined ? 10 : Number(idleMin);
+  const warnAt = (Number.isFinite(asked) ? Math.max(1, asked) : 10) * 60000;
+  // NULL ONCE CROSSED, never a negative number dressed as a countdown: past the threshold the row
+  // has something truer to say (how long it has actually been quiet), and the nudge has fired.
+  const eta = ms < warnAt ? warnAt - ms : null;
+  if (ms < 60000) return { text: "working", tone: "live", ms, eta };
   const mins = Math.floor(ms / 60000);
-  if (mins < 60) return { text: `quiet ${mins}m`, tone: mins >= 10 ? "warn" : "", ms };
+  if (mins < 60) return { text: `quiet ${mins}m`, tone: ms >= warnAt ? "warn" : "", ms, eta };
   const hrs = Math.floor(mins / 60);
-  return { text: `quiet ${hrs}h`, tone: "warn", ms };
+  // AN HOUR QUIET READS WARN WHATEVER THE THRESHOLD IS. Set the threshold to two hours and the
+  // amber waits for it; nothing here invents a second rule.
+  return { text: `quiet ${hrs}h`, tone: ms >= warnAt ? "warn" : "", ms, eta };
 }
 
 export default laneWork;
+
+/**
+ * THE COUNTDOWN, IN WORDS — ms until a quiet subagent's owner is told, as something readable.
+ *
+ * It says "nudge in …" rather than naming a time, because the drawer's other countdown already
+ * speaks that way ("nudge ~12s") and one vocabulary for one idea is the point. Minutes once there
+ * is more than one, seconds below that — a bare `~540s` is arithmetic the reader has to do, and
+ * this number's whole job is to be glanced at.
+ *
+ * MINUTES FLOOR AND SECONDS CEIL, and the asymmetry is deliberate: a countdown that rounds UP to
+ * the next minute claims more quiet time than is left, and the one thing this must not do is read
+ * calm right up to the moment the nudge lands.
+ */
+export function etaWords(ms) {
+  const n = Number(ms);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  if (n < 60000) return `nudge in ${Math.ceil(n / 1000)}s`;
+  const mins = Math.floor(n / 60000);
+  if (mins < 60) return `nudge in ${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  return `nudge in ${hrs}h`;
+}

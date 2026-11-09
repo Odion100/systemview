@@ -92,6 +92,27 @@ export const FIELDS = [
     help: "context fill past which a nudge would spend what the agent needs to finish",
   },
   { key: "sources", kind: "sources", label: "which runs count", help: "the session's own plan has no source and is never nudged" },
+  // A SUBAGENT'S OWN CLOCK, AND IT IS A SECOND NUMBER ON PURPOSE — his ask, 2026-11-09: "the lanes
+  // is where the subagents go. You could see when they're quiet or when they're idle and there's a
+  // countdown right there. of control how long they can be idle before they update you."
+  //
+  // NOT FOLDED INTO `quiet first`, because the two measure different things. `idleMin` is how long
+  // THIS agent may sit before being pointed back at its own list — a conversation's pace. This is
+  // how long a SUBAGENT may emit nothing before the agent that spawned it is told to look. One
+  // slider governing both would leave neither set where he wants it.
+  //
+  // IT IS ALSO THE ROW'S AMBER. `laneLiveness` warned at a hardcoded ten minutes with nothing able
+  // to change it, so the row's one judgement was the only thing on that surface he could not set —
+  // and the countdown beside it now runs to this number too, which is what keeps the colour on the
+  // row and the nudge in the chat from firing at two thresholds that drift apart.
+  {
+    key: "subagentIdleMin",
+    kind: "minutes",
+    label: "subagent quiet",
+    min: 1,
+    max: 1440,
+    help: "how long a subagent may emit nothing before its owner is told to look — and when the row turns amber. Silence is not a diagnosis: a subagent thinking is quiet and alive, so the nudge reports the elapsed time and never calls it stuck",
+  },
   // WHO MAY ASSIGN WORK TO ANOTHER AGENT — his control, and it lives here rather than on every
   // agent's definition because the profile's lever is allow/deny per agent: gating it there would
   // mean unchecking a tool on every agent that must not have it. EMPTY MEANS NOBODY, never anyone.

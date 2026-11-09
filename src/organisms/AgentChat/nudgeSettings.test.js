@@ -7,7 +7,12 @@ import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleS
 // render-time crashes once shipped alongside 543 green claims. So the panel is thin on purpose and
 // everything that can be WRONG lives in this module, where it is reachable.
 
-const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, sources: ["job:", "skill:", "correction:"], keepHours: 12, manager: "" };
+// THE HARNESS'S OWN SHAPE, MIRRORED — every key in `nudge.cjs` DEFAULTS, and nothing that is not
+// one. It is a hand-kept copy because this suite cannot reach across into the shell's .cjs, which
+// means the guard below is ONE-DIRECTIONAL: it catches a panel field naming a key the harness does
+// not store (an input wired to nothing), and it cannot catch the harness growing a key the panel
+// never offers. So when a setting is added over there, it is added here in the same motion.
+const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, subagentIdleMin: 10, sources: ["job:", "skill:", "correction:"], keepHours: 12, manager: "" };
 
 describe("a patch is one changed field, or nothing at all", () => {
   it("sends only what actually changed", () => {

@@ -42,7 +42,7 @@ import Feed, { timeOf } from "../AgentWorkbench/Feed";
 import useAgentSession from "../AgentWorkbench/useAgentSession";
 import { CTX_MARK, CTX_WARN, CTX_DUE, tokensShort, parseUsageLines, foldEvents, laneLog } from "../AgentWorkbench/feedRows";
 import laneCook from "./laneCook";
-import { laneWork, laneFollow, laneLiveness, laneFolds, laneFoldOrder, laneChanges } from "./laneBlock";
+import { laneWork, laneFollow, laneLiveness, laneFolds, laneFoldOrder, laneChanges, etaWords } from "./laneBlock";
 import { headingLevel, listItem, nestList, startsNewList } from "./chatBlocks";
 import { visStyle } from "../AgentWorkbench/visitorColor";
 import { formatReceipt } from "../AgentWorkbench/cmdReceipt";
@@ -1023,6 +1023,47 @@ function useNudgeEta({ source = "", runKey = "", projectCode = "", off = false }
   return eta;
 }
 
+// HOW LONG A SUBAGENT MAY BE QUIET — his number, read from the harness that owns it.
+//
+// The row's amber used to come from `mins >= 10` hardcoded inside `laneLiveness`, which made the
+// one judgement this row makes the only thing on the surface he could not set. His ask, 2026-11-09:
+// *"control how long they can be idle before they update you."*
+//
+// IT IS THE SAME NUMBER THE CHASER NUDGES ON, deliberately — one threshold, so the colour on the
+// row and the turn that arrives in the chat cannot disagree about when a subagent has been quiet
+// long enough to look at. Two numbers would drift and the row would be the one that looked wrong.
+//
+// null UNTIL THE DOOR ANSWERS, and `laneLiveness` reads that as "nobody said" and falls back to the
+// 10 this replaced — never as 0, which would make every thinking subagent instantly late. An older
+// shell that does not send the field lands in the same place, which is why the distinction between
+// unset and zero is enforced over there rather than papered over with `|| 10`.
+function useSubagentIdleMin() {
+  const [mins, setMins] = useState(null);
+  useEffect(() => {
+    const api = typeof window !== "undefined" && window.systemview && window.systemview.nudge;
+    if (!api || typeof api.read !== "function") return undefined;
+    let alive = true;
+    const pull = () =>
+      Promise.resolve(api.read())
+        .then((r) => {
+          if (!alive || !r || !r.ok || !r.settings) return;
+          const n = Number(r.settings.subagentIdleMin);
+          setMins(Number.isFinite(n) ? n : null);
+        })
+        .catch(() => {});
+    pull();
+    // SAME CADENCE AS THE NUDGE COUNTDOWN'S POLL. He changes this in a panel one scroll below the
+    // rows it colours, so a row still amber at the old threshold thirty seconds later reads as the
+    // setting not having worked.
+    const poll = setInterval(pull, 5000);
+    return () => {
+      alive = false;
+      clearInterval(poll);
+    };
+  }, []);
+  return mins;
+}
+
 function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null, brief = "", onDelete = null }) {
   const [open, setOpen] = useState(false);
   const done0 = (items || []).filter((t) => t.state === "done").length;
@@ -1475,7 +1516,10 @@ function LanePanel({
     const t = setInterval(() => setBeat((n) => n + 1), 30000);
     return () => clearInterval(t);
   }, [finished, laneEvents]);
-  const live = laneLiveness({ events: laneEvents, finished });
+  // HIS THRESHOLD, NOT A CONSTANT — see useSubagentIdleMin. The beat above already re-derives this
+  // every 30s, and the countdown below needs a faster one, so both are driven from `live`.
+  const idleMin = useSubagentIdleMin();
+  const live = laneLiveness({ events: laneEvents, finished, idleMin });
   // The log, the cook line and the scroll-follow are `SubagentChat`'s — the chat fold renders it.
   // The panel already HOLDS the log, so it needs nothing passed to answer the same question.
   const delegated = !!laneEvents;
@@ -1842,6 +1886,21 @@ function LaneRow({ source, items, projectCode, repo, delegated, onDelete, brief 
               <span className={`${CLASSNAME}__lane-live ${CLASSNAME}__lane-live--${live.tone || "none"}`}
                     title="how long since this lane last did anything — silence is not death">
                 {live.text}
+              </span>
+            )}
+            {/* THE COUNTDOWN TO BEING TOLD — his ask, 2026-11-09: *"you could see when they're
+                quiet or when they're idle and there's a countdown right there."* Every other
+                clock in this drawer is readable and this one was not: the row could say "quiet
+                4m" and had no way to say how much silence it takes before anybody is told.
+
+                IT COUNTS TO THE SAME NUMBER THE CHASER FIRES ON (`subagentIdleMin`), which is
+                what makes it a promise rather than a decoration — the eta and the nudge are one
+                threshold. Gone once crossed, because by then the nudge has fired and the elapsed
+                time beside it is the truer thing to read. */}
+            {live.eta != null && (
+              <span className={`${CLASSNAME}__lane-eta`}
+                    title={`how long this subagent may stay quiet before its owner is told — set by "subagent quiet" in the worklist settings`}>
+                {etaWords(live.eta)}
               </span>
             )}
             <button type="button" className={`${CLASSNAME}__lane-del`} title="clean up this lane — worktree, branch, record" onClick={armDelete}>🗑</button>
@@ -7692,6 +7751,21 @@ const countdown = (str, now = Date.now()) => {
                                   title="how long since it last did anything — silence is not death, a subagent mid-thought is quiet and alive"
                                 >
                                   {live.text}
+                                </span>
+                              )}
+                              {/* AND THE COUNTDOWN, ON THE ROW THAT NEEDS IT MOST. These are the
+                                  lane-LESS subagents — no branch, no run record, nothing on disk
+                                  that the chaser could ever have read — which is exactly the kind
+                                  he was describing: *"the lanes is where the subagents go. You
+                                  could see when they're quiet or when they're idle and there's a
+                                  countdown right there."* Same `live` object the pill reads, so
+                                  the two cannot disagree. */}
+                              {live.eta != null && (
+                                <span
+                                  className={`${CLASSNAME}__lane-eta`}
+                                  title={`how long it may stay quiet before you are told — set by "subagent quiet" in the worklist settings`}
+                                >
+                                  {etaWords(live.eta)}
                                 </span>
                               )}
                               {/* WHY IT HAS NO ROW OF ITS OWN stays on the row, because it is the
