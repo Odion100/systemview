@@ -243,9 +243,10 @@ it("says a filter matched nothing in the filter's own words, never as a claim ab
 // ─── THE KINDS IN A LANE ARE ITS FILTERS ───────────────────────────────────────────────────────
 //
 // *"Instead of hide the numbers and show the numbers, there should be filters for that separate
-// section of the type of documents that are there."* So the show-hide is gone, and what opens the
-// list is a word that also says which kind it opens.
-it("opens the numbers filtered to the kind pressed, and closes when the last one is let go", async () => {
+// section of the type of documents that are there."* THE NUMBERS ARE ALWAYS SHOWING — that is why
+// the show-hide went: *"The numbers should be showing. All of them. That's the fucking point."* The
+// words NARROW the list; they do not open it.
+it("shows every number by default and narrows to the kind pressed, until the last one is let go", async () => {
   mockFiles["RFCs/RFC-081-a.md"] = "# RFC-081 — a design\n\n::rfc{id=RFC-081}\n";
   mockFiles["gaps/g-21.md"] = "# G-21 — a thing missing\n\n::gap{id=G-21}\n";
   mount(
@@ -265,8 +266,9 @@ it("opens the numbers filtered to the kind pressed, and closes when the last one
   const rfc = within(picks).getByRole("button", { name: /1 RFC/ });
   const gap = within(picks).getByRole("button", { name: /1 gap/ });
 
-  // nothing held — no list at all
-  expect(lane.querySelector(".dba-list")).toBeNull();
+  // NOTHING HELD IS EVERYTHING — the numbers are on screen before anybody presses anything
+  expect(within(lane.querySelector(".dba-list")).getByText("RFC-081")).toBeInTheDocument();
+  expect(within(lane.querySelector(".dba-list")).getByText("G-21")).toBeInTheDocument();
 
   fireEvent.click(rfc);
   expect(rfc).toHaveAttribute("aria-pressed", "true");
@@ -279,13 +281,14 @@ it("opens the numbers filtered to the kind pressed, and closes when the last one
   expect(within(list()).getByText("RFC-081")).toBeInTheDocument();
   expect(within(list()).getByText("G-21")).toBeInTheDocument();
 
-  // and letting go of the last one closes it — the words are the show-hide
+  // and letting them all go shows all of them again, rather than closing
   fireEvent.click(rfc);
   fireEvent.click(gap);
-  expect(lane.querySelector(".dba-list")).toBeNull();
+  expect(within(list()).getByText("RFC-081")).toBeInTheDocument();
+  expect(within(list()).getByText("G-21")).toBeInTheDocument();
 });
 
-it("keeps each lane's kinds its own — holding alpha's gaps does not open beta's", async () => {
+it("keeps each lane's kinds its own — narrowing alpha does not narrow beta", async () => {
   mockFiles["gaps/g-30.md"] = "# G-30 — alpha's\n\n::gap{id=G-30}\n";
   mockFiles["gaps/g-31.md"] = "# G-31 — beta's\n\n::gap{id=G-31}\n";
   mount(
@@ -298,9 +301,14 @@ it("keeps each lane's kinds its own — holding alpha's gaps does not open beta'
   await screen.findByText("alpha");
   const alpha = screen.getByText("alpha").closest(".dba-lane");
   const beta = screen.getByText("beta").closest(".dba-lane");
+  // both lanes show their numbers to begin with
+  expect(within(alpha.querySelector(".dba-list")).getByText("G-30")).toBeInTheDocument();
+  expect(within(beta.querySelector(".dba-list")).getByText("G-31")).toBeInTheDocument();
+  // holding alpha's gaps leaves alpha narrowed to them and beta untouched
   fireEvent.click(within(alpha.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ }));
-  expect(alpha.querySelector(".dba-list")).not.toBeNull();
-  expect(beta.querySelector(".dba-list")).toBeNull();
+  expect(within(alpha.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ })).toHaveAttribute("aria-pressed", "true");
+  expect(within(beta.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ })).toHaveAttribute("aria-pressed", "false");
+  expect(within(beta.querySelector(".dba-list")).getByText("G-31")).toBeInTheDocument();
 });
 
 // ─── A MARK IS A FILTER, NOT A DOOR ────────────────────────────────────────────────────────────
@@ -341,10 +349,11 @@ it("narrows the lane to one document when its mark is pressed, and opens nothing
   expect(opened[0]).toMatchObject({ projectCode: "alpha", path: "RFCs/RFC-090-one.md" });
   window.removeEventListener("sv:openFileInNav", listen);
 
-  // pressing the same mark again lets go
+  // pressing the same mark again lets go, and the whole list is back
   fireEvent.click(mark);
   expect(mark).toHaveAttribute("aria-pressed", "false");
-  expect(lane.querySelector(".dba-list")).toBeNull();
+  expect(within(list()).getByText("RFC-090")).toBeInTheDocument();
+  expect(within(list()).getByText("RFC-091")).toBeInTheDocument();
 });
 
 it("lets a kind word take over from a pinned mark rather than intersecting with it", async () => {

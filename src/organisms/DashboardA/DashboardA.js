@@ -328,6 +328,9 @@ const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny }) => {
   // so a word never offers a count that opens an empty list.
   const kinds = kindsIn(p.marks);
   const held = kinds.filter((k) => picks[k.kind]).map((k) => k.kind);
+  // THE NUMBERS ARE ALWAYS SHOWING — that is the whole reason the show-hide went. Nothing held is
+  // every document in the lane; the words NARROW it, they do not open it.
+  //
   // A PINNED MARK IS THE NARROWEST FILTER THERE IS, so it wins over the kind words rather than
   // intersecting with them — pressing a mark means "just that one", and an intersection could
   // only ever answer with the same row or with nothing.
@@ -335,7 +338,7 @@ const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny }) => {
     ? p.marks.filter((m) => m.key === only)
     : held.length
       ? p.marks.filter((m) => held.includes(m.kind))
-      : [];
+      : p.marks;
   return (
   <article className={`dba-lane${p.registered ? "" : " is-quiet"}`}>
     <header className="dba-lane__head">
@@ -378,7 +381,7 @@ const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny }) => {
         {/* THE KINDS IN THE LANE ARE THE CONTROL — there is no show-hide button left, because a
             show-hide answers one question ("is there more?") and the words answer the one he
             actually has ("where are the gaps?"). Pressing a word opens the numbers filtered to
-            that kind; more than one at a time; pressing the last one shut closes the list. */}
+            that kind; more than one at a time; letting them all go shows all of them again. */}
         {kinds.length ? (
           <div className="dba-lane__picks">
             {kinds.map((k) => (
