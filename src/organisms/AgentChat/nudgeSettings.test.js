@@ -1,4 +1,4 @@
-import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable, sourceChoices, FALLBACK_SOURCES } from "./nudgeSettings";
+import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleSource, usable, sourceChoices, FALLBACK_SOURCES, toggleMember } from "./nudgeSettings";
 
 // THE WORKLIST SETTINGS — the knobs, proven without mounting anything.
 //
@@ -12,7 +12,7 @@ import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleS
 // means the guard below is ONE-DIRECTIONAL: it catches a panel field naming a key the harness does
 // not store (an input wired to nothing), and it cannot catch the harness growing a key the panel
 // never offers. So when a setting is added over there, it is added here in the same motion.
-const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, subagentIdleMin: 10, sources: ["job:", "skill:", "correction:"], keepHours: 12, manager: "" };
+const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, subagentIdleMin: 10, sources: ["job:", "skill:", "correction:"], keepHours: 12, managers: [] };
 
 describe("a patch is one changed field, or nothing at all", () => {
   it("sends only what actually changed", () => {
@@ -99,7 +99,11 @@ describe("the summary says the real state, including the states that read as bro
 // The kinds that are NOT numbers. Listed once so the two guards below cannot drift apart about
 // which shape a field is — the bug that would hide is a number field losing its unit while a guard
 // that had quietly stopped covering numbers stayed green.
-const SELF_RENDERING = ["toggle", "sources", "slot"];
+// THE KINDS THAT DRAW THEMSELVES — everything else is a number and owes a min, a max and a unit.
+// `slots` joins them: a set of switches has no bounds to clamp, the same way `sources` does not.
+// Leaving it off is not a silent miss — the two guards below immediately demand a min and a unit
+// for it, which is exactly how this list earns its place.
+const SELF_RENDERING = ["toggle", "sources", "slots", "slot"];
 
 describe("every field can be rendered by the panel that exists", () => {
   it("declares a kind the panel knows, and a help line", () => {
@@ -264,5 +268,70 @@ describe("the write accepts every kind the render offers", () => {
     const on = { ...cur, sources: ["assignment:"] };
     expect(summaryOf(on, live)).toContain("assignment");
     expect(summaryOf(on, live)).not.toContain("assignment:");
+  });
+});
+
+// ---- THE MANAGER ABILITY IS A LIST, NOT A NAME (2026-11-10) ----------------------------------
+// His ask: "we should be able to assign more than one manager." It was one name compared with
+// `===`, so exactly one agent on the machine could put work in anybody's place. The ability is not
+// a role — one agent reading finished work against the doctrine, another sitting above an arc, and
+// an agent handed it for an afternoon and taken back off it after — so it is a SET.
+describe("managers — a set field, switched rather than picked", () => {
+  const ROSTER = ["manager", "systemview-test", "buapi"];
+  const cur = { ...S, managers: ["manager"] };
+
+  it("adding a second name KEEPS the first — the whole reason it is not a picker", () => {
+    const patch = patchFor(cur, "managers", toggleMember(cur, "managers", "systemview-test"), ROSTER);
+    expect(patch).toEqual({ managers: ["manager", "systemview-test"] });
+  });
+
+  it("…and taking one back is one press", () => {
+    const two = { ...S, managers: ["manager", "systemview-test"] };
+    expect(patchFor(two, "managers", toggleMember(two, "managers", "manager"), ROSTER)).toEqual({
+      managers: ["systemview-test"],
+    });
+  });
+
+  it("emptying it is a real write — nobody is a setting, not an unset", () => {
+    // The harness reads an empty list as REFUSED, never as "anyone", so he has to be able to get
+    // back to it and the patch must actually be sent.
+    expect(patchFor(cur, "managers", toggleMember(cur, "managers", "manager"), ROSTER)).toEqual({ managers: [] });
+  });
+
+  it("order is not a change, so re-pressing the same set writes nothing", () => {
+    const two = { ...S, managers: ["manager", "systemview-test"] };
+    expect(patchFor(two, "managers", ["systemview-test", "manager"], ROSTER)).toBe(null);
+  });
+
+  it("filters to the roster when one is given", () => {
+    expect(patchFor(cur, "managers", ["manager", "ghost"], ROSTER)).toBe(null); // only `manager` survives == no change
+    expect(patchFor(cur, "managers", ["ghost"], ROSTER)).toEqual({ managers: [] });
+  });
+
+  it("WITH NO ROSTER IT DOES NOT FILTER — and that asymmetry with `sources` is deliberate", () => {
+    // The roster arrives from a different door and can legitimately be unavailable. Filtering
+    // against an empty roster would silently discard every name he picked — the same shape as the
+    // bug where the sources write validated against a stale list and a press did nothing.
+    expect(patchFor(cur, "managers", ["manager", "someone-else"], null)).toEqual({
+      managers: ["manager", "someone-else"],
+    });
+    // `sources` still falls back to its own shipped list, because that list is real.
+    expect(patchFor({ ...S, sources: [] }, "sources", ["made-up:"], null)).toBe(null);
+  });
+
+  it("dedupes and drops blanks", () => {
+    expect(patchFor({ ...S, managers: [] }, "managers", ["a", "a", "", "  "], null)).toEqual({ managers: ["a"] });
+  });
+
+  it("`slots` is renderable, or the field draws a label and no control", () => {
+    const f = FIELDS.find((x) => x.key === "managers");
+    expect(f).toBeTruthy();
+    expect(f.kind).toBe("slots");
+    expect(RENDERABLE).toContain("slots");
+  });
+
+  it("toggleSource still works — its callers and its claims name it", () => {
+    expect(toggleSource({ sources: ["job:"] }, "skill:")).toEqual(["job:", "skill:"]);
+    expect(toggleSource({ sources: ["job:"] }, "job:")).toEqual([]);
   });
 });

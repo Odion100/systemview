@@ -46,7 +46,10 @@ export const SOURCE_CHOICES = FALLBACK_SOURCES;
 // it knew about and the fourth fell through every branch. `toggle` and `sources` render themselves;
 // everything else is a number and needs a unit, even when the unit is empty.
 export const UNITS = { minutes: "min", hours: "hrs", count: "", percent: "%" };
-export const RENDERABLE = ["toggle", "sources", "slot", ...Object.keys(UNITS)];
+// `slots` IS A SET OF NAMES, where `slot` was one. Both stay renderable: `slot` is still the right
+// shape for a field that genuinely holds one thing, and deleting it would make this list the only
+// way to express either.
+export const RENDERABLE = ["toggle", "sources", "slots", "slot", ...Object.keys(UNITS)];
 
 export const FIELDS = [
   {
@@ -116,11 +119,18 @@ export const FIELDS = [
   // WHO MAY ASSIGN WORK TO ANOTHER AGENT — his control, and it lives here rather than on every
   // agent's definition because the profile's lever is allow/deny per agent: gating it there would
   // mean unchecking a tool on every agent that must not have it. EMPTY MEANS NOBODY, never anyone.
+  //
+  // SEVERAL, NOT ONE (his ask, 2026-11-10: "we should be able to assign more than one manager").
+  // The ability is not a role: one agent reading finished work against the doctrine and another
+  // sitting above an arc want the same verb pointed at different subjects, and an agent handed it
+  // for an afternoon wants it taken back after. All of that is this list changing, which is why it
+  // is a set of switches rather than a picker — adding a second name must not mean replacing the
+  // first, and taking one back must be one press.
   {
-    key: "manager",
-    kind: "slot",
-    label: "manager",
-    help: "the one agent that may assign work to another — a correction. Empty means nobody can",
+    key: "managers",
+    kind: "slots",
+    label: "managers",
+    help: "the agents that may assign work to another — a correction, or an assignment. Any of them can assign either kind to anybody. None selected means nobody can",
   },
   {
     key: "keepHours",
@@ -159,22 +169,44 @@ export function patchFor(settings, key, raw, choices = SOURCE_CHOICES) {
   if (!field) return null;
   let next;
   if (field.kind === "toggle") next = !!raw;
-  else if (field.kind === "sources") {
-    const allowed = Array.isArray(choices) && choices.length ? choices : SOURCE_CHOICES;
-    const want = Array.isArray(raw) ? raw.filter((s) => allowed.some((c) => c.key === s)) : [];
-    const same = want.length === (cur.sources || []).length && want.every((s) => (cur.sources || []).includes(s));
-    return same ? null : { sources: want };
+  else if (field.kind === "sources" || field.kind === "slots") {
+    // A SET FIELD, and both kinds are one: an array in, an order-insensitive compare, and no write
+    // when nothing actually changed. `sources` validates against the harness's kinds; `slots`
+    // against the agent roster when the caller hands one over.
+    //
+    // AN ABSENT `choices` MEANS DO NOT FILTER, which matters for `slots` in a way it did not for
+    // `sources`: the roster comes from a different door and can legitimately be unavailable, and a
+    // filter against an empty roster would silently discard every name he picked. For `sources` the
+    // fallback list is still used, because that list is a real one this module ships.
+    const allowed = Array.isArray(choices) && choices.length
+      ? choices.map((c) => (typeof c === "string" ? c : c && c.key)).filter(Boolean)
+      : field.kind === "sources"
+        ? SOURCE_CHOICES.map((c) => c.key)
+        : null;
+    const asked = Array.isArray(raw) ? raw.map((x) => String(x || "").trim()).filter(Boolean) : [];
+    const want = [...new Set(allowed ? asked.filter((x) => allowed.includes(x)) : asked)];
+    const now = Array.isArray(cur[field.key]) ? cur[field.key] : [];
+    const same = want.length === now.length && want.every((x) => now.includes(x));
+    return same ? null : { [field.key]: want };
   } else if (field.kind === "slot") next = String(raw == null ? "" : raw).trim();
   else next = clampInt(raw, field.min, field.max, cur[key]);
   if (next === cur[key]) return null;
   return { [key]: next };
 }
 
-/** Flip one source on or off, returning the whole list the way the harness stores it. */
-export function toggleSource(settings, key) {
-  const cur = Array.isArray((settings || {}).sources) ? (settings || {}).sources : [];
+/**
+ * Flip one member of a set field on or off, returning the whole list the way the harness stores it.
+ *
+ * Generic over the FIELD, because `managers` needs exactly what `sources` needed and a second copy
+ * of four lines is a second place for the add/remove asymmetry to drift.
+ */
+export function toggleMember(settings, field, key) {
+  const cur = Array.isArray((settings || {})[field]) ? (settings || {})[field] : [];
   return cur.includes(key) ? cur.filter((s) => s !== key) : [...cur, key];
 }
+
+/** The source switches' own door — kept because its callers and its claims already name it. */
+export const toggleSource = (settings, key) => toggleMember(settings, "sources", key);
 
 /**
  * The one line the cog shows when the panel is shut — so the state is readable without opening it.

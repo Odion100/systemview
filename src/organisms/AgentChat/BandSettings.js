@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listDefs } from "../../utils/hostAgents";
-import { FIELDS, SOURCE_CHOICES, sourceChoices, UNITS, patchFor, summaryOf, toggleSource, usable } from "./nudgeSettings";
+import { FIELDS, SOURCE_CHOICES, sourceChoices, UNITS, patchFor, summaryOf, toggleSource, toggleMember, usable } from "./nudgeSettings";
 import {
   FIELDS as COMPACTION_FIELDS,
   UNITS as COMPACTION_UNITS,
@@ -207,6 +207,45 @@ const BandSettings = () => {
                       a one-option select, which reads as "there are no agents" and is a lie. */}
                   {f.kind === "slot" && roster && !roster.length && (
                     <span className="agent-chat__bandcog-none">no agents defined to choose from</span>
+                  )}
+                  {/* A SET OF NAMES — the managers. Switches rather than a picker, because adding
+                      a second name must not mean replacing the first and taking one back must be
+                      one press. The roster is the choice list, and it is also the FILTER passed to
+                      patchFor: with the roster unavailable nothing is filtered, because filtering
+                      against an empty roster would silently discard every name he picked. */}
+                  {f.kind === "slots" && (
+                    <span className="agent-chat__bandcog-sources">
+                      {(roster || []).map((id) => (
+                        <button
+                          type="button"
+                          key={id}
+                          className={`agent-chat__bandcog-src${(settings[f.key] || []).includes(id) ? " agent-chat__bandcog-src--on" : ""}`}
+                          onClick={() => send(patchFor(settings, f.key, toggleMember(settings, f.key, id), roster))}
+                        >
+                          {id}
+                        </button>
+                      ))}
+                      {/* A NAME ALREADY SET THAT IS NOT IN THE ROSTER STILL SHOWS, marked. An agent
+                          can be removed after being named a manager, and a list that silently
+                          dropped it would rewrite his setting the next time he touched anything
+                          else in this panel. Pressing it takes it off, which is the only thing he
+                          could want to do with it. */}
+                      {(settings[f.key] || [])
+                        .filter((id) => roster && !roster.includes(id))
+                        .map((id) => (
+                          <button
+                            type="button"
+                            key={`gone-${id}`}
+                            className="agent-chat__bandcog-src agent-chat__bandcog-src--on agent-chat__bandcog-src--gone"
+                            onClick={() => send(patchFor(settings, f.key, toggleMember(settings, f.key, id), null))}
+                          >
+                            {id} — no such agent
+                          </button>
+                        ))}
+                      {roster && !roster.length && (
+                        <span className="agent-chat__bandcog-none">no agents defined to choose from</span>
+                      )}
+                    </span>
                   )}
                   {f.kind === "sources" && (
                     <span className="agent-chat__bandcog-sources">

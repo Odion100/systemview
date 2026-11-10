@@ -14,14 +14,17 @@ import NudgeCog from "./NudgeCog";
 // draw what the harness said and to send one changed field back to it, keeping no copy of its own.
 
 let writes = [];
-const doors = ({ nudge = true, compaction = true, agents = ["manager", "systemview-test", "blink"] } = {}) => {
+// `chaser` SEEDS THE SETTINGS THE DOOR ANSWERS WITH. A set field has to be testable from a
+// non-empty starting state — "pressing a second one keeps the first" cannot be asserted from a
+// panel that always opens with nothing selected.
+const doors = ({ nudge = true, compaction = true, agents = ["manager", "systemview-test", "blink"], chaser = {} } = {}) => {
   writes = [];
   const api = {};
   if (nudge)
     api.nudge = {
       read: async () => ({
         ok: true,
-        settings: { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 10, sources: ["job:", "skill:"] },
+        settings: { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 10, sources: ["job:", "skill:"], ...chaser },
       }),
       write: async (patch) => {
         writes.push({ chaserKnobs: patch });
@@ -146,52 +149,72 @@ describe("each section states its own absence (c19's other half)", () => {
   });
 });
 
-describe("the manager field — his control over who may assign work", () => {
+describe("the managers field — his control over who may assign work", () => {
   // WHY IT IS HERE AND NOT ON EVERY AGENT'S DEFINITION: the profile's lever is allow/deny per
   // agent, so gating assign that way would mean unchecking a tool on every agent that must not
-  // have it. One name, in the panel he already opens to control the nudging.
+  // have it. A list, in the panel he already opens to control the nudging.
   //
-  // AND IT IS PICKED, NOT TYPED (his correction, 2026-11-09). The authority is compared to a
+  // AND IT IS PRESSED, NOT TYPED (his correction, 2026-11-09). The authority is compared to a
   // session's slot exactly, so a typo names nobody and the refusal that follows is correct and
-  // unactionable — "that is managr". A select cannot misspell.
-  const managerBox = async () => {
-    const boxes = await screen.findAllByRole("combobox");
-    return boxes.find((b) => within(b).queryByText(/^nobody$/));
+  // unactionable — "that is managr". A switch cannot misspell.
+  //
+  // SWITCHES, NOT A PICKER (his ask, 2026-11-10: "we should be able to assign more than one
+  // manager"). A select could only ever hold one, so naming a second agent meant un-naming the
+  // first — and the ability is not a role: one agent reading finished work against the doctrine and
+  // another sitting above an arc hold the same verb at once.
+  // QUERIED BY TEXT WITHIN THE ROW, NOT BY ROLE AND NAME, and the reason is a real trap: `<button>`
+  // is a LABELABLE element, so a button inside this row's `<label>` takes the label's whole text
+  // content as its accessible name — "managers" plus every switch plus the help line. So
+  // `getByRole("button", { name: "manager" })` can never match, however correct the render is.
+  // Scoping to the row also keeps these from colliding with the `sources` switches, which are the
+  // same class in the same panel.
+  const row = () => screen.getByText("managers").closest("label");
+  const mgr = async (id) => {
+    await waitFor(() => expect(within(row()).getByText(id)).toBeTruthy());
+    return within(row()).getByText(id);
   };
+  const isOn = (b) => /--on/.test(b.className);
 
-  it("offers every defined agent, with nobody as the default", async () => {
+  it("offers every defined agent, with nobody selected by default", async () => {
     doors();
     render(<BandSettings />);
-    const box = await managerBox();
-    expect(box.value).toBe("");
-    await waitFor(() => expect(within(box).getByText("systemview-test")).toBeTruthy());
-    expect(within(box).getByText("manager")).toBeTruthy();
-    expect(within(box).getByText("blink")).toBeTruthy();
+    expect(isOn(await mgr("systemview-test"))).toBe(false);
+    expect(isOn(await mgr("manager"))).toBe(false);
+    expect(isOn(await mgr("blink"))).toBe(false);
+    // NOBODY IS THE DEFAULT AND IT IS NOT A PLACEHOLDER: an empty authority admits nobody, so
+    // drawing nothing selected is the honest resting state rather than "unset, therefore anyone".
     expect(writes.length).toBe(0);
   });
 
-  it("picking one writes it once — a choice is a single discrete act", async () => {
+  it("pressing one writes it once — a grant is a single discrete act", async () => {
     doors();
     render(<BandSettings />);
-    const box = await managerBox();
-    await waitFor(() => expect(within(box).getByText("manager")).toBeTruthy());
-    fireEvent.change(box, { target: { value: "manager" } });
+    fireEvent.click(await mgr("manager"));
     await waitFor(() => expect(writes.length).toBe(1));
-    expect(writes[0].chaserKnobs).toEqual({ manager: "manager" });
+    expect(writes[0].chaserKnobs).toEqual({ managers: ["manager"] });
   });
 
-  it("returning to nobody is a choice he can make, and it writes the empty authority", async () => {
-    doors();
+  it("PRESSING A SECOND ONE KEEPS THE FIRST — the whole reason this is not a select", async () => {
+    doors({ chaser: { managers: ["manager"] } });
     render(<BandSettings />);
-    const box = await managerBox();
-    await waitFor(() => expect(within(box).getByText("manager")).toBeTruthy());
-    fireEvent.change(box, { target: { value: "" } });
+    await waitFor(() => expect(isOn(within(row()).getByText("manager"))).toBe(true));
+    fireEvent.click(await mgr("systemview-test"));
     await waitFor(() => expect(writes.length).toBe(1));
-    expect(writes[0].chaserKnobs).toEqual({ manager: "" });
+    expect(writes[0].chaserKnobs).toEqual({ managers: ["manager", "systemview-test"] });
   });
 
-  // AN EMPTY ROSTER SAYS SO. A one-option select reads as "there are no agents", which is a claim
-  // about the world the panel cannot make from a door that simply is not there.
+  it("taking one back is one press, and emptying it writes the empty authority", async () => {
+    doors({ chaser: { managers: ["manager"] } });
+    render(<BandSettings />);
+    const b = await mgr("manager");
+    await waitFor(() => expect(isOn(within(row()).getByText("manager"))).toBe(true));
+    fireEvent.click(b);
+    await waitFor(() => expect(writes.length).toBe(1));
+    // AN EMPTY LIST IS A REAL SETTING the harness reads as REFUSED, so returning to nobody has to
+    // actually be sent rather than suppressed as "no change".
+    expect(writes[0].chaserKnobs).toEqual({ managers: [] });
+  });
+
   it("says the roster is empty rather than drawing a menu of one", async () => {
     doors({ agents: [] });
     render(<BandSettings />);
