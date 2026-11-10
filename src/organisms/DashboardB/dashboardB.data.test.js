@@ -162,6 +162,13 @@ describe("the tracks are the trails that already exist", () => {
     expect(KINDS.map((k) => k.kind)).toContain("report");
   });
 
+  // THE PIP ORDER, AND KINDS IS ITS ONLY SOURCE — the project cards map this list straight through,
+  // so the order here is the order he reads on every card. An arc leads because it holds the
+  // objectives everything else serves, and it is the order every other surface here reads in.
+  it("leads with the arc", () => {
+    expect(KINDS.map((k) => k.kind)).toEqual(["arc", "rfc", "gap", "report"]);
+  });
+
   // THE EMPTY STATION IS THE WHOLE VALUE OF THE PICTURE: the gap between a full `draft` column and
   // an empty `settled` one is the sentence "nothing is finishing", and dropping it deletes that.
   it("keeps every station even when nothing is standing there", () => {

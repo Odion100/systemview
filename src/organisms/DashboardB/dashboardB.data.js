@@ -31,9 +31,13 @@ import { isFixture, leafLine, owedFrom, skippedLine, docKey } from "../AgentChat
 // The hues are HowWeWork's, deliberately: that page teaches what a kind IS, and two surfaces in
 // one window disagreeing about what purple means is a cost paid by the reader, not by us. The
 // styles declare the actual values with a dark-mode step; these are the var names.
+//
+// THE ORDER IS THE PIP ORDER, and this list is its only source — the project cards read it straight
+// through. An arc leads because it holds the objectives everything else serves, which is the order
+// every other surface here already reads in.
 export const KINDS = [
-  { kind: "rfc", label: "RFCs", one: "RFC", blurb: "a design, reduced to claims somebody can check" },
   { kind: "arc", label: "arcs", one: "arc", blurb: "a body of work, made of objectives with owners" },
+  { kind: "rfc", label: "RFCs", one: "RFC", blurb: "a design, reduced to claims somebody can check" },
   { kind: "gap", label: "gaps", one: "gap", blurb: "something another project gets wrong, filed where the fix lives" },
   { kind: "report", label: "reports", one: "report", blurb: "an account of work done — a view, with a clock on it" },
 ];

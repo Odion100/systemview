@@ -373,11 +373,19 @@ describe("the projects, all of them", () => {
   });
 
   // FOUR PIPS IN THE SAME ORDER ON EVERY CARD, zeroes included — that is what makes two projects
-  // comparable at a glance instead of readable one at a time.
-  it("every card shows all four kinds, including the ones it has none of", () => {
+  // comparable at a glance instead of readable one at a time. The arc leads: it holds the
+  // objectives everything else serves, and the order comes from KINDS and nowhere else.
+  it("every card shows all four kinds in one order, including the ones it has none of", () => {
     const { container } = render(<ProjectsTile data={mk()} />);
     container.querySelectorAll(".dbb-proj").forEach((card) => {
-      expect(card.querySelectorAll(".dbb-pip")).toHaveLength(4);
+      const pips = [...card.querySelectorAll(".dbb-pip")];
+      expect(pips).toHaveLength(4);
+      expect(pips.map((p) => p.getAttribute("title").replace(/^\d+ /, ""))).toEqual([
+        "arcs",
+        "RFCs",
+        "gaps",
+        "reports",
+      ]);
     });
   });
 
