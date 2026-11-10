@@ -4,7 +4,7 @@ import loadServiceWithHeaders from "../../../utils/loadService";
 const LABEL = { before: "Before", main: "Main", events: "Events", after: "After" };
 
 export default function FullTestController({ FullTest, connectedServices } = {}) {
-  // RFC-020 — FullTest is `{ sections, order }`. Loop the run-order (a list of section names) and run each
+  // FullTest is `{ sections, order }`. Loop the run-order (a list of section names) and run each
   // section's steps in sequence. No hardcoded `[...Before,...Events,...Main,...After]`. `onStep` (optional)
   // re-renders between steps so the scratchpad shows each step go live.
   this.runFullTest = async (onStep) => {
@@ -135,7 +135,7 @@ export default function FullTestController({ FullTest, connectedServices } = {})
       Events: serializeSection(sections.events),
       After: serializeSection(sections.after),
     };
-    // RFC-020 — named-action sections persist as REFERENCES (`{ use }` — one stored definition, many
+    // named-action sections persist as REFERENCES (`{ use }` — one stored definition, many
     // tests), plus the run-order that places them. Tests with no named sections keep the old shape.
     const namedNames = order.filter((n) => !LABEL[n]);
     if (namedNames.length) {

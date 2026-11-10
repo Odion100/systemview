@@ -5,7 +5,7 @@ import { useMarkdownScope } from "../context";
 import { parseTarget, resolveNamespace as resolve } from "../nsResolve";
 import { onCodePage, revealNamespaceInPanel } from "../openRef";
 
-// RFC-025 §4.1 — `:ns[Math.add]`. A namespace reference that NAVIGATES instead of describing.
+// `:ns[Math.add]`. A namespace reference that NAVIGATES instead of describing.
 // Parsing and live-tree resolution live in ../nsResolve.js, shared with `:::run` steps so a name that
 // LINKS here also RUNS there.
 

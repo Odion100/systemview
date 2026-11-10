@@ -1,4 +1,4 @@
-// RFC-018 — the CLI's drive surface for the AI Window. Thin verbs over the API stage methods: each
+// the CLI's drive surface for the AI Window. Thin verbs over the API stage methods: each
 // resolves a target project (via the unified fuzzy resolver, `projectCode:` prefix and all), builds
 // pane descriptors (locators only — never bytes), and calls the API, which broadcasts `stage-updated`
 // to every open UI. The UI fetches real bytes from each service's plugin at render time.

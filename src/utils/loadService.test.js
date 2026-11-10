@@ -68,7 +68,7 @@ describe("a service's origin is credentialed only when it says so", () => {
     expect(sendsCredentials("https://theirs.example:4600/api")).toBe(false);
   });
 
-  // A folder registered with the browser is not a service at all (RFC-047) — it must never reach
+  // A folder registered with the browser is not a service at all — it must never reach
   // the client or mark an origin.
   it("a host-backed folder never marks anything", () => {
     const folder = { __hostFiles: { projectCode: "p", root: "/tmp/p" }, serviceUrl: "https://nope.example/api" };

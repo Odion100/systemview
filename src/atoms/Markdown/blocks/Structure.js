@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useMarkdownWrite } from "../context";
 
-// RFC-025 §4.4 — structure blocks. These wrap markdown (container directives), so their children are
+// structure blocks. These wrap markdown (container directives), so their children are
 // ordinary rendered markdown — headings, code, tables, other blocks.
 
 //   :::callout
@@ -57,7 +57,7 @@ export const Details = ({ attrs = {}, children }) => {
 // A lead sitting NEXT TO the thing it leads into — the same instinct as a lead pane beside its
 // evidence, but inside one document. Note the colon count: the outer block takes one MORE colon than
 // the `col`s inside it (that's how container directives nest).
-// RESIZABLE (RFC-026): drag the boundary between the two columns; on release the split writes back
+// RESIZABLE: drag the boundary between the two columns; on release the split writes back
 // into the source as `split=NN` — the document is the state, same as a slider or a question. On a
 // read-only surface the drag still works, it just doesn't persist. Double-click resets to 50/50.
 export const Columns = ({ attrs = {}, line, children }) => {

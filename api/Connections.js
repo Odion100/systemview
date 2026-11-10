@@ -42,7 +42,7 @@ function refreshConnections(connections) {
         return resolve(result);
       }
 
-      // RFC-021 — a DYNAMIC (project-defined/synthesized) service has no live URL: never probe it,
+      // a DYNAMIC (project-defined/synthesized) service has no live URL: never probe it,
       // never rebuild it from a plugin, keep the stored entry verbatim. Without this branch every
       // server restart silently dropped synthesized services as "dead".
       if (connections[i].dynamic) {
@@ -105,7 +105,7 @@ module.exports = function ConnectedServices() {
         if (!sameAsProbed) newConnections[seenIdx] = svc;
         return;
       }
-      // RFC-027 — a HOSTED service re-registers with a FRESH port during boot, racing this probe
+      // a HOSTED service re-registers with a FRESH port during boot, racing this probe
       // loop: the stale snapshot holds its old (dead) URL, so it isn't `seen`, and without the
       // hosted escape the merge reads the new registration as "the dead service we just dropped"
       // and clobbers it. Keep it only when it isn't the same stale entry we probed dead.

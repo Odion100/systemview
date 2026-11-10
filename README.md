@@ -79,8 +79,7 @@ Details of both: **[agents/hosted-services.md](agents/hosted-services.md)** and
 ## For agents
 
 Inside the harness, agents don't shell out to the CLI. SystemView exposes an internal **MCP server**
-and agents call its tools, with identity supplied by the session — there is no `--as` flag anywhere
-(RFC-056):
+and agents call its tools, with identity supplied by the session — there is no `--as` flag anywhere:
 
 `runTests` · `probe` · `projects` · `logs` · `stats` · `show` · `tv` · `reply` · `board` ·
 `comments` · `nav` · `refresh` · `act` · `highlight` · `connect` · `disconnect`

@@ -3,7 +3,7 @@ import NavRail from "./NavRail";
 import SystemNavigator from "../SystemNavigator/SystemNavigator";
 import useWallPanel from "../WallPanel/useWallPanel";
 
-// RFC-052/RFC-055 — THE NAVIGATOR TRAVELS. Not an "agent nav", not a second side panel with its
+// THE NAVIGATOR TRAVELS. Not an "agent nav", not a second side panel with its
 // own rules (his call: "we already have a navigation tab — what the fuck do you need a new nav
 // for?"). This is the SAME navigator Specs has — Projects and Agents tabs inside ITS strip, the
 // codebase cards and the agent cards both riding along — wrapped in the same nav-panel shell with

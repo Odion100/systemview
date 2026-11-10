@@ -2,7 +2,7 @@ import Argument from "../TestPanel/components/Argument.class";
 import Test from "../TestPanel/components/Test.class";
 import loadServiceWithHeaders from "../../utils/loadService";
 
-// RFC-020 — pull every service's permanent shared actions into one name → action map (first name wins),
+// pull every service's permanent shared actions into one name → action map (first name wins),
 // exactly like the CLI's getActionMap. Actions STORE under the service they were saved on, but a test
 // calls across namespaces — so the picker and the `{ use }` resolver must see the whole project's
 // actions, not just the current service's. Tolerant of older plugins without getActions.
@@ -59,7 +59,7 @@ export async function getActionMap(services) {
   return Object.assign({}, ...maps);
 }
 
-// RFC-020 — a shared-action section entry resolves to that action's steps: `{ use: <name> }` pulls the
+// a shared-action section entry resolves to that action's steps: `{ use: <name> }` pulls the
 // stored procedure's steps; an inline array is used as-is. Mirrors testing-utilities/transformTests.js.
 export function resolveSteps(val, resolveAction) {
   if (Array.isArray(val)) return val;
@@ -87,7 +87,7 @@ export function resolveTestActions(ft, resolveAction) {
 // The run-procedure default: before → events → main → after (events special, historical slot).
 const DEFAULT_ORDER = ["before", "events", "main", "after"];
 
-// RFC-020 — a test becomes a **sections object** `{ before, main, events, after, <named> }` (the reference
+// a test becomes a **sections object** `{ before, main, events, after, <named> }` (the reference
 // target + shared FullTest) PLUS a **run-order** list of section names (what the engine loops). Named
 // sections are peers of the built-ins. Mirrors testing-utilities/transformTests.js.
 export function initializeSavedTests(savedTests, connectedServices, resolveAction) {
@@ -131,7 +131,7 @@ export const resetTest = (test, FullTest, connectedServices, editMode) => {
   }).getConnection(connectedServices);
 };
 
-// RFC-020 — load a raw saved test into the SCRATCHPAD: built-in section arrays + the test's named-action
+// load a raw saved test into the SCRATCHPAD: built-in section arrays + the test's named-action
 // sections, ALL bound to one shared sections object so cross-section references resolve while editing.
 // Named sections come back in the test's run-order. Returns { Tests: [B,M,E,A], named: [{name, tests}] }.
 export const resetScratchpad = (ft, connectedServices) => {
@@ -157,7 +157,7 @@ export const resetScratchpad = (ft, connectedServices) => {
     return { name, action, tests: sections[name], pos };
   });
 
-  // RFC-023 — the FULL section order for the builder. Tests aren't always built in the UI (agents
+  // the FULL section order for the builder. Tests aren't always built in the UI (agents
   // hand-author), so `run` may put ANY section anywhere — the scratchpad must render THAT order, not
   // a hardcoded skeleton. Normalize built-in casing, drop unknowns/dupes, then guarantee every
   // section appears (missing built-ins slot into their default spots; unlisted named sections land

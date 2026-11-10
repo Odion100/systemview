@@ -1,6 +1,6 @@
 // CALL STATISTICS — the shared core, in a neutral home.
 //
-// RFC-032: agents get the SAME eyes the Stats page has — each plugin's getStats(), windowed with the
+// agents get the SAME eyes the Stats page has — each plugin's getStats(), windowed with the
 // SAME math the page uses (per-minute buckets summed inside the window; percentiles and the status
 // mix stay all-time, because bounded rollups keep no per-bucket histograms).
 //

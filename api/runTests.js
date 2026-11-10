@@ -94,7 +94,7 @@ async function collectTests(services, client) {
   return { lists, unreachable };
 }
 
-// RFC-020 — a `{ use }` reference carries the service that stores it, so only the services a test
+// a `{ use }` reference carries the service that stores it, so only the services a test
 // actually names are asked, and they are asked at once.
 async function actionsOfService(service, client) {
   const out = {};

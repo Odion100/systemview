@@ -18,7 +18,7 @@ import { systemviewCapabilities } from "../../markdownCapabilities";
 import { renderChatMessage } from "../AgentChat/AgentChat";
 import "./styles.scss";
 
-// RFC-022 — the CODE center. EDIT-FIRST: every file opens straight into the CM6 editor (the inversion
+// the CODE center. EDIT-FIRST: every file opens straight into the CM6 editor (the inversion
 // of the read-first namespace lens). `.md` gets a Preview toggle in the header (edit ⇄ rendered,
 // remembered per file). Save = the plugin's writeFile; dirty state shows until saved (⌘S / Ctrl+S or
 // the Save button). Bytes come from the codebase's file host at render time — locators, not copies.
@@ -97,7 +97,7 @@ const CodePane = ({ file, onClose }) => {
   // opened from and refused to read anything without it — so clicking a file in a project whose
   // services are down opened nothing at all, on a folder sitting right there on disk. Files come
   // from the hub now; the project code is the whole address.
-  // RFC-069 — A MACHINE FILE: absolute path, no project. It needs no host and must not be closed
+  // A MACHINE FILE: absolute path, no project. It needs no host and must not be closed
   // for lacking one; everything a project enriches (git, comments, history) renders ABSENT below,
   // never broken.
   const isMachine = !!file.machine;
@@ -386,7 +386,7 @@ const CodePane = ({ file, onClose }) => {
     localStorage.setItem(`sv.mdPreview.${file.path}`, String(next));
   };
 
-  // RFC-034 — COMMENTS SHOW BY DEFAULT. They were hidden until you asked, and the cost of that was
+  // COMMENTS SHOW BY DEFAULT. They were hidden until you asked, and the cost of that was
   // writing one, refreshing, and finding it closed — "I hate the fucking refreshing it closed if I
   // just made a comment". They're his notes on his file; they should be on the page.
   const [commentsOn, setCommentsOn] = useState(true);
@@ -415,7 +415,7 @@ const CodePane = ({ file, onClose }) => {
     }
   });
   const [hits, setHits] = useState([]);
-  // RFC-034 — THE 💬 IN THE HEADER IS A LIST, not a switch. "you can click on them and go straight to
+  // THE 💬 IN THE HEADER IS A LIST, not a switch. "you can click on them and go straight to
   // those lines, you can delete them on the side, you can clear all of them": one row per comment,
   // the row takes you there, the × on it deletes that one, clear-all sits at the bottom instead of
   // being its own control up in the corner.
@@ -855,7 +855,7 @@ const CodePane = ({ file, onClose }) => {
         >
           {badge.label}
         </span>
-        {/* THE ONE QUIET LINE a machine file gets instead of dead git controls (RFC-069 §4.3):
+        {/* THE ONE QUIET LINE a machine file gets instead of dead git controls:
             outside every project, so nothing project-shaped exists here — said once, in the
             header, never as a broken button. */}
         {isMachine && (

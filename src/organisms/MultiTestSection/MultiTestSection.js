@@ -16,7 +16,7 @@ const DRAG_MIME = "application/x-sv-step";
 const EVENTS_DRAG_MIME = "application/x-sv-step-events";
 const stepMime = (sectionKey) => (sectionKey === "events" ? EVENTS_DRAG_MIME : DRAG_MIME);
 
-// RFC-023 — the shell around ONE step: the drag grip (move within/across editable sections), the
+// the shell around ONE step: the drag grip (move within/across editable sections), the
 // duplicate (⧉), and the drop target (top half = before this step, bottom half = after). Sections
 // that pass no onStepMove (shared-action steps, the Actions tab) render the bare step — sealed.
 export function StepShell({ sectionKey, index, onStepMove, onStepDuplicate, onDelete, children }) {

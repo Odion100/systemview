@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-// RFC-038 — AN AGENT DOCKS INTO ITS CODEBASE.
+// AN AGENT DOCKS INTO ITS CODEBASE.
 //
 // Docking used to mean "parked at the top edge of the window": a pill in a lane, out of the way and
 // related to nothing. An agent belongs to a codebase, so this is where it goes back to — a section
@@ -19,7 +19,7 @@ export const slotId = (pc) => `sv-agent-slot-${pc}`;
 // head, meter and roster) — in that fixed order, so the pinned section reads exactly as the card
 // read when it was all one scroll.
 export const pinId = (pc, part) => `sv-agent-pin-${pc}-${part}`;
-// RFC-052 — THE RAIL. When the navigator is collapsed its card (and slot) is gone; the docked agents
+// THE RAIL. When the navigator is collapsed its card (and slot) is gone; the docked agents
 // move to the thin strip that is left, instead of vanishing. One slot for all of them.
 export const railId = "sv-agent-rail";
 
@@ -52,7 +52,7 @@ export const useNavDock = (pc) => {
   return on;
 };
 
-// RFC-052 — THE DOCK HAS SPOTS. One per agent, in an order he arranges by dropping: the dock keeps
+// THE DOCK HAS SPOTS. One per agent, in an order he arranges by dropping: the dock keeps
 // its length whether one agent is in it or all of them, and an empty spot is visible. The order is
 // the whole state; a spot's id is what a docked bot portals into.
 const ORDER_KEY = "sv.dockOrder";

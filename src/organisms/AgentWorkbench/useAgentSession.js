@@ -3,7 +3,7 @@ import { openAgent, hasAgentHost, listModels, setModel as hostSetModel, setThink
 import { foldEvents, foldState, splitLaneEvents } from "./feedRows";
 import { laneTicksIn } from "./laneTick";
 
-// RFC-046 — ONE SESSION, SUBSCRIBED FROM WHEREVER IT IS BEING WATCHED. A hook rather than a
+// ONE SESSION, SUBSCRIBED FROM WHEREVER IT IS BEING WATCHED. A hook rather than a
 // component because the chat and the pane need the same stream and must not open two.
 //
 // THE SESSION OUTLIVES THE VIEW: `dispose()` detaches this subscriber and nothing else, so closing
@@ -115,7 +115,7 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     if (t && t.wipeWhiteboard) t.wipeWhiteboard();
   }, []);
 
-  // STANDING LANES (RFC-059 slice 2) — a lane row is born from a spawn and dies at cleanup;
+  // STANDING LANES — a lane row is born from a spawn and dies at cleanup;
   // nothing in between kills it. These rows come from the host's run FILES, not this session's
   // events, so a refresh cannot eat a row whose worktree and branch are still on disk. Refreshed
   // whenever a lane run moves in this session; the rest of the time the files are the truth.

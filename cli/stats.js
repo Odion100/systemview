@@ -4,7 +4,7 @@ const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const Client = createClient(createCookieHttpClient());
 
-// RFC-032 — `systemview stats <pc> [service] [--range 15m|1h|4h|24h|all] [--json]`.
+// `systemview stats <pc> [service] [--range 15m|1h|4h|24h|all] [--json]`.
 // Agents get the SAME eyes the Stats page has: each service plugin's getStats(), windowed with the
 // SAME math the page uses (per-minute buckets summed inside the window; percentiles and the status
 // mix stay all-time — bounded rollups keep no per-bucket histograms). Default output is the digest

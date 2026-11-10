@@ -7,7 +7,7 @@ const { refuseAuthorship, refuseLength } = require("./commitGuard");
 const ReportsLib = require("./reports");
 const ConnectedServices = require("./Connections")();
 const CLIHistory = require("./CLIHistory")();
-// RFC-056 — recent test runs by HANDLE: hub memory, capped, never on disk (his rule).
+// recent test runs by HANDLE: hub memory, capped, never on disk (his rule).
 const RUNS = new Map();
 const Settings = require("./Settings")();
 const Comments = require("./Comments")();
@@ -218,7 +218,7 @@ const Chats = require("./Chats")({ chatFor: projectChat });
 // The UI server calls services the same way the CLI does: through the manifest-header client,
 // so operator-authored headers (e.g. an Origin for a gated dev session — see cli/manifestHeaders.js)
 // are attached to every outbound call and every probe. One resolver, shared with the CLI; the UI is
-// driven off the same manifest format (RFC-007). Without this the UI cannot reach a gated service.
+// driven off the same manifest format. Without this the UI cannot reach a gated service.
 const httpClient = createCookieHttpClient();
 const Client = createClient(httpClient);
 const route = "systemview/api";
@@ -275,10 +275,10 @@ function connect({ system, projectCode, serviceId, specList, credentials, dynami
     service.serviceId = serviceId;
     service.specList = specList;
     service.credentials = !!credentials;
-    // RFC-021 — project-defined (synthesized) service: no live URL. The flag must survive every
+    // project-defined (synthesized) service: no live URL. The flag must survive every
     // rewrite of the entry or refreshConnections would treat it as a dead service and drop it.
     service.dynamic = !!dynamic;
-    // RFC-027 — CLI-hosted service: the value is the committed folder (relative to the repo root).
+    // CLI-hosted service: the value is the committed folder (relative to the repo root).
     service.hosted = hosted || false;
     ConnectedServices.save(service, index);
   } else
@@ -389,14 +389,14 @@ function getProjects() {
       // the browser has no filesystem). The UI calls svc.setHeaders(headers) after createService so
       // every browser-run test/log/probe carries them. Same manifest.headers store as the CLI.
       headers: headersFor(system.connectionData.serviceUrl),
-      // Cookie-credentialed declaration (RFC-013): the service's plugin registered credentials:true,
+      // Cookie-credentialed declaration: the service's plugin registered credentials:true,
       // meaning it authenticates via session cookies (no header profile) — the browser must mark its
       // origin credentialed so withCredentials rides from the very first request.
       credentials: !!credentials,
-      // RFC-021 — project-defined (synthesized) service: rendered under its CODEBASE in the file
+      // project-defined (synthesized) service: rendered under its CODEBASE in the file
       // lens, not in the SystemLynx services nav.
       dynamic: !!dynamic,
-      // RFC-027 — CLI-hosted (a LIVE service the hub runs from the project's committed folder).
+      // CLI-hosted (a LIVE service the hub runs from the project's committed folder).
       // The value is that folder, relative to the repo root — the UI shows where the config lives
       // and wears the plum indicator off this flag.
       hosted: hosted || false,
@@ -405,7 +405,7 @@ function getProjects() {
   return projects;
 }
 
-// RFC-027 — deleting a HOSTED service must actually unhost it (stop the app, remove the manifest
+// deleting a HOSTED service must actually unhost it (stop the app, remove the manifest
 // registration) or the next boot resurrects it. `hostingUnit` is set when the server launches.
 let hostingUnit = null;
 
@@ -419,7 +419,7 @@ async function deleteProject(projectCode) {
   ConnectedServices.deleteProject(projectCode);
 }
 
-// RFC-018 — the AI Window stage. Each mutation ends by broadcasting the new stage over sockets to
+// the AI Window stage. Each mutation ends by broadcasting the new stage over sockets to
 // every open UI for that project (`stage-updated:<projectCode>`), reusing the exact push pattern as
 // updateSpecList above. `this.emit` is bound to the module by systemlynx. getStage lets a UI
 // rehydrate the current stage on mount / reconnect. The stage holds only targets — never file bytes.
@@ -517,11 +517,11 @@ async function deleteView(projectCode, name) {
 // plugin methods these called were retired in systemview-plugin 2.23.0. Old .systemview/stories/
 // files are left untouched on disk.)
 
-// RFC-028 — agent presence: the chat front door. One JSONL file per chat serves BOTH transports
+// agent presence: the chat front door. One JSONL file per chat serves BOTH transports
 // (join = pushed live down a held poll, file = drained at turn boundaries); presence is derived
 // from the real connections. Every append broadcasts so the open UI's bubble/panel stays live —
 // the same push pattern as the stage above.
-// RFC-031 — identities ARE project codes. An `--as` that names another LIVE project is a
+// identities ARE project codes. An `--as` that names another LIVE project is a
 // VISITOR speaking as that project; anything else (legacy "claude", no --as at all) canonicalizes
 // to the room's own project — you're its home agent. This one function is also the self-loop
 // guard's other half: made-up handles can never mint a deliverable third identity.
@@ -549,7 +549,7 @@ function resolveSpeaker(projectCode, chat, as) {
   } catch {}
   if (!known)
     throw new Error(
-      `"${as}" is not a connected project — identities ARE project codes (RFC-031). Speak as your own project (--as <yourProjectCode>), or drop --as to speak as ${projectCode}'s own agent.`,
+      `"${as}" is not a connected project — identities ARE project codes. Speak as your own project (--as <yourProjectCode>), or drop --as to speak as ${projectCode}'s own agent.`,
     );
   // Arriving IS entering. The pre-entry gate was a proof-of-presence built on holds, and holds are
   // what this replaced; the identity check above is the proof that survives. The visit is still
@@ -690,7 +690,7 @@ function relayToVisitors(ctx, projectCode, chatName, { text, speaker, record, hu
         });
         if (relayed && relayed.record)
           ctx.emit(`chat-updated:${visitor}`, { chat: Chats.DEFAULT_CHAT, record: relayed.record });
-        // RFC-051 — the exchange refreshes a windowed teller's window, so an answer arriving at
+        // the exchange refreshes a windowed teller's window, so an answer arriving at
         // minute 14 doesn't close the door on their thanks.
         try { Chats.touchWindow(projectCode, chatName, visitor); } catch {}
       } catch {}
@@ -923,7 +923,7 @@ async function writeFile(projectCode, { path: rel, content, root } = {}) {
     return { ok: false, error: String(e.message || e) };
   }
 }
-// ── THE MACHINE DOOR (RFC-069) lives in ./machineDoors.js — extracted whole so a suite can
+// ── THE MACHINE DOOR lives in ./machineDoors.js — extracted whole so a suite can
 // hold its claims without booting the hub; behavior unchanged, this require is the only seam.
 const { machinePath, readPath, writePath, deletePath, listPath } = require("./machineDoors");
 
@@ -1543,7 +1543,7 @@ async function mergeBranch(projectCode, { branch, root } = {}) {
   });
 }
 
-// THE JANITOR'S VIEW (RFC-059) — a lane leaves artifacts: a worktree that auto-cleans only when
+// THE JANITOR'S VIEW — a lane leaves artifacts: a worktree that auto-cleans only when
 // unchanged (a lane ALWAYS changes its worktree), a branch that lives until deleted. These two
 // verbs are what lets a panel show "what this lane left behind" instead of leaving it to
 // archaeology.
@@ -1563,7 +1563,7 @@ async function worktrees(projectCode, { root } = {}) {
   return { ok: true, worktrees: rows };
 }
 
-// THE RECEIPT (RFC-063) — what an agent RECORDED at the moment it brought a lane in, read from the
+// THE RECEIPT — what an agent RECORDED at the moment it brought a lane in, read from the
 // lane's own run record. It is not an answer to "is this in the tree"; derivation answers that. It is
 // a dated record of an act, for the one case derivation cannot reach: a lane brought in and then built
 // upon, whose blobs no longer match and whose patch no longer reverses.
@@ -1809,7 +1809,7 @@ async function branchState(projectCode, { branch, base, root } = {}) {
   return { ok: true, branch: b, exists: true, merged, base: bs, ...(applied ? { applied } : {}) };
 }
 
-// EVERY LANE AND WHERE ITS WORK STANDS (RFC-063 §4) — one call, answered where the git already is.
+// EVERY LANE AND WHERE ITS WORK STANDS — one call, answered where the git already is.
 //
 // The RFC proposed this as an AMBIENT field so a hook could gate on it declaratively. I argued myself
 // out of it: ambient fields are stamped on EVERY event, and deciding `out` needs a forward-apply per
@@ -1854,7 +1854,7 @@ async function lanes(projectCode, { root } = {}) {
   return { ok: true, projectCode, lanes: out, notIn: out.filter((l) => l.verdict === "out").length };
 }
 
-// THE USER'S CLEANUP (RFC-059 slice 2) — pressed on a lane row after its confirm, never run
+// THE USER'S CLEANUP — pressed on a lane row after its confirm, never run
 // quietly by an agent. Both verbs REFUSE rather than force: a worktree with uncommitted changes
 // and an unmerged branch each need `force: true`, which only the confirm that told the user so
 // sends. The refusal text is the answer we surface.
@@ -2333,7 +2333,7 @@ function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
   // push presence so the waiting count and read receipts move the moment a message lands,
   // in every mode — not at the next poll.
   this.emit(`chat-presence:${projectCode}`, presenceFor(projectCode));
-  // RFC-051 — FEED THE AUDIENCE TO THE SPEAKER (his ask: "agents should know if someone is
+  // FEED THE AUDIENCE TO THE SPEAKER (his ask: "agents should know if someone is
   // subscribed in the room"). The subscriber list is known right here at send time, so the receipt
   // carries it instead of making the agent run a second command. `windowNudge` rides along when
   // this sender is on their third-or-later windowed exchange: the moment a courtesy becomes a
@@ -2351,11 +2351,11 @@ function chatSend(projectCode, { chat, from = "you", text, view, as } = {}) {
     return record;
   }
 }
-// RFC-029 — agent control: a command is a chat record; the push IS the execution channel. The
+// agent control: a command is a chat record; the push IS the execution channel. The
 // UI executes commands only off this live emit — chatHistory renders them as lines, nothing more.
 function chatCommand(projectCode, { chat, from, cmd, args, label, say } = {}) {
   const chatName = chat || Chats.DEFAULT_CHAT;
-  // RFC-039 — RE-PUSHING A SHOW REPLACES IT, it doesn't stack. Pushing the same report three times
+  // RE-PUSHING A SHOW REPLACES IT, it doesn't stack. Pushing the same report three times
   // left three identical-looking snapshots in the picker with no way to tell which one he had been
   // answering in — and each snapshot carries its OWN click state, so a re-push silently reset his
   // check-offs. Marking the older ones hidden keeps the transcript honest (nothing is deleted from
@@ -2396,7 +2396,7 @@ const DocMembers = require("./documentMembers");
 // this emits it, because the chat state and the socket live here. `say` rides the trip and is
 // ephemeral by design — it is spoken while the window moves and then it is gone, which is right for
 // a pointing line and a trap the moment real content lands in it. `pin` also drops it in the chat,
-// where it survives (RFC-039).
+// where it survives.
 function sendDrive(result, { projectCode, chat, as, say, pin } = {}) {
   if (!result || result.error) return result || { error: "nothing to send" };
   const record = chatCommand.call(this, projectCode, {
@@ -2416,7 +2416,7 @@ function sendDrive(result, { projectCode, chat, as, say, pin } = {}) {
   }
   return { ok: true, label: result.label, ...(record && record.id ? { id: record.id } : {}) };
 }
-// RFC-039 — TAKE ONE OFF THE LIST. His words: "I need to be able to delete shit." A show he is done
+// TAKE ONE OFF THE LIST. His words: "I need to be able to delete shit." A show he is done
 // with clutters the picker and, worse, makes the real one ambiguous. This hides the RECORD from the
 // collector; it does not remove it from the room, because the transcript is the account of what
 // happened and being tired of a show is not a reason to rewrite it. Reversible: `hidden: false`.
@@ -2601,7 +2601,7 @@ function readTvStore(projectCode, chat) {
 // clicking an answer edits that record — one place, no second copy of the text. The side-file only
 // survives as the fallback for a project whose plugin predates `chatUpdate`; dropping his answers
 // on those is not an option, so they keep the old behaviour until they upgrade.
-// RFC-050 — ANSWERING A BLOCK IN THE CHAT, and the reason it does two things at once.
+// ANSWERING A BLOCK IN THE CHAT, and the reason it does two things at once.
 //
 // On the TV, an input block writes its answer back into the SOURCE FILE — that is what makes an
 // answer durable, shared, and readable by an agent later. A chat message has no file behind it, so
@@ -2719,7 +2719,7 @@ function chatGetTv(projectCode, { chat, show } = {}) {
     id: target.id,
     label: target.label,
     text: target.text,
-    // RFC-040 — carry the pointer through. Without this the caller gets a show with no text and no
+    // carry the pointer through. Without this the caller gets a show with no text and no
     // way to find the document, which reads as "nothing on the TV".
     ...(target.args && target.args.report ? { args: target.args } : {}),
     ts: target.ts,
@@ -2748,7 +2748,7 @@ function findShow(projectCode, chat, needle) {
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
     if (!r || r.kind !== "command" || r.cmd !== "show") continue;
-    if (!r.args || !r.args.report) continue; // only documents are reports now (RFC-040)
+    if (!r.args || !r.args.report) continue; // only documents are reports now
     if (r.id === needle || String(r.label || "").toLowerCase().includes(want))
       return { id: r.id, label: r.label || "show", text: "", args: r.args, ts: r.ts };
   }
@@ -2761,7 +2761,7 @@ function currentShow(projectCode, chat) {
   for (let i = rows.length - 1; i >= 0; i--) {
     const r = rows[i];
     if (r && r.kind === "command" && r.cmd === "show") {
-      // RFC-040 — A REPORT IS A DOCUMENT. The hub hands back the POINTER; the caller (UI or CLI)
+      // A REPORT IS A DOCUMENT. The hub hands back the POINTER; the caller (UI or CLI)
       // reads the document through that project's own plugin, which is the thing that owns its
       // filesystem. A legacy record that carries text instead of a pointer is NOT a report any more
       // (his call: "I don't need that to be backwards compatible… the old ones shouldn't work") —
@@ -2777,7 +2777,7 @@ function currentShow(projectCode, chat) {
 // The bouncer — the human kicks an identity out of a room (right-click a roster name). The
 // kicked hold answers {kicked} immediately, the room gets its system line, rejoin refused for
 // the cooldown.
-// RFC-051 — THE CONVERSATION VERBS, agent-side. Joining, leaving and kicking were his controls
+// THE CONVERSATION VERBS, agent-side. Joining, leaving and kicking were his controls
 // only (roster clicks); his call: "agents should have the ability to join, leave, and kick other
 // people out of the room too. Not just me." Join is DELIBERATE — the one thing speaking no longer
 // does — and kick carries the one authority rule that keeps rooms legible: you run YOUR room's
@@ -2958,7 +2958,7 @@ module.exports = function launchSystemView(port = 3000) {
   const buildPath = path.resolve(__dirname, "../build");
   const indexPath = path.join(buildPath, "index.html");
 
-  // RFC-027 — the hosting unit, bound to this hub's own URL (hosted services register back through
+  // the hosting unit, bound to this hub's own URL (hosted services register back through
   // the same connect() door above, via the plugin, like every real service). hostedOp = the UI's
   // configuration hand: rename the service, add/delete/rename modules — file ops on the folder.
   hostingUnit = require("./hostProject")(port);
@@ -2992,7 +2992,7 @@ module.exports = function launchSystemView(port = 3000) {
   // both answer the same question (where does this path live) for different consumers.
   mountResolve(server);
 
-  // THE MACHINE BYTE PIPE (RFC-069) — images, pdfs and media for files outside every project.
+  // THE MACHINE BYTE PIPE — images, pdfs and media for files outside every project.
   // Same MIME table, same caching; the only difference is the door: absolute path, no containment,
   // because the machine door's rule is "anything the hub's own process can read".
   server.get("/sv-machine", (req, res) => {
@@ -3185,7 +3185,7 @@ module.exports = function launchSystemView(port = 3000) {
     // an agent door is grown out of a command surface: a `verb` string dispatching four tools, and
     // a module named after the one caller it is NOT for. Nothing here shells out, and nothing here
     // dials the hub over HTTP — it is the hub. The published CLI keeps its own face; this is the
-    // one an in-process MCP calls (RFC-056).
+    // one an in-process MCP calls.
     .module("Agent", {
       // THE TERMINAL, ON THE AGENT MODULE. The MCP server posts ONE argument per call
       // (`{__arguments:[arg]}`), while the SystemView module's verbs take `(projectCode, opts)` —
@@ -3347,7 +3347,7 @@ module.exports = function launchSystemView(port = 3000) {
         }
         if (!content.trim()) return { ok: false, error: "show: give text or a readable .md path" };
         const label = Reports.labelFor(content, from);
-        // A POINTER, AND ONLY A POINTER (RFC-040). If the document cannot be filed the show does not
+        // A POINTER, AND ONLY A POINTER. If the document cannot be filed the show does not
         // go up — a report that exists in a chat record and nowhere on disk is the drifting copy we
         // deleted the transition path to avoid.
         let path;
@@ -3365,7 +3365,7 @@ module.exports = function launchSystemView(port = 3000) {
       tv: async ({ projectCode, show } = {}) => {
         if (!projectCode) return { error: "projectCode required" };
         let state = chatGetTv(projectCode, { show });
-        // RFC-040 — the record NAMES a document; read that, because his answers are written into the
+        // the record NAMES a document; read that, because his answers are written into the
         // file, not into the record.
         if (state && !state.text && state.args && state.args.report) {
           const doc = await Reports.read(projectCode, state.args.path || state.args.report);
@@ -3516,7 +3516,7 @@ module.exports = function launchSystemView(port = 3000) {
       // read a registry the hub holds in memory. The validation is the capability; it lives in
       // api/drive.js, pure, and the emit happens here where the chat state is.
       nav: function (arg = {}) {
-        // A FILE IS RESOLVED BEFORE IT IS REPORTED (RFC-069 §4.2). This verb used to validate
+        // A FILE IS RESOLVED BEFORE IT IS REPORTED. This verb used to validate
         // stats tabs and service names and pass `file:` through blind — answering "navigated →
         // pulled up <path>" for a file it never checked, which is how an agent told him yes a
         // minute before his pane said "outside the project folder". A refusal comes back as the

@@ -181,7 +181,7 @@ test("the stats rollup counts a call, and an errored call as an error", () => {
   assert.strictEqual(signIn.errors, 1);
 });
 
-// RFC-015 Tier 2 — an inbound `x-sv-trace` is ADOPTED so a cross-service chain shares one id, and
+// an inbound `x-sv-trace` is ADOPTED so a cross-service chain shares one id, and
 // the caller rides along. Claimed because it is invisible until two services disagree.
 test("an inbound trace id is adopted rather than replaced", () => {
   const { before, traces } = mount();

@@ -1,4 +1,4 @@
-// ── LOAD BALANCER dogfood rig (RFC-015 §5) — one process, three apps ─────────────────────────────
+// ── LOAD BALANCER dogfood rig — one process, three apps ─────────────────────────────
 // A real LoadBalancer @ :5560 running the SystemView plugin IN LB MODE (it detects the Tentacle and
 // records cluster behavior instead of only method traces), plus TWO clones of an Echo service
 // (:5561/:5562) joining the cluster via the clone plugin. Drive traffic through the LB

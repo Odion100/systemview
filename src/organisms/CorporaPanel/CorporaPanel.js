@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { docsList, docsPlan, docsIndex, docsDrop, docsSearch, saveCorpus, pickPath, docsPreview, hasDocs, listDefs } from "../../utils/hostAgents";
 import "./styles.scss";
 
-// RFC-058 §8 — THE CORPORA SURFACE. His index, on his screen.
+// THE CORPORA SURFACE. His index, on his screen.
 //
 // The whole reason this panel exists is in one line of the RFC: *chunking is normally invisible,
 // which is exactly why RAG rots.* A pipeline whose cuts nobody has ever looked at cannot be

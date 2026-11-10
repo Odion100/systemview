@@ -1,4 +1,4 @@
-// RFC-018 — compact test-as-story for the Stories window. Reads like documentation: title → phases →
+// compact test-as-story for the Stories window. Reads like documentation: title → phases →
 // each step's call(args) → returns → the clauses that pin it. Blue to blend, foldable at every level.
 $sv-blue: var(--sv-blue);
 
@@ -552,7 +552,7 @@ $sv-blue: var(--sv-blue);
   }
 }
 
-/* RFC-020 — a named-action section in a saved test: NO wrapper border/indent (that read as nested
+/* a named-action section in a saved test: NO wrapper border/indent (that read as nested
    inside Before) — the title lines up flush with the sibling sections. Instead its STEPS' left rails
    (gray by default on ordinary steps) default to plum, flipping to pass/fail color on a run as usual. */
 .test-story__phase--named .test-story__phase-name {

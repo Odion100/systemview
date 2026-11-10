@@ -10,7 +10,7 @@ import {
   resolveValueString,
 } from "../../organisms/TestPanel/components/test-helpers";
 
-// RFC-020 — an evaluation's expected `value` may itself be a `tv(...)` reference to another step's saved
+// an evaluation's expected `value` may itself be a `tv(...)` reference to another step's saved
 // result, resolved by the SAME resolver an arg targetValue uses. `resolveRef` is optional (only present
 // when the Test carries a FullTest) and only rewrites a validation whose value is a tv() string.
 // AN EVALUATION'S VALUE GOES THROUGH THE SAME PIPELINE AN ARGUMENT DOES — references resolved, then
@@ -56,7 +56,7 @@ export function validateResults() {
   const shouldSave = !savedEvaluations.length;
   const evaluations = [];
   const errors = [];
-  // RFC-020 — resolve `tv(...)` in evaluation values against this run's sibling-step results.
+  // resolve `tv(...)` in evaluation values against this run's sibling-step results.
   const resolveRef = FullTest
     ? (v) => resolveTargetValue(v.substring(3, v.length - 1), FullTest)
     : undefined;

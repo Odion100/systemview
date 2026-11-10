@@ -1,4 +1,4 @@
-// RFC-045 — the terminal's own skin. Deliberately minimal: xterm draws everything inside, and every
+// the terminal's own skin. Deliberately minimal: xterm draws everything inside, and every
 // pixel of padding here is a pixel where the emulator's own background stops and the card's starts,
 // which is exactly the seam that made the first attempt read as a widget instead of a shell.
 .sv-term {

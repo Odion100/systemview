@@ -125,7 +125,7 @@ export default function TestController({
       setState([...TestSection]);
     }
   };
-  // RFC-020 — target-value suggestions are natural-path references into the sections object:
+  // target-value suggestions are natural-path references into the sections object:
   // `test.<section>[i].results`. FullTest is `{ before, main, events, after, <named> }`.
   this.getTargetSuggestions = () => {
     const suggestions = [];

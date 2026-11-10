@@ -3,7 +3,7 @@ const Test = require("./Test.class");
 const sections = ["Before", "Main", "Events", "After"];
 
 module.exports = function FullTestController({ FullTest, connectedServices } = {}) {
-  // RFC-020 — a test is `{ sections, order }`. Loop the **run-order** (a list of section names), flatten
+  // a test is `{ sections, order }`. Loop the **run-order** (a list of section names), flatten
   // the referenced sections into one sequential run. No hardcoded `[...Before,...Events,...Main,...After]`
   // — the order is data, so a named section runs wherever the list places it.
   this.runFullTest = async (test = FullTest) => {

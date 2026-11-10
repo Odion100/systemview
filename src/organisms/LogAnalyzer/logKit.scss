@@ -406,7 +406,7 @@
   }
 }
 
-// RFC-011 — Filter ↔ Highlight per-clause mode toggle (amber = highlight)
+// Filter ↔ Highlight per-clause mode toggle (amber = highlight)
 .field-analyzer__mode {
   flex-shrink: 0;
   display: inline-flex;
@@ -436,7 +436,7 @@
   box-shadow: inset 3px 0 0 #e0b849;
 }
 
-// RFC-011 — highlight indicator chip (amber), distinct from filter (blue) / OR (green)
+// highlight indicator chip (amber), distinct from filter (blue) / OR (green)
 .logs-quick-filter--highlight {
   background: #fdf3d9;
   border-color: #e0b849;
@@ -444,7 +444,7 @@
   &:hover { background: #f9e9bf; }
 }
 
-// RFC-011 — Table | JSON view-mode toggle
+// Table | JSON view-mode toggle
 .logs-viewmode {
   display: inline-flex;
   border: 1px solid var(--sv-border);
@@ -469,7 +469,7 @@
   }
 }
 
-// RFC-011 — collapsible analyzer
+// collapsible analyzer
 .dashboard {
   &--collapsed {
     min-height: 0;

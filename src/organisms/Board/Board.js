@@ -308,7 +308,7 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [SystemViewService, boardPlugin, projectCode, editingCard, editingTitle]);
-  // RFC-039 — his half of a note's thread: which card is being replied to, and the draft.
+  // his half of a note's thread: which card is being replied to, and the draft.
   const [replying, setReplying] = useState(0);
   const [replyDraft, setReplyDraft] = useState("");
   const [openReplies, setOpenReplies] = useState([]);
@@ -703,7 +703,7 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
                         className={`${CLASSNAME}__board-act`}
                         title="Put it in the chat box — you still press send"
                         onClick={() => {
-                          // RFC-039 — A HANDED-OVER NOTE SAYS SO. It used to arrive as bare text,
+                          // A HANDED-OVER NOTE SAYS SO. It used to arrive as bare text,
                           // indistinguishable from something he'd just typed, so an agent read a
                           // three-week-old reminder as a live instruction. The marker is part of the
                           // message (it survives into the room's file, which is what an agent

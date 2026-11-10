@@ -44,7 +44,7 @@ body.panel-resizing--top,
 body.panel-resizing--bottom {
   cursor: row-resize;
 }
-// RFC-052 — the divider at a COLLAPSED strip's edge: same line, same hover, same drag; it just
+// the divider at a COLLAPSED strip's edge: same line, same hover, same drag; it just
 // lives on the strip's outer edge instead of between two open panels.
 .panel-divider--edge {
   position: absolute;
@@ -279,7 +279,7 @@ body.panel-resizing--bottom .panel-divider--h {
 // Nav panel — mirror of the scratchpad, de-expanding into the LEFT corner.
 .nav-panel {
   position: relative;
-  // RFC-052 — collapsed, the navigator is a RAIL: a strip the width of its tab, the full height of
+  // collapsed, the navigator is a RAIL: a strip the width of its tab, the full height of
   // the page, that (1) holds the docked agents and (2) is the handle that pulls the panel back out.
   &--collapsed {
     position: fixed;

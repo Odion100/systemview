@@ -10,7 +10,7 @@ import { getHub } from "../../utils/hub";
 
 const Terminal = lazyLoad(() => import("../Terminal/Terminal"));
 
-// RFC-045 — THE TERMINAL AS A SECTION OF THE CODEBASE CARD, beside `services` and `code`. His reason,
+// THE TERMINAL AS A SECTION OF THE CODEBASE CARD, beside `services` and `code`. His reason,
 // unchanged since RFC-042: he wants to stay in SystemView with several projects open instead of going
 // back to VS Code, and a shell belongs to a codebase the same way its services and its files do.
 //

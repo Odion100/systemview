@@ -16,7 +16,7 @@
 // A card, and OPTIONALLY one answer from the agent under it — his ask: "you could make one
 // response to a note". It lives in the same file, right under the note it answers, so reading the
 // file is reading the conversation.
-// RFC-039 — A NOTE HOLDS A CONVERSATION. One reply that got REPLACED on the next write meant
+// A NOTE HOLDS A CONVERSATION. One reply that got REPLACED on the next write meant
 // nothing said back and forth survived ("I reply to you and then my reply goes on the note").
 // Replies are a list now, each stamped with who wrote it. `<!--reply-->` with no author is the
 // old single-reply form and still reads — as the agent's, which is the only thing it ever was.

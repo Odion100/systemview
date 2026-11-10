@@ -1,5 +1,5 @@
 @import "../../sass/file-icons";
-// RFC-022 — the codebase navigation. Its own design language: monospace tree, quiet chevrons, indent
+// the codebase navigation. Its own design language: monospace tree, quiet chevrons, indent
 // left-guides, git-changed dots. Deliberately NOT the service nav's shape.
 .codebase-nav {
   font-size: 12.5px;
@@ -223,7 +223,7 @@
     flex: none;
   }
 
-  // RFC-027 — the row context menu (same dark-panel register as the document's md-menu): remove
+  // the row context menu (same dark-panel register as the document's md-menu): remove
   // any connection, remove a project, configure a hosted service. Destructive items arm into an
   // inline two-step confirm — no browser dialogs.
   &__menu-overlay {
@@ -333,7 +333,7 @@
     pointer-events: none;
   }
 
-  // RFC-026 — the `code` fold: the whole file region (filter + tree) behind one quiet row, spoken
+  // the `code` fold: the whole file region (filter + tree) behind one quiet row, spoken
   // in the same voice as the section labels. Root indentation, no color.
   // SECTION HEADERS STAY PUT. Services, code, reports and the terminal all share ONE scroll, so
   // scrolling deep into a file list used to carry its own heading off the top and leave you with
@@ -546,7 +546,7 @@
     opacity: 0.6;
   }
 
-  // One scrollbar for the whole nav (RFC-026) — the tree scrolls WITH the services above it, so no
+  // One scrollbar for the whole nav — the tree scrolls WITH the services above it, so no
   // inner max-height/overflow here.
   &__tree {
     font-family: "SF Mono", Menlo, monospace;
@@ -596,7 +596,7 @@
       color: var(--sv-indigo);
       font-weight: 600;
     }
-    // RFC-035 — the row while you are naming it. Same height, same indent, same icon column as the
+    // the row while you are naming it. Same height, same indent, same icon column as the
     // row it replaces, so nothing jumps when the name turns editable.
     &--edit {
       cursor: default;
@@ -721,7 +721,7 @@
     opacity: 0.45;
   }
 
-  // RFC-033 — commit / push, at the top of the lens, where the staging already happens.
+  // commit / push, at the top of the lens, where the staging already happens.
   &__commit {
     margin: 4px 8px 6px;
     border: 1px solid var(--sv-inset);
@@ -1136,7 +1136,7 @@
     padding: 4px 10px;
   }
 
-  // RFC-026 — the help section pinned under every codebase card. Same quiet voice as the rest of
+  // the help section pinned under every codebase card. Same quiet voice as the rest of
   // the nav; the open topic highlights like any selected row.
   &__help {
     margin-top: 2px;
@@ -1455,7 +1455,7 @@
   }
 }
 
-// RFC-025 — a file POINTED AT from a document (a `:file[…]` chip click). The tree expands to it and
+// a file POINTED AT from a document (a `:file[…]` chip click). The tree expands to it and
 // marks it, but it is not open in the centre — a dashed ring rather than the selection fill, so the
 // two states can't be confused. ⌘-click on the chip opens it for real.
 .codebase-nav__row--revealed {
@@ -1464,7 +1464,7 @@
   border-radius: 5px;
 }
 
-// RFC-034 — this file has comments on it. Quiet, and to the left of the git mark: the git letter is
+// this file has comments on it. Quiet, and to the left of the git mark: the git letter is
 // about the file's state, this is about whether anyone has said anything.
 .codebase-nav__comment-mark {
   margin-left: 4px;
@@ -1473,13 +1473,13 @@
   flex: none;
 }
 
-// RFC-034 — the comments filter pill: the same icon the files wear, with how many of them there are.
+// the comments filter pill: the same icon the files wear, with how many of them there are.
 .codebase-nav__filter-pill--comments {
   font-size: 9px;
   line-height: 1;
 }
 
-// RFC-035 — the folder you are about to drop a file into. Deliberately loud for the moment you are
+// the folder you are about to drop a file into. Deliberately loud for the moment you are
 // holding something: a drop that lands in the wrong folder is a file you then have to find.
 .codebase-nav__row--drop {
   background: color-mix(in srgb, var(--sv-blue) 16%, transparent);
@@ -1487,7 +1487,7 @@
   border-radius: 4px;
 }
 
-// RFC-038 — the docked agent's home. The card lends it a strip and stays out of the way; what lands
+// the docked agent's home. The card lends it a strip and stays out of the way; what lands
 // in here is the bot itself, portaled in, so nothing about it is styled from this side.
 .codebase-nav__agent {
   border-bottom: 1px solid var(--sv-inset);
@@ -1495,7 +1495,7 @@
   margin-bottom: 4px;
 }
 
-// RFC-045 — the terminal section's chrome: a gear and a + on the fold row, tabs when there is more
+// the terminal section's chrome: a gear and a + on the fold row, tabs when there is more
 // than one shell, and the settings popover. Sized to sit inside a 280px column without pushing the
 // fold label around.
 .codebase-nav {
@@ -1681,7 +1681,7 @@
   &:hover { opacity: 1; color: #d9736a; }
 }
 
-// RFC-052 — a card being dragged to reorder, and the card it would take the place of.
+// a card being dragged to reorder, and the card it would take the place of.
 .codebase-nav__codebase--dragging {
   opacity: 0.45;
 }
@@ -1689,7 +1689,7 @@
   box-shadow: inset 0 3px 0 var(--sv-blue);
 }
 
-// RFC-054 — reports/logs doors on the codebase's own card (his correction: they're codebase-scoped,
+// reports/logs doors on the codebase's own card (his correction: they're codebase-scoped,
 // a global opener was scope-less). Same quiet voice as the section labels around them.
 .codebase-nav__section-openers {
   display: flex;

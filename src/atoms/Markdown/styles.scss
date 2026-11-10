@@ -87,7 +87,7 @@
     }
   }
 
-  // A reference that doesn't resolve says so instead of lying (RFC-025 §4.1).
+  // A reference that doesn't resolve says so instead of lying.
   &--dead {
     color: var(--sv-dead);
     background: #fbf0ee;
@@ -1012,7 +1012,7 @@
     font-family: inherit;
   }
 
-  // GFM task list — interactive when the surface can save (RFC-025 §4.6)
+  // GFM task list — interactive when the surface can save
   ul li.md-task {
     list-style: none;
     display: flex;
@@ -1062,7 +1062,7 @@
       margin-bottom: 0;
     }
 
-    // RFC-026 — the drag boundary between two columns. The 18px track IS the gap (gap drops to 0
+    // the drag boundary between two columns. The 18px track IS the gap (gap drops to 0
     // on the resizable variant); a slim bar appears only on hover so the look doesn't change.
     &--resizable {
       gap: 0;
@@ -1680,7 +1680,7 @@
     }
   }
 
-  // RFC-033 — `::commit`. Same voice as the approval block it sits next to: kind badge, one line of
+  // `::commit`. Same voice as the approval block it sits next to: kind badge, one line of
   // context, actions on the right. Green once it has run, because at that point it is a receipt.
   .md-commit {
     margin: 16px 0;

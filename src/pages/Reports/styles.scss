@@ -285,7 +285,7 @@ $bad: #c62828;
   &--ok { background: $ok; } &--watch { background: $watch; } &--bad { background: $bad; }
 }
 
-// charts — .report-chart* MOVED to organisms/Charts/styles.scss with the component (RFC-025 §4.3)
+// charts — .report-chart* MOVED to organisms/Charts/styles.scss with the component
 
 .report-empty {
   color: var(--sv-text-faint);

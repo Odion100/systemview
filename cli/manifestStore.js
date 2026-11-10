@@ -1,4 +1,4 @@
-// RFC-017: the manifest is now per-service files under `.systemview/` (each plugin writes only its own
+// the manifest is now per-service files under `.systemview/` (each plugin writes only its own
 // `<serviceId>.manifest.json`, so N services starting at once never clobber a shared file). This helper
 // globs those files and assembles the same `{ projectCode, services, headers }` shape the CLI has always
 // consumed — the folder layout is the contract, mirrored from the plugin's getManifest().
@@ -41,10 +41,10 @@ function readFolderManifest(dir = manifestDir()) {
         system: entry.system,
         specList: entry.specList,
         credentials: entry.credentials,
-        // RFC-021 — a SYNTHESIZED (project-defined) service: the manifest was written by hand/agent,
+        // a SYNTHESIZED (project-defined) service: the manifest was written by hand/agent,
         // not by a plugin. No live URL behind it — registration must skip aliveness probing.
         dynamic: !!entry.dynamic,
-        // RFC-027 — a CLI-HOSTED service: the value is the committed folder (relative to this repo)
+        // a CLI-HOSTED service: the value is the committed folder (relative to this repo)
         // the hub hosts it from. The boot hosting unit re-hosts these; loadManifest leaves them alone.
         hosted: entry.hosted || false,
       });

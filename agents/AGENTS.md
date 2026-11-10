@@ -36,7 +36,7 @@ Everything in SystemView hangs off a **namespace**: `service / module / method`.
 | **method** | one callable | one endpoint, one exported function, one command — what a test calls and a doc describes. |
 
 On a **SystemLynx** project these are discovered from the live connection. On any other project,
-**run `systemview init`** (RFC-027) — one of the few things still done at a shell, because it asks
+**run `systemview init`** — one of the few things still done at a shell, because it asks
 questions. It registers the folder; the **hub** hosts a real testing service from it —
 one file per module, every exported function a live, testable method. That is the primary path for
 a repo with no services; full start-to-green instructions:
@@ -114,7 +114,7 @@ App.use(SystemViewPlugin);
 
 `~/buAPI/Profiles/index.js` is the reference — five services, each wiring its own plugin and
 pointing at its own specs. The options worth knowing: `credentials: true` declares a cookie-session
-service (RFC-013), `redact: ["password"]` keeps secrets out of the trace, `trace: (req) => ({…})`
+service, `redact: ["password"]` keeps secrets out of the trace, `trace: (req) => ({…})`
 stamps every call, `exclude` drops a module from observation, `hosted` is for the CLI-hosted case
 ([hosted-services.md](hosted-services.md)).
 

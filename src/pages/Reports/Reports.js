@@ -43,12 +43,12 @@ function splitErrors(statusCounts = {}) {
 }
 
 // ---- tiny self-contained SVG charts (CSP: no external libs) ----
-// LineChart + fmtBucketTs now live in organisms/Charts (RFC-025 §4.3) so a `::chart` embed in any
+// LineChart + fmtBucketTs now live in organisms/Charts so a `::chart` embed in any
 // document renders the exact same chart this page draws.
 
 
 
-// RFC-015: explicit "not real yet" marker so mocked/placeholder surfaces are never mistaken for data.
+// explicit "not real yet" marker so mocked/placeholder surfaces are never mistaken for data.
 function Mock({ children }) {
   return (
     <span className="report-mock" title="Placeholder — not backed by real data yet">
@@ -210,7 +210,7 @@ export default function Reports({ projectCode: pcProp = null, serviceId: svcProp
         const snap = await SystemView.getStats();
         if (snap && Array.isArray(snap.methods))
           collected.push({ projectCode, serviceId: t.serviceId, snapshot: snap });
-        // RFC-015 §5 — a service running in LB mode answers getCluster with the live cluster state.
+        // a service running in LB mode answers getCluster with the live cluster state.
         try {
           const cluster = await SystemView.getCluster();
           if (cluster && cluster.lb) clusterList.push(cluster);
@@ -231,7 +231,7 @@ export default function Reports({ projectCode: pcProp = null, serviceId: svcProp
     loadStats();
   }, [loadStats]);
 
-  // RFC-032 — agent control reaches Stats. `nav <pc> stats …` pushes the URL (covers a fresh
+  // agent control reaches Stats. `nav <pc> stats …` pushes the URL (covers a fresh
   // mount) AND fires this event (covers already-standing-here — a same-route push never remounts,
   // so the query-string init doesn't re-run). Only explicitly-sent fields apply; a bare
   // `nav stats` walks you over without touching your tab/range/filter.

@@ -30,7 +30,7 @@ import { findTaskBox, stripTaskBox } from "./taskBox";
 import "./styles.scss";
 import { normalizeFences, wrapLines, wrapLinesInThread } from "./docEdit";
 
-// RFC-025 — this atom is the ONE renderer behind every markdown surface in the app: the
+// this atom is the ONE renderer behind every markdown surface in the app: the
 // Documentation tab, help topics, story markdown panes, story .md file panes, agent notes on test
 // panes, and the codebase md preview. A block registered here appears in all of them at once.
 //
@@ -55,7 +55,7 @@ const SvBlock = ({ dname, dtype, dattrs, dlabel, dline, dend, dsrc, children }) 
   const entry = BLOCKS[dname];
   if (!entry) {
     // Unknown block: SAY so, and say WHAT. A document written against a newer vocabulary must never
-    // silently lose a paragraph in an older UI (RFC-025 §8).
+    // silently lose a paragraph in an older UI.
     return (
       <span
         className="md-chip md-chip--unknown"

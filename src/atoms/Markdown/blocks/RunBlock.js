@@ -7,7 +7,7 @@ import { routeResult } from "../docSend";
 import { resolveNamespace } from "../nsResolve";
 import validationOptions from "../../../molecules/ValidationInput/ValidationOptions";
 
-// RFC-025 §4.2 — `::run`, in two forms, and the difference matters:
+// `::run`, in two forms, and the difference matters:
 //
 //   AD-HOC (the point):  steps written ON THE FLY in the document, for you to press Run on.
 //     :::run{title="Seed and chain"}
@@ -422,7 +422,7 @@ const RunBlock = ({ kind, label, attrs = {}, src, storyRef }) => {
   // An ad-hoc run is NOT a test: there is no Main, no Before/After, nothing being saved under a
   // namespace. It's a list of steps, the same thing a shared action is — so its steps go in a NAMED
   // section (`steps`) alongside any `use:` action, and nothing in the UI says "Main". The engine runs
-  // named sections as peers of the built-ins (RFC-020), so this needs no special case.
+  // named sections as peers of the built-ins, so this needs no special case.
   // The built-in SECTION of a run, exactly like `main` is the built-in section of a test — and like
   // any section, its name is the reference root: `tv(steps[0].results.sum)`, beside `tv(seedSum[0]…)`
   // for a shared action pulled in by name. Nothing about the engine's reference logic changed here.

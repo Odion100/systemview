@@ -77,7 +77,7 @@
   &:hover { border-color: var(--sv-blue); color: var(--sv-blue); }
 }
 
-// RFC-057 — the page-level view switch. Flat selectors: this file's blocks are already closed and
+// the page-level view switch. Flat selectors: this file's blocks are already closed and
 // appending a nested `&__view` at the end would land inside whichever block happens to be last.
 .ctx-page__views {
   display: flex;

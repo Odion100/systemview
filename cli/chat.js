@@ -12,7 +12,7 @@ const chalk = require("chalk");
 //
 // The agent instructions (agents/chat.md) are the intended reader of every output here.
 
-// RFC-040 — A REPORT IS A DOCUMENT. A show used to be a chat record carrying its whole text, and
+// A REPORT IS A DOCUMENT. A show used to be a chat record carrying its whole text, and
 // that one fact caused four separate symptoms: the picker listed the same report three times (three
 // pushes, three records), delete had to mean "hide" (you cannot remove a record from a transcript),
 // compaction had to special-case shows or his reports vanished, and the room file was mostly report
@@ -97,7 +97,7 @@ function cleanErr(err) {
   );
 }
 
-// RFC-051 — JOIN. His preference, said plainly: *"I don't think I want join to disappear."* And it
+// JOIN. His preference, said plainly: *"I don't think I want join to disappear."* And it
 // was always the right word. Joining means one thing: put me on this room's list, so the hub
 // delivers its conversation to mine. Deliberate — speaking does not perform it — and instant: no
 // process stays behind. There is no hold, no arming, no line to keep open; an attached agent is in
@@ -185,7 +185,7 @@ module.exports.messageAgent = async function messageAgent(projectCode, text, { u
     log.warn(`  another agent:  systemview message-agent <theirProject> "…" --as ${agent}`);
     return 1;
   }
-  // RFC-039 — `--file`, because every message is otherwise a giant double-quoted shell string:
+  // `--file`, because every message is otherwise a giant double-quoted shell string:
   // backticks are command substitution, apostrophes fight the quoting, and the safe move is to
   // flatten what you write. `show` has taken a file since RFC-030; this verb takes one the same way.
   if (file) {
@@ -219,7 +219,7 @@ module.exports.messageAgent = async function messageAgent(projectCode, text, { u
     // His catch: *"I saw the log that shows a message you sent into autobot. I did not see any log
     // that showed he received it — but I used to."* Delivery is the record being in their room, and
     // that is known here, so it gets said here.
-    // RFC-051 — the audience rides the receipt (his ask: "agents should know if someone is
+    // the audience rides the receipt (his ask: "agents should know if someone is
     // subscribed in the room, that information could be fed to them"). Fed where it is already
     // needed — the moment you spoke to it — instead of behind a second command.
     const inRoom = res && res.audience && res.audience.length ? ` · in the room: ${res.audience.join(", ")}` : " · nobody else in the room";
@@ -234,7 +234,7 @@ module.exports.messageAgent = async function messageAgent(projectCode, text, { u
   return 0;
 };
 
-// RFC-039 — ANSWER WHERE YOU WERE ASKED.
+// ANSWER WHERE YOU WERE ASKED.
 //
 //   systemview reply <pc> <thread-id> "…" [--show "<title>"] [--file <path.md>] [--as <pc>]
 //
@@ -419,7 +419,7 @@ module.exports.status = async function status(projectCode, text, { uiUrl, Client
     return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
-  // RFC-031 — a visiting identity's cooking renders in its own color, under its name. Same
+  // a visiting identity's cooking renders in its own color, under its name. Same
   // gate as a message: you can't cook in a room you haven't entered.
   try {
     await SystemView.chatStatus(projectCode, { chat, text: text || null, as: agent });
@@ -447,7 +447,7 @@ module.exports.tv = async function tv(projectCode, { uiUrl, Client, chat, json =
     log.error(cleanErr(err));
     return 1;
   }
-  // RFC-040 — a pointer record names a document; read THAT, because his answers are written into
+  // a pointer record names a document; read THAT, because his answers are written into
   // the file now, not into the record.
   if (state && !state.text && state.args && state.args.report) {
     try {
@@ -595,9 +595,9 @@ module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, 
     return 1;
   }
   const SystemView = await loadHub(Client, uiUrl);
-  // RFC-031 — a visiting identity gets its own ack cursor; the bare default keeps the "hooks"
+  // a visiting identity gets its own ack cursor; the bare default keeps the "hooks"
   // cursor so existing hook installs never replay history after an upgrade.
-  // RFC-039 — a cursor that has never been used starts at NOW, so first contact is quiet instead of
+  // a cursor that has never been used starts at NOW, so first contact is quiet instead of
   // a replay of the whole room; `--history` is how you ask for the back-catalog on purpose.
   const res = await SystemView.chatDrain(projectCode, { chat, listener: agent ? `hooks:${agent}` : "hooks", as: agent, history });
   const messages = res.messages || [];
@@ -606,7 +606,7 @@ module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, 
   return 0;
 };
 
-// RFC-029 — agent control. Three verbs; each is a chat COMMAND record the open UI executes on
+// agent control. Three verbs; each is a chat COMMAND record the open UI executes on
 // the live push (and renders as a "→ …" receipt line in the thread). Section-first grammar —
 // the UI is broken into sections, so the command names what it controls.
 //
@@ -624,7 +624,7 @@ module.exports.inbox = async function inbox(projectCode, { uiUrl, Client, chat, 
 async function sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd, args, label, say, pin }) {
   const SystemView = await loadHub(Client, uiUrl);
   await SystemView.chatCommand(projectCode, { chat, from: agent || "agent", cmd, args, label, say });
-  // RFC-039 — `--pin`. The `--say` sentence is EPHEMERAL by design: it rides the trip, it is spoken
+  // `--pin`. The `--say` sentence is EPHEMERAL by design: it rides the trip, it is spoken
   // while the window moves, and then it is gone. That is right for a pointing line ("look here") and
   // a trap the moment real content lands in it — an agent explains something worth keeping and it
   // evaporates with the animation. `--pin` also drops the same sentence into the chat, where it
@@ -640,7 +640,7 @@ async function sendCommand(projectCode, { uiUrl, Client, chat, agent, cmd, args,
 }
 
 
-// RFC-029 — nav/highlight VALIDATE namespaces against the LIVE tree before moving anyone.
+// nav/highlight VALIDATE namespaces against the LIVE tree before moving anyone.
 // Learned live: an unvalidated route push happily walked him to a method that doesn't exist
 // ("no such namespace exists" — String/ was a file on disk, never a mounted module). Suffix
 // matching at every granularity: "add" / "Math.add" / "TestService.Math.add" all resolve; zero
@@ -676,7 +676,7 @@ module.exports.nav = async function nav(projectCode, section, target, opts = {})
   // Shorthand: a namespace right after the project (`nav <pc> TestService.Math.add`).
   const nsTarget = section && !["center", "nav", "scratchpad", "page", "stats"].includes(section) ? section : target;
   if (section === "stats") {
-    // RFC-032 — walk the human to the Stats page (a specific tab / time range / service focus).
+    // walk the human to the Stats page (a specific tab / time range / service focus).
     const STATS_TABS = ["state", "load", "reliability", "coverage", "change", "topology", "coupling"];
     const RANGES = ["15m", "1h", "4h", "24h", "all"];
     const stats = {};
@@ -794,7 +794,7 @@ module.exports.act = async function act(projectCode, kind, target, opts = {}) {
   });
 };
 
-// RFC-029 — `highlight` is NOT `nav` (his line: "highlight and selection are two different
+// `highlight` is NOT `nav` (his line: "highlight and selection are two different
 // commands"): highlight POINTS the tree at a thing — expands to it, marks it, scrolls it into
 // view — and touches nothing else; nav actually opens/selects.
 module.exports.highlight = async function highlight(projectCode, target, opts = {}) {
@@ -872,7 +872,7 @@ module.exports.show = async function show(projectCode, { uiUrl, Client, chat, ag
 };
 
 
-// RFC-051 — the missing verb, and the reason nobody ever left: there was nothing to type.
+// the missing verb, and the reason nobody ever left: there was nothing to type.
 module.exports.leave = async function leave(projectCode, { uiUrl, Client, chat, agent } = {}) {
   if (!projectCode || !agent) {
     log.warn("Usage: systemview leave <projectCode> --as <yourProjectCode> [--chat name]");
@@ -887,7 +887,7 @@ module.exports.leave = async function leave(projectCode, { uiUrl, Client, chat, 
   } catch (err) { log.error(cleanErr(err)); return 1; }
 };
 
-// RFC-051 — an agent runs its OWN room's list (his call: "agents should have the ability to
+// an agent runs its OWN room's list (his call: "agents should have the ability to
 // join, leave, and kick other people out of the room too — not just me"). The authority rule is
 // enforced hub-side: you clear your room's table, you carry yourself everywhere, and a third
 // room's list is never yours to touch.

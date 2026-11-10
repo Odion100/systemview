@@ -2,7 +2,7 @@ import React from "react";
 import { setHelpTopic } from "../../Help/helpStore";
 import HELP_TOPICS from "../../Help/helpTopics";
 
-// RFC-025/026 — `:help[markdown]`. Same contract as `:ns` and `:file` chips: a CLICK from a
+// `:help[markdown]`. Same contract as `:ns` and `:file` chips: a CLICK from a
 // document REVEALS the topic — highlights its row in the nav's help section, the document you're
 // reading stays put. ⌘/Ctrl-click opens the topic for real (the row itself opens it too).
 const HelpLink = ({ label, attrs = {} }) => {

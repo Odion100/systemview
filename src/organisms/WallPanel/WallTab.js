@@ -2,7 +2,7 @@ import React from "react";
 import "./styles.scss";
 
 // THE COLLAPSED WALL-TAB — the vertical strip a collapsed panel becomes, with the edge handle that
-// makes the strip itself the grab bar (RFC-052). The scratchpad wore this shape alone until the
+// makes the strip itself the grab bar. The scratchpad wore this shape alone until the
 // agents page's document area needed it and got a hand-made near-copy instead. The classname-
 // passthrough convention let the COSTUME be copied per page too — his catch: "the tabs have
 // different styles on these different pages" — so the costume is now .wall-tab in this folder's

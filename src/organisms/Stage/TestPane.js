@@ -5,7 +5,7 @@ import Markdown from "../../atoms/Markdown/Markdown";
 import { SavedTestItem } from "../SavedTests/SavedTests";
 import { resolveTestActions, actionMapForTests } from "../SavedTests/transformTests";
 
-// RFC-018 — the `test` pane: a saved test rendered as a worked example — setup → call → args →
+// the `test` pane: a saved test rendered as a worked example — setup → call → args →
 // response → the assertions that pin it — with a Run button and inline pass/fail. It reuses the
 // existing SavedTests organism (which already does story-render + run + validation), scoped to the
 // one (or few) tests the pane's target names. The test IS the example: how the method is really used.
@@ -79,7 +79,7 @@ const TestPane = ({ target = {}, projectCode, ranFile = null, ranData = null, on
   useEffect(() => { fetchTests(); }, [fetchTests]);
 
   useEffect(() => {
-    // RFC-056 — DATA IN HAND WINS (his rule: "we have a handle on it and we display it"): a
+    // DATA IN HAND WINS (his rule: "we have a handle on it and we display it"): a
     // caller that already holds the run passes it directly; the file path stays for documents.
     if (ranData) {
       setRunData(ranData);

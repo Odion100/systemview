@@ -4,7 +4,7 @@ const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const Client = createClient(createCookieHttpClient());
 
-// RFC-034 — `systemview comments <projectCode> [path] [--json]`.
+// `systemview comments <projectCode> [path] [--json]`.
 //
 // His code comments, reachable by a VERB instead of a fact someone has to remember. Telling agents
 // "they live in .systemview/code-comments/<the file's path>.json" makes the folder something they

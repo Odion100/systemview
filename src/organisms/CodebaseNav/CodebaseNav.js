@@ -16,13 +16,13 @@ import TerminalSection from "./TerminalSection";
 import { iconFor } from "../../utils/fileIcons";
 import "./styles.scss";
 
-// RFC-022 — the CODEBASE navigation (the "Codebase" nav tab). Designed fresh for files, NOT a copy of
+// the CODEBASE navigation (the "Codebase" nav tab). Designed fresh for files, NOT a copy of
 // the service nav: monospace tree, chevrons, indent guides, a filter that flips to flat search results,
 // git-changed dots. The ROOTS are connected codebases — one per project whose services share a cwd —
 // each carrying its FILE SYSTEM (via the RFC-018 plugin file providers) and its PROJECT-DEFINED
 // services (RFC-021 synthesized namespaces; empty on a fresh project — that's the bootstrap state).
 
-// RFC-062 — EVERY SECTION IS RESIZABLE (his spec, verbatim: "each section needs to be
+// EVERY SECTION IS RESIZABLE (his spec, verbatim: "each section needs to be
 // resizable"). One mechanism for all of them, the same shape the file tree's grip already has:
 // a slim row-resize grip under the section; dragging caps the section and its content scrolls
 // inside; double-click hands the height back to the content. Per section, per project, remembered.
@@ -152,7 +152,7 @@ const fileIcon = (name) => {
   );
 };
 
-// RFC-035 — YOU NAME IT ON THE ROW. `window.prompt` is the browser's own box: it wears the OS's
+// YOU NAME IT ON THE ROW. `window.prompt` is the browser's own box: it wears the OS's
 // chrome instead of this app's, it blocks the page, and it covers the very row it is asking about.
 // So the name becomes an input WHERE IT ALREADY SITS — the icon stays, the indent stays, only the
 // text turns editable. Enter commits, Escape cancels, and clicking away cancels too: nothing is
@@ -414,7 +414,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
   // SELECTED beats REVEALED on any row wearing both — being somewhere outranks being pointed at.
   const svcSelected = isSelectedService && !selection.moduleName;
   const svcRevealed = isRevealedService && !revealNs.moduleName && !svcSelected;
-  // RFC-027 — a CLI-HOSTED service: same rows as any service (plum dot is the only visual
+  // a CLI-HOSTED service: same rows as any service (plum dot is the only visual
   // difference), plus the configuration hand — rename the service, add/delete/rename modules —
   // each a file op on the committed folder the hub re-hosts from.
   const hosted = service.hosted || null;
@@ -533,7 +533,7 @@ function ServiceNode({ service, projectCode, history, selection, onNavigate, rev
         </span>
         {/* Real services wear their LIVE/DOWN probe status (same colors as the SystemLynx tab);
             project-defined ones keep the plum — a project:// identifier can't be probed. A HOSTED
-            service (RFC-027) wears plum too: it's live, but the plum says "the CLI runs this". */}
+            service wears plum too: it's live, but the plum says "the CLI runs this". */}
         <span
           className={`${CLASSNAME}__service-dot${hosted || service.dynamic ? "" : ` ${CLASSNAME}__service-dot--${serviceStatus[svcUrl] || "unknown"}`}`}
           title={
@@ -701,7 +701,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     revealFile && (!revealFile.projectCode || revealFile.projectCode === projectCode)
       ? revealFile.path
       : null;
-  // RFC-026 — the card itself never collapses: it's the project's whole nav, and its header
+  // the card itself never collapses: it's the project's whole nav, and its header
   // NAVIGATES (project-level docs/tests) instead of toggling.
   const holdsOpenFile = !!(openFile && openFile.projectCode === projectCode);
   // A folder brought in through the host, rather than a SystemLynx project. It removes differently
@@ -824,7 +824,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   const [docsOnly, setDocsOnly] = useState(
     () => localStorage.getItem(docsOnlyKey) === "true",
   );
-  // RFC-034 — only the files someone has said something about. Same shape as the `.md` pill beside
+  // only the files someone has said something about. Same shape as the `.md` pill beside
   // it; the count rides on it, because "how many files have comments" is half of what you're asking
   // when you reach for this.
   const [commentsOnly, setCommentsOnly] = useState(
@@ -834,7 +834,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     set(!value);
     localStorage.setItem(key, String(!value));
   };
-  // RFC-026 — the file region (filter + tree) folds behind its own `code` row. COLLAPSED by
+  // the file region (filter + tree) folds behind its own `code` row. COLLAPSED by
   // default: selection drives it — it opens itself when a file in this project is opened or
   // revealed, and expands down to that file.
   // AN EMPTY PROJECT SHOWS ITS OFFERS. A husk collapsed to `▸ code ▸ terminal` tells you a project
@@ -926,7 +926,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     const mode = bulk && bulk.mode === "collapse" ? "expand" : "collapse";
     setBulk({ n: (bulk ? bulk.n : 0) + 1, mode });
     // Every section that holds its state through useFold follows `bulk` by itself.
-    // …and the AGENT is a section of this card now (RFC-038), so it minimizes with the rest. It
+    // …and the AGENT is a section of this card now, so it minimizes with the rest. It
     // owns its own open state inside the bot, so the card asks rather than reaches in — the bot is
     // portaled in here but it is still the bot, not a child component.
     window.dispatchEvent(
@@ -1233,7 +1233,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
   // redraws from the FRESH status it returns — no optimistic guessing about what git did.
   const [vcBusy, setVcBusy] = useState(null); // the path (or group key) currently in flight
   const [vcError, setVcError] = useState("");
-  // RFC-035 — MOVING FILES AROUND. One helper for every verb: it names what failed rather than
+  // MOVING FILES AROUND. One helper for every verb: it names what failed rather than
   // failing quietly, and the tree re-walks itself afterwards so what you see is what is on disk.
   const [fileBusy, setFileBusy] = useState("");
   const fileOp = async (verb, args, sayWhat) => {
@@ -1366,7 +1366,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     }
   };
 
-  // RFC-033 — COMMIT / PUSH, in the place he already stages from. Two-step, his call: the first
+  // COMMIT / PUSH, in the place he already stages from. Two-step, his call: the first
   // click arms, the second runs. Nothing here is reachable except by that click.
   const [gitState, setGitState] = useState(null);
   // THE BRANCH IS A CONTROL NOW, NOT A LABEL — the same verbs the ::branch block offers, so the
@@ -1672,7 +1672,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
         confirm: `Throw away the unstaged changes to ${name}? (kept in history)`,
         action: () => discard([f.path]),
       });
-    // RFC-035 — what you can do TO the file, as opposed to what git can do with it.
+    // what you can do TO the file, as opposed to what git can do with it.
     // Both of these name the file ON THE ROW — the menu closes and an input opens where the file
     // is, rather than a browser dialog over the top of it.
     items.push({
@@ -1813,7 +1813,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     if (editingHere && editing.kind === "rename") return rowEdit(depth, `${CLASSNAME}__row--file`);
     const selected =
       openFile && openFile.projectCode === projectCode && openFile.path === f.path;
-    // Pointed at from a document (RFC-025): expanded to and highlighted, but NOT open in the
+    // Pointed at from a document: expanded to and highlighted, but NOT open in the
     // centre. SELECTED beats REVEALED — being open outranks being pointed at.
     const isRevealed = !selected && !!revealedPath && revealedPath === f.path;
     const row = (
@@ -2130,7 +2130,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [changed, query, docsOnly, commentsOnly, commented]);
 
-  // RFC-038 — is this project's agent docked in here right now?
+  // is this project's agent docked in here right now?
   // NOT INSIDE THE AGENT'S OWN PANEL. A docked agent renders itself through a portal into the slot
   // this card puts up — which is right in the side nav and circular in the hovering codebase panel,
   // because that panel is drawn BY the agent. The agent then portals itself into a slot inside its
@@ -2338,7 +2338,7 @@ function Codebase({ entry, isCurrent, openFile, onOpenFile, selection, onNavigat
           ) : (
             <AgentRow projectCode={projectCode} />
           )}
-          {/* ALL of the project's services (RFC-026) — real ones first, then project-defined
+          {/* ALL of the project's services — real ones first, then project-defined
               (RFC-021 synthesized namespaces). Expandable IN PLACE: service → modules → methods;
               clicking a method points the page (and the scratchpad) at that namespace. */}
           {/* HIDDEN ENTIRELY when a folder has none — his answer to the question, in his words. A
@@ -3038,13 +3038,13 @@ const CodebaseNav = ({
   methodName,
   openFile,
   onOpenFile,
-  // RFC-025/026 — a pointer from a document (`:file[…]` or `:ns[…]`): expanded to and highlighted,
+  // a pointer from a document (`:file[…]` or `:ns[…]`): expanded to and highlighted,
   // but not opened/selected.
   reveal = null,
   // live/down per serviceUrl — probed by SystemNavigator, shared by both lenses.
   serviceStatus = {},
   theme = "light",
-  // RFC-027 — configuration hand for HOSTED services (rename service, add/delete/rename modules).
+  // configuration hand for HOSTED services (rename service, add/delete/rename modules).
   // (pc, op, payload) → null on success, an error message on failure.
   onHostedOp = null,
   // The help topics belong to the NAV, not to the card. Rendered inside the bot's pop-out codebase
@@ -3078,7 +3078,7 @@ const CodebaseNav = ({
   // providers — siblings share a cwd, so one host serves the whole project's tree. It is chosen by
   // CAPABILITY, not by order: a sibling still on a plugin that predates version control can list the
   // changes and then fail on stage, so a git-capable sibling wins the job when there is one. The
-  // card carries ALL the project's services (RFC-026) plus the RFC-021 project-defined (dynamic) ones.
+  // card carries ALL the project's services plus the RFC-021 project-defined (dynamic) ones.
   const codebases = useMemo(() => {
     const byProject = {};
     connectedServices.forEach((s) => {
@@ -3172,7 +3172,7 @@ const CodebaseNav = ({
   );
 };
 
-// RFC-026 — help topics live IN the nav, always at the bottom under every codebase: pick one like
+// help topics live IN the nav, always at the bottom under every codebase: pick one like
 // you pick anything else, the open topic highlights, and because the topic is just `?help=` in the
 // URL, back and navigation behave — no modal state to get stuck inside. A `:help[…]` chip clicked
 // in a document REVEALS its row here (same contract as `:ns`/`:file`), scrolled into view.

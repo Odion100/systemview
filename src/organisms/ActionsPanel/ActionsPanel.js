@@ -13,7 +13,7 @@ import { EditIcon, XButton } from "../../atoms/RunTestIcon";
 import FoldContext from "../TestPanel/FoldContext";
 import "./styles.scss";
 
-// RFC-020 — the CREATION surface for shared actions. A shared action = ONE SECTION of a test — a name + an
+// the CREATION surface for shared actions. A shared action = ONE SECTION of a test — a name + an
 // ordered list of steps. You build the steps with the SAME machinery a test section uses
 // (MultiTestSection), name it, and Save → the service's plugin writes it to specs/actions/<name>.json.
 // Saved actions render below as ActionCards — their own identity: a SECTION, displayed with the same
@@ -47,7 +47,7 @@ const ActionsPanel = ({ projectCode, serviceId, moduleName, methodName }) => {
     setSteps([...steps]);
   };
 
-  // RFC-020 — the target-value machinery walks a sections object; while authoring an action its steps live
+  // the target-value machinery walks a sections object; while authoring an action its steps live
   // under `before` so within-action references (test.before[i].results) resolve.
   const FullTest = { before: steps };
   const StepsCtrl = new TestController({
@@ -235,7 +235,7 @@ const ActionsPanel = ({ projectCode, serviceId, moduleName, methodName }) => {
   );
 };
 
-// RFC-020 — a saved action's card: its OWN identity. Not a test — ONE SECTION with steps. The header is
+// a saved action's card: its OWN identity. Not a test — ONE SECTION with steps. The header is
 // the section (action tag + name + step count + Run/Edit/×); the steps are always on display below with
 // the same per-step card a saved test uses (TestAction). Run executes just this section.
 function ActionCard({ action, connectedServices, onEdit, onDelete }) {

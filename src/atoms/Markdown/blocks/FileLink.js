@@ -5,7 +5,7 @@ import { openAddress } from "../openRef";
 import { useInDocument } from "../context";
 import { useBlockFailure } from "../blockFailure";
 
-// RFC-025 §4.1 — `:file[cli/stage.js#L40-70]`. Codebase connections (RFC-022) made a file reference
+// `:file[cli/stage.js#L40-70]`. Codebase connections made a file reference
 // a real, resolvable thing, so a doc can point AT the code instead of quoting it.
 //
 // The grammar is deliberately identical to the story `--file` flag's `parseFileSpec()` in

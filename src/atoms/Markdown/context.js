@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 
-// RFC-025 — the SURFACE CONTEXT. A block needs to know where the document it lives in is being read
+// the SURFACE CONTEXT. A block needs to know where the document it lives in is being read
 // from: `:ns[Math.add]` (two segments) means "Math.add on THIS document's service", and a `::chart`
 // needs a project to pull stats for.
 //
@@ -38,7 +38,7 @@ export function useMarkdownScope() {
   }, [explicit, location.pathname]);
 }
 
-// RFC-025 §4.6 — the WRITE channel for input blocks (::question, ::slider). A block asks for
+// the WRITE channel for input blocks (::question, ::slider). A block asks for
 // `setAttr(line, key, value)` and the atom rewrites that attribute inside the directive's own `{…}`
 // in the source document, then hands the whole document to the surface to save. `editable` is false
 // wherever there is nothing to save to (a help topic is a code constant), and blocks must SAY so
@@ -95,7 +95,7 @@ export function useMarkdownWrite() {
   return useContext(MarkdownWrite);
 }
 
-// RFC-025 §12 — the comment channel for `:::thread` blocks. The Markdown atom loads the sidecar once
+// the comment channel for `:::thread` blocks. The Markdown atom loads the sidecar once
 // per document and hands every thread the same store, so a doc with ten threads makes one read.
 const MarkdownComments = createContext({
   threads: {},

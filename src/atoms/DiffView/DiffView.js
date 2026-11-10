@@ -7,7 +7,7 @@ import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language"
 import { langExt } from "../CodeView/languages";
 import "./styles.scss";
 
-// RFC-018 — before/after a change, side by side. The `diff` pane renderer, built on CodeMirror's merge
+// before/after a change, side by side. The `diff` pane renderer, built on CodeMirror's merge
 // view. base = the git-HEAD version (always read-only), head = the working file. Pass `onChange` and
 // the RIGHT side becomes a real editor — you edit the working file from inside the diff; the change
 // bands live-update as you type. `dark` comes from the OWNING pane's theme family.

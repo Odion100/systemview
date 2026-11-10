@@ -225,6 +225,6 @@
   }
 }
 
-// RFC-054 — an OPEN report's name is a title, not a chooser. As a title it drops the pill's left
+// an OPEN report's name is a title, not a chooser. As a title it drops the pill's left
 // padding — the bar's gap already spaces it off the owner crumb (the stacked pair read as a hole).
 .reports-tab__current--title { cursor: default; font-weight: 600; padding-left: 0; }

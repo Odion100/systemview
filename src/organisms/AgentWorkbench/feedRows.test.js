@@ -74,7 +74,7 @@ describe("foldState", () => {
     expect(s.todoLists[1].items[0].state).toBe("done"); // finished, still here
   });
 
-  // RFC-059 — lane events route to their lane, the main feed stays the owner's, and the sourced
+  // lane events route to their lane, the main feed stays the owner's, and the sourced
   // set call is the join from parent id to lane name.
   it("splits parent-tagged lane events out of the main stream and joins the source", () => {
     const { splitLaneEvents } = require("./feedRows");
@@ -1197,7 +1197,7 @@ describe("parseMcp", () => {
   });
 });
 
-// RFC-055 — the context search table, PINNED (we author both the harness text and this parser).
+// the context search table, PINNED (we author both the harness text and this parser).
 // The [id] on each hit is the note's address — remember(id=)/forget() take it, so every agent
 // (and the human, from the expanded row) can point at the exact block.
 describe("parseMcpResult — context hits carry the note id", () => {

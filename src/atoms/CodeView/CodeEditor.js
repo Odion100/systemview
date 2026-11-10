@@ -896,7 +896,7 @@ const CodeEditor = ({
   hunks = null,
   onStageHunk = null,
   readOnly = false,
-  // RFC-034 — the file's threads, whether they're showing, and what to do when one is written.
+  // the file's threads, whether they're showing, and what to do when one is written.
   comments = null,
   commentsOn = false,
   onComment = null,
@@ -1412,7 +1412,7 @@ const CodeEditor = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hunkKey, search, value, language, dark, readOnly]);
 
-  // RFC-025 — `:file[path#L40-70]` opens the file AT a range. Select the lines and center them by
+  // `:file[path#L40-70]` opens the file AT a range. Select the lines and center them by
   // setting the editor's OWN scroller only. Never scrollIntoView: it walks up the DOM and scrolls
   // every scrollable ancestor, which is what used to yank a whole story to the middle.
   const focusKey = focusLines ? focusLines.join("-") : "";

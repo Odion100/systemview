@@ -11,7 +11,7 @@ const {
   resolveTargetValue,
 } = require("./test-helpers");
 
-// RFC-020 — an evaluation's expected `value` may itself be a `tv(...)` reference to another step's saved
+// an evaluation's expected `value` may itself be a `tv(...)` reference to another step's saved
 // result, resolved by the SAME resolver an arg targetValue uses. `resolveRef` is optional: it's only
 // present when the Test carries a FullTest, and it only rewrites a validation whose value is a tv() string.
 // Everything else (literal numbers/strings/etc.) passes through untouched — no behaviour change.
@@ -55,7 +55,7 @@ function validateResults() {
   const shouldSave = !savedEvaluations.length;
   const evaluations = [];
   const errors = [];
-  // RFC-020 — resolve `tv(...)` in evaluation values against this run's sibling-step results.
+  // resolve `tv(...)` in evaluation values against this run's sibling-step results.
   const resolveRef = FullTest
     ? (v) => resolveTargetValue(v.substring(3, v.length - 1), FullTest)
     : undefined;

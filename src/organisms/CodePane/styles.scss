@@ -1,4 +1,4 @@
-// RFC-022 — the Code center pane: framed like the doc pane (header/badge + body), but edit-first.
+// the Code center pane: framed like the doc pane (header/badge + body), but edit-first.
 .code-pane {
   background: var(--sv-surface);
   border: 1px solid var(--sv-border);
@@ -410,7 +410,7 @@
     white-space: nowrap;
   }
 
-  // RFC-034 — THE COMMENT LIST the 💬 opens. Rows in line order: where it is, what it says, an × to
+  // THE COMMENT LIST the 💬 opens. Rows in line order: where it is, what it says, an × to
   // take it off. Quiet, because it sits over the file — it is a list, not a panel with a life of
   // its own.
   &__clist {
@@ -647,7 +647,7 @@
   }
 }
 
-// RFC-069 — the machine file's one quiet line (and its header chip says "machine", not "code").
+// the machine file's one quiet line (and its header chip says "machine", not "code").
 .code-pane__machine-note {
   font-size: 10px;
   color: var(--sv-text-faint);

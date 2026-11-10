@@ -7,7 +7,7 @@ import { buildHueMap } from "../../../organisms/Charts/hues";
 import { flattenMethods, hotspotsFrom, edgesFrom, nodesFrom } from "../../../organisms/Charts/derive";
 import { useMarkdownScope } from "../context";
 
-// RFC-025 §4.3 — the rest of the Stats page, embeddable. `::topology` and `::load` draw the SAME
+// the rest of the Stats page, embeddable. `::topology` and `::load` draw the SAME
 // components from the SAME snapshots the page uses (extracted to organisms/Charts), so a document
 // and the page can't drift.
 

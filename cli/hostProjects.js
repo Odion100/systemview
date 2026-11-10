@@ -1,7 +1,7 @@
 const { readFolderManifest, removeServiceFile } = require("./manifestStore");
 const log = require("./logger");
 
-// RFC-027 — the boot HOSTING unit, deliberately separate from loadManifest (discovery): it reads
+// the boot HOSTING unit, deliberately separate from loadManifest (discovery): it reads
 // the same folder manifest but acts only on `hosted` entries, asking the hub to stand each one up
 // from its committed folder. Runs BEFORE loadManifest so the hosted service's fresh registration
 // exists before discovery probes anything, and before the boot announces the UI (t1's rule:

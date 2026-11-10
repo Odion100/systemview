@@ -1,4 +1,4 @@
-// WHERE A TAB GOES, AS CLAIMS — tabRoutes was extracted (RFC-069 slice 4) so two pages could share
+// WHERE A TAB GOES, AS CLAIMS — tabRoutes was extracted so two pages could share
 // one routing opinion; these claims are what "share" means. Pure functions, no render: every kind's
 // route and label, and the params a route must CLEAR so a file's leftovers never ride into a stats
 // tab. Written while the proof of the extraction was still "press it and see".

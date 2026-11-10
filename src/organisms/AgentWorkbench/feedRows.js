@@ -1,7 +1,7 @@
 import { summarise, pathTouchedBy, isWrite } from "../../utils/hostAgent";
 import { parseSvCommand, svFromMcp, svStatus, svRoomLine } from "./svCommand";
 
-// RFC-046 — EVENTS IN, ROWS OUT. Kept pure and away from the component for the reason the rest of
+// EVENTS IN, ROWS OUT. Kept pure and away from the component for the reason the rest of
 // this codebase keeps its rules out of render: the same fold has to run over `history()` when a view
 // attaches late and over the live stream after that, and two implementations of "what does this feed
 // look like" would drift the moment one of them was fixed.
@@ -64,7 +64,7 @@ const MCP_SERVERS = { context: true, discovery: true, systemlynx: true, worklist
 // parses it back into rows and renders a real table with expandable bodies. We author both ends,
 // so the format is a contract (pinned by tests below), and anything that doesn't parse falls
 // through to the raw block — the pretty path can never lose data.
-// RFC-059 — a lane's own events (stamped `parent` by the host: the Agent call that spawned it)
+// a lane's own events (stamped `parent` by the host: the Agent call that spawned it)
 // route to the lane's log, never to the main rows. Two structures from one pass: the main feed
 // stays the owner's, and each lane keeps its last LANE_LOG_CAP events for the panel. The join
 // from parent id to lane name is the lane's own sourced worklist call — the one event that
@@ -1121,7 +1121,7 @@ export function foldEvents(events) {
       return;
     }
 
-    // RFC-013 — CONTEXT WAS INJECTED. Same law as the hook row above: pushed context nobody
+    // CONTEXT WAS INJECTED. Same law as the hook row above: pushed context nobody
     // asked for is never silent. The moment and the size are the audit — which shelf delivered,
     // and how much attention it just spent.
     if (ev.kind === "context.injected") {
@@ -1302,7 +1302,7 @@ export function foldState(events) {
       // line can say what is actually being turned over and CHANGE as that changes. Hardcoding the
       // word "thinking" was the bug: one frozen word for a whole turn is indistinguishable from stuck.
       // CLAMPED FOR THE SAME REASON, and found by applying the rule to my own file rather than
-      // waiting to be shown it: `summary` is a short narration by design (RFC-048), but the
+      // waiting to be shown it: `summary` is a short narration by design, but the
       // fallbacks are not — `text` on a SETTLED thinking block is the entire reasoning, which is
       // the flood he caught on `say` wearing different clothes. The clamp lives HERE, at the
       // status, not in the shared source: the same fields feed the feed row, and the row wants
@@ -1344,7 +1344,7 @@ export function foldState(events) {
         const bare = textOf(ev).replace(new RegExp(CMD_TAGS.source, "g"), "").trim();
         if (!bare) return;
       }
-      // `done` on assistant.text IS the end of the turn (RFC-048). Not honouring it is why the line
+      // `done` on assistant.text IS the end of the turn. Not honouring it is why the line
       // still said "thinking" after the answer had finished printing: a status outliving the state it
       // describes, the same bug class as the stale dictation draft and the ReportsTab poll.
       s.state = ev.done ? "ready" : "working";

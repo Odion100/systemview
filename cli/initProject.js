@@ -5,7 +5,7 @@ const log = require("./logger");
 const appIsRunning = require("./appIsRunning");
 const { manifestDir } = require("./manifestStore");
 
-// RFC-027 — `systemview init`: the ONE command that makes a codebase with no services testable.
+// `systemview init`: the ONE command that makes a codebase with no services testable.
 // It interviews with defaults (enter accepts), writes the configuration, scaffolds the committed
 // folder — named by the PROJECT CODE, default project name `systemview` — and registers it with
 // the hub (a manifest entry, never name-scanning). The hub hosts configured projects as part of

@@ -25,7 +25,7 @@ import WallTab from "../../organisms/WallPanel/WallTab";
 import "./styles.scss";
 import "./docarea.scss";
 
-// RFC-055 — ONE PAGE, THREE PANELS (his design): the navigator on the left (the same one Specs
+// ONE PAGE, THREE PANELS (his design): the navigator on the left (the same one Specs
 // has), the agent profile + context store in the middle, and the RIGHT panel is where documents
 // open for editing — click a doc or a skill in the profile and it lands there on the code
 // view/markdown machinery. Same expandable-panel rhythm as Specs.
@@ -55,7 +55,7 @@ const Context = ({ params = null }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // RFC-057 — PAGE LEVEL, NOT A CHIP AT THE BOTTOM. His correction after the store's statistics
+  // PAGE LEVEL, NOT A CHIP AT THE BOTTOM. His correction after the store's statistics
   // panel landed in the scope row: store stats belong beside the store because they are ABOUT the
   // store, but "are these tools being used properly" is about the system and you should not have to
   // scroll past a notes list to reach it. URL-backed like everything else on this page.
@@ -65,7 +65,7 @@ const Context = ({ params = null }) => {
   // the same component everywhere — meaning the same state"*). This view subscribes to the SAME
   // tabsStore the Code page's center runs on: a document opened here is a tab there and vice
   // versa — one open set per project, two hosts. Documents WITH a real path open as FILE tabs
-  // through the machine door (RFC-069) in the real CodePane; documents with a SAVE DOOR instead
+  // through the machine door in the real CodePane; documents with a SAVE DOOR instead
   // of a file — the def prompt, the def record, skills, jobs, help — ride as kind "agentdoc",
   // rendered by DocPanel with the door they always had.
   const tabsPc = projectCode || "@none";
@@ -161,7 +161,7 @@ const Context = ({ params = null }) => {
   };
 
   // One resolver for every page (see useOpenedFile) — a file clicked anywhere on this page opens
-  // as a FILE TAB in the shared store, machine-addressed when it has no project (RFC-069).
+  // as a FILE TAB in the shared store, machine-addressed when it has no project.
   // THE CHAT'S BOARD ICON ASKS THIS PAGE FIRST (his report, 2026-10-17: the links above the chat
   // "don't open up on the agent page… just open up the document display wherever it is"). Same
   // offer/handled contract the file door uses; only silence navigates.
@@ -295,7 +295,7 @@ const Context = ({ params = null }) => {
                 });
               }}
               onOpenDoc={(next) => {
-                // IF IT IS A FILE, POINT AT THE FILE (RFC-069). *"You can pull up that file and
+                // IF IT IS A FILE, POINT AT THE FILE. *"You can pull up that file and
                 // that will work everywhere."* Presence, the system context and the CLAUDE.md stack
                 // carry their path in `where`; a SKILL carries `path` and a JOB is `<dir>/job.md` —
                 // all of them open as machine-file tabs in the real CodePane and save through the

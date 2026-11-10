@@ -25,7 +25,7 @@
     flex: 1;
   }
 
-  // RFC-011 — JSON view mode: every entry shown expanded (expand-all), separated as cards
+  // JSON view mode: every entry shown expanded (expand-all), separated as cards
   &--json {
     .log-row--clickable {
       cursor: default;
@@ -119,7 +119,7 @@
   //   background: #eeeef8;
   // }
 
-  // RFC-011 — highlight (filter's twin): matched rows stay, get an amber tint + left accent
+  // highlight (filter's twin): matched rows stay, get an amber tint + left accent
   &--highlight .log-cell {
     background: #fdf6e3;
   }
@@ -131,7 +131,7 @@
   }
 }
 
-// RFC-011 — emphasize the specific cell whose path matched a highlight clause
+// emphasize the specific cell whose path matched a highlight clause
 .log-cell--highlight {
   background: #fbe9a8 !important;
   color: #7a5b12 !important;

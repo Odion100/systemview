@@ -221,7 +221,7 @@ export async function contextStats(agentId) {
   }
 }
 
-// RFC-057 — THE CALL LEDGER: { since, days, calls[], agents, byKind, totals }. The opposite reading
+// THE CALL LEDGER: { since, days, calls[], agents, byKind, totals }. The opposite reading
 // of contextStats: that one asks whether a note is worth keeping, this one asks whether a tool is
 // worth arming. Global by default; pass { agent } or { project } to narrow, { days } to window.
 export async function callStats(opts) {
@@ -248,7 +248,7 @@ export async function agentRuns() {
   }
 }
 
-// RFC-058 §8 — THE CORPORA, FROM THE RENDERER. Same shape as the rest of this file: harness state
+// THE CORPORA, FROM THE RENDERER. Same shape as the rest of this file: harness state
 // the browser reads and edits, never owns. These reach the SAME functions in docs.cjs that the
 // `docsPlan` / `docsIndex` MCP tools call — one implementation, two doors, so the cuts he judges
 // are the cuts an agent gets.
@@ -340,7 +340,7 @@ export async function saveCorpus(rec) {
 }
 
 
-// RFC-013 — subscriptions: one agent's rows resolved for display, and the no-refresh channel.
+// subscriptions: one agent's rows resolved for display, and the no-refresh channel.
 // Absence-tolerant like everything in this file: an old shell without the doors reads as empty.
 // (the door is `sv().agent` — SINGULAR, like every helper above; guessing `.agents` cost a live
 // round of "why is it empty": the absence-tolerant catch turned the typo into a clean "none")

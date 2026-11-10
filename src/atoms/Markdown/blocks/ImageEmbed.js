@@ -2,7 +2,7 @@ import React, { useContext, useState } from "react";
 import ServiceContext from "../../../ServiceContext";
 import { useMarkdownScope } from "../context";
 
-// RFC-025 — `::image[screenshots/run-4.png]{caption="the failing state" width=480}`
+// `::image[screenshots/run-4.png]{caption="the failing state" width=480}`
 //           `::image[a.png | b.png | c.png]{caption="the gallery"}`  ← multiple = a GALLERY
 //
 // Repo images as a FIRST-CLASS block (approved via a TV verdict). The document carries locators;

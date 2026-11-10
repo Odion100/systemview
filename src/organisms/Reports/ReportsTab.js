@@ -244,7 +244,7 @@ const ReportsTab = ({ projectCode, serviceId, moduleName, methodName, openName, 
   }, [refreshTick]);
 
   // THE OPEN REPORT KEEPS ITSELF FRESH — his catch: "I had to refresh to see your changes to the
-  // report why is that". A report is a file (RFC-040) and this pane read it once, on open, so an
+  // report why is that". A report is a file and this pane read it once, on open, so an
   // agent writing to it while he read changed nothing on screen. It re-reads on a beat and repaints
   // only when the bytes actually differ, so a document sitting untouched costs one small read and
   // never moves under him. It stands off while he's editing or mid-save — his keystrokes win.

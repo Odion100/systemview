@@ -8,7 +8,7 @@
 // whole, behaviour unchanged, so it can be held to the rules it already learned.
 
 // Rewrite one attribute inside a directive's `{…}` on a given source line. Used by input blocks so
-// an answer lands in the document rather than in some parallel store (RFC-025 §4.6).
+// an answer lands in the document rather than in some parallel store.
 // THE BAG IS TOKENIZED, NEVER REGEXED THROUGH (RFC-073, same fix as the platform's write.cjs): a
 // naive `(^|\s)key=` scan matches inside a QUOTED VALUE — a claim whose note says "told= is the
 // baseline" had the stamp written into the note's prose — so the inner bag is split into real

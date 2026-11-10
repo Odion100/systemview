@@ -37,7 +37,7 @@ function rebuilt(connectionData) {
 // so the browser sends `withCredentials` (session cookie) to it. Plain services (no headers) stay
 // credential-less so they keep working on the default wildcard CORS.
 //
-// `credentials` (RFC-013) is the cookie-only declaration: a service that authenticates via session
+// `credentials` is the cookie-only declaration: a service that authenticates via session
 // cookies declares NO headers, so the header-profile rule can never mark it — its plugin registers
 // `credentials: true` instead, and that flag arrives here via getProjects.
 export default function loadServiceWithHeaders(connectionData, headers, credentials) {

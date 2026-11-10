@@ -1,6 +1,6 @@
 import { visit } from "unist-util-visit";
 
-// RFC-025 — the ONE parsing hook that makes markdown interactive everywhere.
+// the ONE parsing hook that makes markdown interactive everywhere.
 //
 // `remark-directive` parses three shapes into mdast nodes; this plugin funnels all three into a
 // single hast element (`svblock`) carrying the directive's name/type/attributes as props. The
@@ -75,7 +75,7 @@ export default function remarkSvBlocks() {
         dattrs: JSON.stringify(node.attributes || {}),
         dlabel: dtype === "container" ? (labelChild ? labelOf(labelChild) : "") : labelOf(node),
         // The source line this directive sits on — how an INPUT block (::question, ::slider) writes
-        // its answer back into the document it came from (RFC-025 §4.6).
+        // its answer back into the document it came from.
         dline: (node.position && node.position.start && node.position.start.line) || 0,
         // …and the line it ENDS on, so the document menu can act on the whole block (remove a thread
         // wrapper, insert after an embed) rather than only on its first line.

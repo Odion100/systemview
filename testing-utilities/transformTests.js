@@ -1,7 +1,7 @@
 const { Argument } = require("./Argument.class");
 const Test = require("./Test.class");
 
-// RFC-020 — a named-action section entry resolves to that action's steps. A `{ use: <name> }` pulls the
+// a named-action section entry resolves to that action's steps. A `{ use: <name> }` pulls the
 // stored procedure's steps; an inline array is used as-is. NOT spliced into a built-in section — a named
 // section is its OWN section (a peer of before/main/after).
 function resolveSteps(val, resolveAction) {
@@ -17,7 +17,7 @@ function resolveSteps(val, resolveAction) {
 // before…after; events keep their historical slot (special: listened first). A test's own `run` overrides.
 const DEFAULT_ORDER = ["before", "events", "main", "after"];
 
-// RFC-020 — a test is a **sections object** keyed by section name `{ before, main, events, after, <named> }`
+// a test is a **sections object** keyed by section name `{ before, main, events, after, <named> }`
 // (the reference target — `test.seedSum[0].results` is `obj(sections).get("seedSum.0.results")`) PLUS a
 // **run-order** list of those names (what the engine loops). Two structures, decoupled: object = address,
 // list = placement. Built-in sections come from the test's capitalized keys (back-compat); named sections

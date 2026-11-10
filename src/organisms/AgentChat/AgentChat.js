@@ -69,7 +69,7 @@ import { LINKISH, shortUrl, collectLinks, pathHref } from "./chatLinks";
 import { joinSpoken } from "./spokenJoin";
 import "./styles.scss";
 
-// RFC-028 — agent presence. SEVERAL bots, not one: every connected project has its own bot,
+// agent presence. SEVERAL bots, not one: every connected project has its own bot,
 // visible at ALL times — you never switch namespaces to find a bot (it can switch namespaces for
 // you eventually, not the other way around). Each bot: the chat icon wearing a small bot face, a
 // truly transparent circle, its project label, its own remembered position. Presence is shown as
@@ -112,7 +112,7 @@ const STACK = 78; // default vertical spacing per undragged bot
 // The reference chips a bubble can carry. Deliberately the SAME components the markdown renderer
 // uses — a `:file[…]` must mean the identical thing in a chat bubble and in a document, or agents
 // have to learn two dialects for one idea.
-// RFC-050 — inline references, now the registry's own. `help` and `diff` were missing for no reason
+// inline references, now the registry's own. `help` and `diff` were missing for no reason
 // other than that nobody had needed them in a bubble; a chat that carries the vocabulary carries all
 // of it. Falls back to ReportLink for an unknown name, exactly as before.
 const REF_BLOCKS = {
@@ -309,7 +309,7 @@ const alignOf = (c) => (/^:.*:$/.test(c) ? "center" : /:$/.test(c) ? "right" : u
 // Block pass: fenced code, headings (as bold lines — an h1 inside a bubble is absurd), tight
 // lists, quotes, rules. Anything else is prose, and prose keeps its own newlines because the
 // bubble is `white-space: pre-wrap`; blank lines become block spacing instead of dead height.
-// RFC-050 — THE SAME BLOCKS THE TV RENDERS, in the chat. His call, once the chat started reading
+// THE SAME BLOCKS THE TV RENDERS, in the chat. His call, once the chat started reading
 // like a document: *"I think it can take interactive markdown elements — sometimes it's a report,
 // sometimes you could just offer me a commit right in the chat, show me files."*
 //
@@ -621,7 +621,7 @@ let topZ = 8500;
 const mountedBots = new Set();
 // The margin a floating bot is clamped to, so it can never be dragged off the edge.
 const DOCK_EDGE = 6; // he asked for five to seven
-// The hub's one-hit button: every on-screen bot goes home to its own codebase card (RFC-038). The
+// The hub's one-hit button: every on-screen bot goes home to its own codebase card. The
 // old meaning — file into a lane across the top of the window — is gone with the lane.
 const dockAllBots = () => window.dispatchEvent(new Event("sv:dockAll"));
 // Every visitor project gets ITS OWN color (his call: "everyone who's a visitor has the same
@@ -687,7 +687,7 @@ const showWhenAbs = (ts) => {
   return m.isValid() ? m.format("MMM D · h:mm A") : "";
 };
 
-// RFC-062 — THE RECORDER IS VISIBLE FROM THE DOCKED ROW. Floating, the mic peek hangs beside the
+// THE RECORDER IS VISIBLE FROM THE DOCKED ROW. Floating, the mic peek hangs beside the
 // bubble; docked in the card that box lands outside the panel and is clipped — so a recording
 // looked stopped the moment he docked the agent. The row itself wears the state: a red dot and
 // the elapsed time, static on purpose (a cue that lives on screen for minutes must not animate).
@@ -721,7 +721,7 @@ function StatusLine({ status, visitor, tok, onStop = null }) {
   const text = generic && i > 0 ? COOKING[i - 1] : status;
   // No key: the element persists and the WORD swaps in place — a remount re-ran the entrance
   // animation on every phrase change and read as blinking.
-  // RFC-031 — a VISITOR cooking wears its plum and its name (his rule: you must be able to
+  // a VISITOR cooking wears its plum and its name (his rule: you must be able to
   // tell WHO is cooking at a glance).
   return (
     <div
@@ -1368,7 +1368,7 @@ function Whiteboard({ text, onWipe, shown = null, onShow = null }) {
 // and the whiteboard. A lane is a run whose source is `lane:<branch>`: the row shows a REAL
 // fraction from its run list (never a spinner), and a finished lane grows its review — press the
 // row and the ::branch block renders right here, live diff and landing included.
-// THE LANE PANEL (RFC-059) — the window into a lane: its LOG (the real commands and results it
+// THE LANE PANEL — the window into a lane: its LOG (the real commands and results it
 // ran, folded by the same Feed the workbench uses), its branch review, and its ARTIFACTS — the
 // janitor's row: worktree still on disk, branch merged or not, run closed or died. What a lane
 // did, what it proved, what it left behind — one panel, closed with ×.
@@ -2039,7 +2039,7 @@ export default function AgentChats() {
     .map((pc, i) => <BotBubble key={pc} projectCode={pc} index={i} />);
 }
 
-// RFC-052 — THE DOCK'S SPOTS, one per agent, in his order. Rendered by the page inside the rail;
+// THE DOCK'S SPOTS, one per agent, in his order. Rendered by the page inside the rail;
 // each docked bot portals into its own spot, an undocked one leaves its spot visibly empty.
 export function DockSpots() {
   const { connectedServices } = useContext(ServiceContext);
@@ -2119,7 +2119,7 @@ export function BotHub() {
         <>
           <div className="bot-hub__overlay" onClick={() => setOpen(false)} />
           <div className="bot-hub__menu">
-            {/* One hit, everyone goes home to their own codebase card (RFC-038). It used to line
+            {/* One hit, everyone goes home to their own codebase card. It used to line
                 them up across the top of the window; that lane is gone. */}
             <button
               type="button"
@@ -2226,7 +2226,7 @@ function BotBubble({ projectCode, index }) {
   }, [open, projectCode]);
   const [ctxMenu, setCtxMenu] = useState(false);
   const [messages, setMessages] = useState([]);
-  // RFC-046 — WHAT IT IS DOING, in the conversation where he is already talking to it. His
+  // WHAT IT IS DOING, in the conversation where he is already talking to it. His
   // correction after I built it as a fold in the navigation: *"there's a new agent in a section in
   // a navigation, and that's not what I meant by anything I said"* — he said he does not see the
   // agents work IN THE CONVERSATIONS. So the live feed lands at the bottom of this list, in the
@@ -2358,7 +2358,7 @@ function BotBubble({ projectCode, index }) {
     if (inRailRef.current) window.dispatchEvent(new CustomEvent("sv:railFront", { detail: { z: nz } }));
   };
   // Double-click the bot → take the lowest free slot and go there. Only THIS bot moves.
-  // RFC-038 — DOCKING MEANS GOING HOME NOW, not parking at the edge of the window. Double-clicking
+  // DOCKING MEANS GOING HOME NOW, not parking at the edge of the window. Double-clicking
   // the face sends the agent back into its own codebase card; the arrow on the docked row (or
   // dragging it out) brings it back to floating. The header lane keeps configuration and loses
   // docking, which is his call: two docks was one too many.
@@ -2407,7 +2407,7 @@ function BotBubble({ projectCode, index }) {
   // a filter hides the card, the page changes). So it is looked for on a slow tick rather than once
   // — and dropped the moment it leaves the document, which is what puts the bot back on the screen
   // instead of leaving it rendered into a detached node.
-  // RFC-062 — NO MIRRORED STATE. A docked bot already finds its home by LOOKING — the card's
+  // NO MIRRORED STATE. A docked bot already finds its home by LOOKING — the card's
   // slot, or the rail spot when the nav is collapsed. Tabs view adds exactly one fact, read in
   // the same look: is the nav open in tabs view right now? If so, a docked bot with no slot on
   // screen is IN ITS TAB and renders nothing. An event-fed copy of "which tab is active" was the
@@ -2691,7 +2691,7 @@ function BotBubble({ projectCode, index }) {
   useEffect(() => {
     if (!navDocked) return setSlotEl(null) || undefined;
     const look = () => {
-      // The card's slot first; the RAIL when the navigator is collapsed (RFC-052) — docked never
+      // The card's slot first; the RAIL when the navigator is collapsed — docked never
       // means gone.
       // A card slot inside a HIDDEN navigator does not count — the collapsed nav keeps its body
       // mounted at display:none, and a bot portaled into that is the "docked agents vanish" bug.
@@ -2789,7 +2789,7 @@ function BotBubble({ projectCode, index }) {
       return next;
     });
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  // RFC-045 — INSIDE A HOST, THE HOST DICTATES. `webkitSpeechRecognition` exists in Electron and
+  // INSIDE A HOST, THE HOST DICTATES. `webkitSpeechRecognition` exists in Electron and
   // never returns a result (the recogniser is a Chrome service), so `!!SR` is a false positive there
   // and this mic would look broken rather than absent. utils/hostDictation.js records with plain
   // MediaRecorder and hands the bytes over; the trade is that there are no interim words, so the
@@ -3040,7 +3040,7 @@ function BotBubble({ projectCode, index }) {
     }, 250);
     return () => clearTimeout(t);
   }, [pos, projectCode]);
-  // RFC-062 — PULLED OUT BY ITS TAB (his ask: undock from the strip without entering the tab).
+  // PULLED OUT BY ITS TAB (his ask: undock from the strip without entering the tab).
   // The strip only knows project codes; the bot owns its position, so the strip dispatches and
   // the bot places itself under the pointer and undocks.
   useEffect(() => {
@@ -3087,7 +3087,7 @@ function BotBubble({ projectCode, index }) {
   const chat = "main";
   const p = (presence && presence[chat]) || { live: false, listener: false, status: null };
 
-  // RFC-029 — THE EXECUTOR. Commands execute ONLY here, off the live push; loading history
+  // THE EXECUTOR. Commands execute ONLY here, off the live push; loading history
   // renders old command lines but never re-executes them (the replay rule — a refresh must not
   // replay every place the agent ever sent you). Reads window.location, not the hook — a command
   // can arrive long after this closure was made.
@@ -3174,7 +3174,7 @@ function BotBubble({ projectCode, index }) {
     try {
       if (cmd === "nav") {
         if (args.stats) {
-          // RFC-032 — walk the human to the Stats page. The URL push covers a fresh mount (Reports
+          // walk the human to the Stats page. The URL push covers a fresh mount (Reports
           // reads its query on init); the event covers the already-standing-there case, where a
           // same-route push doesn't remount and the query init never re-runs.
           const s = args.stats;
@@ -3189,7 +3189,7 @@ function BotBubble({ projectCode, index }) {
           return;
         }
         if (args.agents) {
-          // The Agents page (RFC-055) — roster and profiles, scoped to the project.
+          // The Agents page — roster and profiles, scoped to the project.
           go({ pathname: `/agents/${projectCode}`, search: "" });
           return;
         }
@@ -3208,7 +3208,7 @@ function BotBubble({ projectCode, index }) {
           p.delete("help");
           p.delete("rdoc"); // …and not behind a report either
           p.set("file", args.file);
-          // RFC-069 — the hub resolved this file before the command reached us. A machine file has
+          // the hub resolved this file before the command reached us. A machine file has
           // no project and needs no service; a file the resolver placed in ANOTHER project carries
           // that project, so the pane asks the right root instead of this room's.
           if (args.machine) {
@@ -3289,7 +3289,7 @@ function BotBubble({ projectCode, index }) {
           setTv(null);
           setTvOpen(false);
         } else if (args.report) {
-          // RFC-040 — A DOCUMENT-BACKED SHOW. The record carries a POINTER, not the text, so the
+          // A DOCUMENT-BACKED SHOW. The record carries a POINTER, not the text, so the
           // TV has to READ the file. This branch only ever tested `args.text`, so once reports
           // became documents a live push did nothing at all here: whatever you were last looking
           // at stayed up, and the new report was only findable through the picker. His words:
@@ -3843,7 +3843,7 @@ function BotBubble({ projectCode, index }) {
       const dy = ev.clientY - d.startY;
       if (!d.moved && Math.abs(dx) + Math.abs(dy) < 6) return;
       d.moved = true;
-      // RFC-052 — DRAGGED OUT OF THE RAIL — and out of the CODEBASE CARD's slot the same way: the
+      // DRAGGED OUT OF THE RAIL — and out of the CODEBASE CARD's slot the same way: the
       // moment a real drag starts, a docked agent undocks and floats under the pointer. The button
       // (double-click) stays; the drag was always supposed to work too.
       if (inRailRef.current || inNavRef.current) setNavDocked(projectCode, false);
@@ -3895,7 +3895,7 @@ function BotBubble({ projectCode, index }) {
         setNavDocked(projectCode, true);
         return;
       }
-      // RFC-052 — DROPPED ONTO THE RAIL: that is docking. Only when the rail is there (navigator
+      // DROPPED ONTO THE RAIL: that is docking. Only when the rail is there (navigator
       // collapsed) and the pointer let go over the rail's OWN area — below the nav tab. Above it
       // stays free (his rule: "from the nav tab up, it should be free" — the top corners are still
       // places to put an agent).
@@ -4189,11 +4189,11 @@ const countdown = (str, now = Date.now()) => {
     // button, mic flows) resets it, not just the keyboard one.
     if (inputRef.current) inputRef.current.style.height = "auto";
     // The vantage point, stamped NOW — the reader arrives later, after you've moved on.
-    // RFC-029: the THREE-SECTION breakdown (nav / center / scratchpad), mostly a URL decode —
+    // the THREE-SECTION breakdown (nav / center / scratchpad), mostly a URL decode —
     // "on stage" says WHICH report, "in the scratchpad" says which namespace it's pointed at.
     const params = new URLSearchParams(location.search);
     const nsSelected = [serviceId, moduleName, methodName].filter(Boolean).join("/") || null;
-    // RFC-032 — standing on the Stats page stamps a stats-shaped view: which project's stats,
+    // standing on the Stats page stamps a stats-shaped view: which project's stats,
     // which tab, what time window, which service is focused. Agents read view.page first.
     const onStats = location.pathname.startsWith("/reports");
     const view = onStats ? {
@@ -4321,7 +4321,7 @@ const countdown = (str, now = Date.now()) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input]);
 
-  // RFC-031 — the roster: who's in this room besides its own agent, and where this project's
+  // the roster: who's in this room besides its own agent, and where this project's
   // own agent is off visiting (both derived hub-side from real holds, so they can't lie).
   // ATTACHED, THE ROSTER IS THE SESSION'S. The hub's roster is built from real holds in a ROOM, and
   // a peer agent reaching into a session takes no hold anywhere — so on an attached chat `p.visitors`
@@ -4473,7 +4473,7 @@ const countdown = (str, now = Date.now()) => {
   // showed it blank — his picks looked lost even though the hub still held every one of them. (Found
   // live, minutes after per-report state shipped: "I don't see my options that I just chose and
   // neither one anymore.") The mount-restore path already did this correctly; these two didn't.
-  // RFC-040 — the project's plugin, reachable from openShow. A ref rather than the memo directly:
+  // the project's plugin, reachable from openShow. A ref rather than the memo directly:
   // the memo is declared hundreds of lines below, and naming it in a dependency array up here is a
   // TDZ crash (the same shape that took every bot off the page once already).
   const projPluginRef = useRef(null);
@@ -5160,7 +5160,7 @@ const countdown = (str, now = Date.now()) => {
       setTvOpen(false);
     }
   };
-  // RFC-039 — take a record off the list. Optimistic locally so the row goes at once, then the hub
+  // take a record off the list. Optimistic locally so the row goes at once, then the hub
   // patches the record (hidden: true) and every open panel re-reads it. The links panel's own
   // two-step remove went with the report rows; the callers left are the message and show menus.
   const hideRecord = (id) => {
@@ -5413,10 +5413,10 @@ const countdown = (str, now = Date.now()) => {
   // bot merely dragged near the top keeps its full-size peek (his catch: "close to the top, it
   // shrinks — it probably was good before").
   const docked = false; // the old top-of-window lane is gone — docking means the codebase card now
-  // RFC-038 — IN THE NAV. `navDocked` is the intent; `inNav` is the fact, because the slot only
+  // IN THE NAV. `navDocked` is the intent; `inNav` is the fact, because the slot only
   // exists while that codebase card is on screen. If the panel is closed or the card unmounts, the
   // bot has nowhere to be and floats again rather than disappearing.
-  // RFC-052 — IN THE RAIL: the navigator is collapsed, the card is gone, and the bot is drawn small
+  // IN THE RAIL: the navigator is collapsed, the card is gone, and the bot is drawn small
   // in the strip that remains. Not `inNav` (no tabs, no card row): a small face whose panels open
   // beside the rail.
   const inRail = navDocked && !!slotEl && slotEl.id === spotId(projectCode);
@@ -5451,7 +5451,7 @@ const countdown = (str, now = Date.now()) => {
     }
     wasRail.current = inRail;
   }, [inRail, inNav]);
-  // RFC-062 — the SAME dock, with ROOM. In tabs view the nav shows one card spanning the panel,
+  // the SAME dock, with ROOM. In tabs view the nav shows one card spanning the panel,
   // so the docked chat's 420px cap stops making sense there: the panel keeps its own resize
   // handle and may be dragged as tall as the panel goes. Everywhere else the cap stands.
   const inTabsNav = inNav && !!(slotEl && typeof slotEl.closest === "function" && slotEl.closest(".system-nav--tabs"));
@@ -5468,7 +5468,7 @@ const countdown = (str, now = Date.now()) => {
   // supposed to just be able to drag that agent out, just like the other dock").
   const inNavRef = useRef(inNav);
   inNavRef.current = inNav;
-  // RFC-052 — OVER THE DOCK WHILE DRAGGING: the bot shrinks to dock size in your hand and the spot
+  // OVER THE DOCK WHILE DRAGGING: the bot shrinks to dock size in your hand and the spot
   // under the pointer shows a ring, so where it lands is clear before you let go (his ask).
   const [overDock, setOverDock] = useState(false);
   const dockTargetOf = (x, y) => {
@@ -5486,7 +5486,7 @@ const countdown = (str, now = Date.now()) => {
     document.querySelectorAll("[data-spot].nav-panel__spot--target").forEach((el) => el.classList.remove("nav-panel__spot--target"));
     if (hit && hit.spots[hit.target]) hit.spots[hit.target].classList.add("nav-panel__spot--target");
   };
-  // RFC-055 — THE AGENT-PANEL CARD IS A DOCK TARGET (his ask: dragging out works, dragging back
+  // THE AGENT-PANEL CARD IS A DOCK TARGET (his ask: dragging out works, dragging back
   // in has to work too). This bot's OWN card only — the one whose slot carries its projectCode.
   const openNavAt = (x, y) => {
     const el = document.querySelector('[data-sv="nav"]');
@@ -5518,7 +5518,7 @@ const countdown = (str, now = Date.now()) => {
   // the slot lookup, because it reads the four open-flags — declared further down, and reading one
   // above its declaration is a TDZ crash that takes the whole surface with it.
   const navShowing = navDocked && (open || boardOpen || linksOpen || tvOpen);
-  // RFC-055 — DOCKED IN AN AGENT-PANEL CARD. Same rail mode, different home: the card lives in a
+  // DOCKED IN AN AGENT-PANEL CARD. Same rail mode, different home: the card lives in a
   // SCROLLING column, so everything measured off the bot (the panel row, the peek, the say bubble)
   // must re-measure as he scrolls or it stays behind while the face moves (his catch). A scroll
   // tick re-renders the bot; the fixed positions are recomputed from the fresh rect each time.
@@ -6057,7 +6057,7 @@ const countdown = (str, now = Date.now()) => {
       [...rows.values()].filter((l) => JSON.stringify(l.items) !== clearedLists[l.key]),
     );
   })();
-  // STANDING LANES (RFC-059 slice 2): a lane row is born from a spawn and DIES AT CLEANUP —
+  // STANDING LANES: a lane row is born from a spawn and DIES AT CLEANUP —
   // nothing in between kills it. Rows come from the host's run files, so they outlive refreshes;
   // this session's live lane events overlay them (freshest items win) but never own the row's
   // existence. clearedLists still applies — after his confirmed delete the run file is gone, and
@@ -6764,7 +6764,7 @@ const countdown = (str, now = Date.now()) => {
                 commentKey={`tv-${projectCode}`}
                 onSourceChange={(next) => {
                   setTv((cur) => (cur ? { ...cur, text: next } : cur));
-                  // RFC-040 — a document-backed report saves to the DOCUMENT. His answers then
+                  // a document-backed report saves to the DOCUMENT. His answers then
                   // outlive the room: compaction, a hidden record, a re-push, none of them can
                   // reach them. Records that predate this still write through the hub.
                   //
@@ -8916,10 +8916,10 @@ const countdown = (str, now = Date.now()) => {
       })()}
     </div>
   );
-  // RFC-038 — the same bot, rendered somewhere else. A portal rather than a second component, so
+  // the same bot, rendered somewhere else. A portal rather than a second component, so
   // nothing about its state (the chat, the board, the TV, presence, the roster) is rebuilt or lost
   // by going home.
-  // RFC-062 — docked, tabs view open, no slot on screen: the bot is IN ITS TAB — not floating,
+  // docked, tabs view open, no slot on screen: the bot is IN ITS TAB — not floating,
   // not portaled, not drawn. Every other case is exactly what it always was: slot → card,
   // rail spot → rail, undocked → floats.
   if (navTabsOpen && navDocked && !slotEl) return null;

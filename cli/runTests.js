@@ -74,7 +74,7 @@ module.exports = async function runTests(
     phase: phaseFilter = null,
     index: indexFilter = undefined,
     skip: skipPatterns = [],
-    // RFC-056 — LIB MODE: return the structured result instead of printing it. The hub exposes
+    // LIB MODE: return the structured result instead of printing it. The hub exposes
     // this same runner as a service method for the internal MCP; one runner, two faces.
     collect = false,
   } = {}
@@ -256,7 +256,7 @@ const runAllTests = async (savedTests, url, project_code, json, verbose, opts = 
   const sum = { passed: 0, failed: 0, jsonTests: [], failures: [] };
 
   for (const test of savedTests) {
-    // RFC-020 — a test is `{ sections, order }`; the run-order is a list of section names (built-in
+    // a test is `{ sections, order }`; the run-order is a list of section names (built-in
     // before/main/events/after + any shared-action sections). We run and report each section in that order.
     const { title, namespace } = test;
     const sections = { ...test.sections };
@@ -375,7 +375,7 @@ function countErrors(tests) {
   return tests.reduce((n, t) => n + (t.errors ? t.errors.length : 0), 0);
 }
 
-// RFC-020 — a section's display label. Built-ins get their capitalized name; a shared-action section shows
+// a section's display label. Built-ins get their capitalized name; a shared-action section shows
 // its own name (so a custom section reads as itself, e.g. "seedSum", not "Before").
 function sectionLabel(name) {
   return { before: "Before", main: "Main", events: "Events", after: "After" }[name] || name;

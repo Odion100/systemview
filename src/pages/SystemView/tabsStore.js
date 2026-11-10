@@ -1,4 +1,4 @@
-// RFC-054 — THE OPEN SET. The center is a tab strip of open documents; this is the one writer for
+// THE OPEN SET. The center is a tab strip of open documents; this is the one writer for
 // what is open, per project, cached, shaped for the split-pane work he has already named as next:
 //
 //   { panes: [ { tabs: [tab], active: key } ] }     // v1 holds exactly one pane

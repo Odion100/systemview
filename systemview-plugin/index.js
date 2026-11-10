@@ -21,13 +21,13 @@ module.exports = function ({
   connection = "http://localhost:3300/systemview/api",
   specs = "./specs",
   logs = "./systemview.logs",
-  // RFC-017: all SystemView runtime files live under this folder in the observed project's cwd.
+  // all SystemView runtime files live under this folder in the observed project's cwd.
   dir = ".systemview",
-  // RFC-027: the observed project's directory. Defaults to cwd (the plugin running inside its own
+  // the observed project's directory. Defaults to cwd (the plugin running inside its own
   // service). A HOSTED service runs in the hub's process, so the hub passes the target repo here —
   // every path (runtime dir, file providers, project doc) resolves against it instead of cwd.
   root = process.cwd(),
-  // RFC-027: truthy = this service is CLI-HOSTED; the value is the committed folder's path relative
+  // truthy = this service is CLI-HOSTED; the value is the committed folder's path relative
   // to `root` (e.g. "systemview"). Rides the registration, the manifest entry, and getConnection so
   // the hub can re-host on boot and the UI can mark the service plum.
   hosted = false,
@@ -36,7 +36,7 @@ module.exports = function ({
   serviceId,
   module,
   headers = {},
-  // Declares this service COOKIE-CREDENTIALED (RFC-013): its CORS reflects the origin and allows
+  // Declares this service COOKIE-CREDENTIALED: its CORS reflects the origin and allows
   // credentials, and it authenticates via session cookies — so browser clients must send
   // withCredentials even though it declares no header profile. Rides the registration to the UI.
   credentials = false,
@@ -59,7 +59,7 @@ module.exports = function ({
   exclude = [],
 }) {
   return function (App, system) {
-    // RFC-017: one folder for everything SystemView writes into the project.
+    // one folder for everything SystemView writes into the project.
     const SV_DIR = path.resolve(root, dir);
     ensureDir(SV_DIR);
     // PER-SERVICE log file (mirrors the per-service stats file below). Sibling services in one project
@@ -397,7 +397,7 @@ module.exports = function ({
       });
     }
 
-    // RFC-017: write THIS service's OWN file — `.systemview/<serviceId>.manifest.json`. No read-modify-
+    // write THIS service's OWN file — `.systemview/<serviceId>.manifest.json`. No read-modify-
     // write of a shared file, so N services starting at once never clobber each other (that stampede was
     // the deploy-boot wedge). getManifest() and the CLI glob these files and assemble the whole project.
     function persistManifest(system) {
@@ -407,7 +407,7 @@ module.exports = function ({
         // Persist ONLY serializable connectionData — never the live `system` (its `modules` are live
         // instances, `services` are socket-backed clients; JSON.stringify walking their getters can block).
         const entry = { projectCode, serviceId, system: { connectionData }, specList, credentials };
-        // RFC-027: a hosted service's manifest entry keeps the folder pointer — this is what the
+        // a hosted service's manifest entry keeps the folder pointer — this is what the
         // boot hosting unit reads to know WHAT to re-host (registration, never name-scanning).
         if (hosted) entry.hosted = hosted;
         // Operator-authored config headers ride as DEFAULTS under this service's own origin; the
@@ -443,7 +443,7 @@ module.exports = function ({
       if (flushTimer.unref) flushTimer.unref();
     }
 
-    // RFC-015 §5 — LB-mode detection + subscriptions. All in-process reads/local events; the LB
+    // LB-mode detection + subscriptions. All in-process reads/local events; the LB
     // reports to SystemView the way every other service does, it just records cluster behavior.
     App.on("ready", function () {
       const Tentacle =
@@ -480,7 +480,7 @@ module.exports = function ({
         });
       });
 
-    // RFC-015 Tier 2 — OUTBOUND trace stamping (rides SystemLynx RFC-005 client hooks + RFC-007
+    // OUTBOUND trace stamping (rides SystemLynx RFC-005 client hooks + RFC-007
     // caller-bound copies). On every call this service makes to a loaded peer, stamp:
     //   x-sv-trace  — the inbound request's trace when reachable (this.__caller.req), else a fresh id
     //   x-sv-caller — who is calling: serviceId[.Module[.method]]

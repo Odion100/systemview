@@ -8,7 +8,7 @@ import CodePane from "../CodePane/CodePane";
 
 const clampW = (v) => Math.min(60, Math.max(20, v));
 
-// RFC-055 — THE DOC PANEL. His design: the agents page follows the same three-panel pattern as
+// THE DOC PANEL. His design: the agents page follows the same three-panel pattern as
 // Specs — nav on the left, the profile+context in the middle, and the RIGHT panel is where the
 // documents open for editing. Click a doc (or a skill — a skill IS a doc) in the profile and it
 // lands here, on the real machinery: CodeMirror to edit, the Markdown renderer to preview —

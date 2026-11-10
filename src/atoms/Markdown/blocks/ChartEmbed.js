@@ -4,7 +4,7 @@ import ServiceContext from "../../../ServiceContext";
 import LineChart from "../../../organisms/Charts/LineChart";
 import { useMarkdownScope } from "../context";
 
-// RFC-025 §4.3 — `::chart{report=throughput range=1h service=Profiles}`
+// `::chart{report=throughput range=1h service=Profiles}`
 //
 // The live Stats rollups, inside a document. Same component the Stats page draws, same source
 // (`SystemView.getStats()` per service), so prose can point at what actually happened instead of

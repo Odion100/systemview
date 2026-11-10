@@ -5,7 +5,7 @@ const log = require("./logger");
 const appIsRunning = require("./appIsRunning");
 const { readFolderManifest, removeServiceFile } = require("./manifestStore");
 
-// RFC-027 — `systemview delete <projectCode>`: init's OPPOSITE, and it only applies to projects
+// `systemview delete <projectCode>`: init's OPPOSITE, and it only applies to projects
 // made on the fly (hosted from a committed folder). It unhosts, removes the registration and the
 // store entry, and removes the FOLDER itself — after a y/N confirm (EOF/anything-but-y = no).
 // Everything else is a connection, not a deletable project: `disconnect` is the verb for those.

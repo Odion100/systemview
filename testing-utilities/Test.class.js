@@ -23,7 +23,7 @@ module.exports = function Test({
   this.title = title;
   this.args = args || [];
   this.editMode = editMode;
-  // RFC-020 — the section-array-of-arrays this step lives in, so `validate` can resolve `tv()` references
+  // the section-array-of-arrays this step lives in, so `validate` can resolve `tv()` references
   // in evaluation values against sibling steps' results. Non-enumerable: FullTest holds Tests holding
   // FullTest (a cycle), and it must stay OUT of JSON.stringify / obj().clone().
   Object.defineProperty(this, "FullTest", { value: FullTest, enumerable: false });

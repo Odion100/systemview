@@ -35,7 +35,7 @@ const SystemViewPage = ({ params = null }) => {
   const projectCode = useEffectiveProject(routeRaw);
   // Both side panels de-expand into their corners so the middle (Stories/Docs) gets the space.
   // The open/collapsed state PERSISTS across refresh (localStorage) — you get the layout back exactly.
-  // RFC-052 — the rail rises with the docked agent you click (see bringToFront in AgentChat).
+  // the rail rises with the docked agent you click (see bringToFront in AgentChat).
   const [railZ, setRailZ] = useState(8400);
   useEffect(() => {
     const on = (e) => setRailZ((e.detail && e.detail.z) || 8400);
@@ -55,7 +55,7 @@ const SystemViewPage = ({ params = null }) => {
     // the moment that changes, rather than reading a flag it has no reason to re-check.
     window.dispatchEvent(new CustomEvent("sv:navOpen", { detail: { open: navOpen } }));
   }, [navOpen]);
-  // RFC-022 — the LENS (SystemLynx services ⇄ Codebase files) and the file open in the Code center
+  // the LENS (SystemLynx services ⇄ Codebase files) and the file open in the Code center
   // live at the PAGE level: the nav picks, the center shows. Both persist across refresh.
   const [navTab, setNavTab] = useState(
     () => localStorage.getItem("sv.navTab") || "systemlynx",
@@ -87,7 +87,7 @@ const SystemViewPage = ({ params = null }) => {
     if (!path) return null;
     const lines = p.get("flines");
     return {
-      // RFC-069 — a MACHINE file: absolute path, no project. `fproj` is absent on purpose; the
+      // a MACHINE file: absolute path, no project. `fproj` is absent on purpose; the
       // flag is what tells the pane to read through the machine door instead of a project's.
       machine: p.get("fmachine") === "1" || undefined,
       projectCode: p.get("fmachine") === "1" ? "" : p.get("fproj") || undefined,
@@ -266,7 +266,7 @@ const SystemViewPage = ({ params = null }) => {
     };
   }, []);
 
-  // HELP rides the URL as `?help=<topic>` (RFC-026). Opening a topic PUSHES — every topic is a
+  // HELP rides the URL as `?help=<topic>`. Opening a topic PUSHES — every topic is a
   // history entry, so the back button walks help→help→document with no special casing. Closing
   // REPLACES (a close is not a place you go back to). Any real navigation drops the param.
   useEffect(() => {
@@ -287,11 +287,11 @@ const SystemViewPage = ({ params = null }) => {
     return () => window.removeEventListener("sv:help", onHelp);
   }, [history]);
 
-  // REVEAL (RFC-025) — a `:ns[…]` or `:file[…]` chip clicked inside a document points the NAVIGATOR at
+  // REVEAL — a `:ns[…]` or `:file[…]` chip clicked inside a document points the NAVIGATOR at
   // its target without touching the centre: the tree expands to it and highlights it, and the document
   // you were reading stays exactly where it was. Selecting is then YOUR click.
   // Deliberately NOT in the URL: this is a pointer, not a location, so it must not push history.
-  // RFC-026 — reveals DON'T flip the lens: the codebase card carries services AND files, so a
+  // reveals DON'T flip the lens: the codebase card carries services AND files, so a
   // namespace reveal resolves wherever you are. The one exception is a file reveal while on the
   // SystemLynx lens, which has nowhere to show a file.
   const [reveal, setReveal] = useState(null);

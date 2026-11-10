@@ -54,7 +54,7 @@ if (SYSTEMVIEW_HOST) {
     } catch {}
     setTimeout(() => {
       try {
-        // RFC-017: operator-authored headers live in the CLI's session store, `.systemview/session.json`.
+        // operator-authored headers live in the CLI's session store, `.systemview/session.json`.
         const dir = path.join(process.cwd(), ".systemview");
         fs.mkdirSync(dir, { recursive: true });
         const mp = path.join(dir, "session.json");

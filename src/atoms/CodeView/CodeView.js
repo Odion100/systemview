@@ -6,7 +6,7 @@ import { oneDark } from "@codemirror/theme-one-dark";
 import { langExt } from "./languages";
 import "./styles.scss";
 
-// RFC-018 — read-only CodeMirror 6 view, mounted directly on core (no React wrapper: the @uiw React
+// read-only CodeMirror 6 view, mounted directly on core (no React wrapper: the @uiw React
 // binding pulls a bare `react/jsx-runtime` import that CRA5/webpack can't resolve without ejecting).
 // The renderer for `file`/`source`/(diff head) panes: real plugin bytes, syntax-highlit, framed.
 // `highlight` = { lines:[a,b] } or { match:"str" } → scroll-to + line-range emphasis (RFC-011 instinct).

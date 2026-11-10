@@ -55,7 +55,7 @@ function formatRow(entry, verbose, extraFields, highlighted) {
   const msg = highlighted ? chalk.bgYellow.black(entry.scope || "") : entry.scope || "";
   const dur = entry.duration != null ? chalk.dim(` ${entry.duration}ms`) : "";
   const traceId = chalk.dim(entry.traceId || "—");
-  // Highlight (RFC-011): a left gutter marker keeps every row but flags matches (filter's twin).
+  // Highlight: a left gutter marker keeps every row but flags matches (filter's twin).
   const gutter = highlighted ? chalk.bgYellow.black(" ► ") : "  ";
   let row = `${gutter}${chalk.dim(time)}  ${chalk.cyan(project)} › ${chalk.cyan(service)}   ${method.padEnd(15)}  ${level}  ${traceId}  ${msg}${dur}`;
   if (extraFields && extraFields.length) {

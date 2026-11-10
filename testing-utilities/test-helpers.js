@@ -3,7 +3,7 @@ const createMockFile = require("./createMockFile");
 moment.suppressDeprecationWarnings = true;
 const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
 
-// A target-value reference — two grammars, both resolved by Argument.getTargetValue (RFC-020):
+// A target-value reference — two grammars, both resolved by Argument.getTargetValue:
 //   legacy positional — beforeTest.Action1.error   (kept for back-compat; mirrors the UI "Section → Action N" labels)
 //   natural path      — test.before[0].results / test.before.signIn.results / test.main[2].results.userId
 // The TAIL (nested fields / array indices reaching into the result) is shared by both.
@@ -172,7 +172,7 @@ const strFn = (str) => {
   return str;
 };
 
-// RFC-020 — the ONE resolver for a target-value reference (an arg targetValue OR an evaluation `tv()`).
+// the ONE resolver for a target-value reference (an arg targetValue OR an evaluation `tv()`).
 // FullTest is the **sections object** `{ before:[…], main:[…], …, <named>:[…] }`. A reference IS an object
 // path — `test.seedSum[0].results` → `obj(sections).get("seedSum.0.results")`. No section-index table, no
 // tag-gathering: the object's shape is the reference. Two grammars share the one walk:

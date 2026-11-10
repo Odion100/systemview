@@ -15,7 +15,7 @@
   // needs the container's own 15px side padding back, or the title/tabs sit flush against the left edge.
   &__header {
     flex-shrink: 0;
-    // RFC-062 — the title row and pills are gone, so the padding that made room for them goes
+    // the title row and pills are gone, so the padding that made room for them goes
     // with them: the bar hugs the top and the body starts where the pills used to.
     // HIS CSS, verbatim — full length, to the corners. (I first swapped the grid's gutters for
     // my own insets, which was the same mistake wearing different numbers.)
@@ -173,7 +173,7 @@
   }
 }
 
-// RFC-025 — REVEALED, not selected. A `:ns[…]` chip clicked in a document points the tree at its
+// REVEALED, not selected. A `:ns[…]` chip clicked in a document points the tree at its
 // target without navigating. ONE mark on the row — a soft amber wash with a left edge — never a ring
 // stacked on top of the row's own selection styling, which read as two selections at once.
 .is-revealed {
@@ -246,7 +246,7 @@
   }
 }
 
-// RFC-054 — the Logs / Stage openers beside the Projects tab: quiet doors, not tabs. The center's
+// the Logs / Stage openers beside the Projects tab: quiet doors, not tabs. The center's
 // strip is what's OPEN; these are how you open the two kinds that no tree click reaches.
 .system-nav__openers {
   margin-left: auto;
@@ -363,7 +363,7 @@
   .system-nav__body { flex: 1 1 auto; }
 }
 
-// RFC-062 — the skinny add-row under the strip (tabs view). The button and the input are the
+// the skinny add-row under the strip (tabs view). The button and the input are the
 // list view's own, unchanged — this row only positions them.
 .system-nav__addrow {
   display: flex;

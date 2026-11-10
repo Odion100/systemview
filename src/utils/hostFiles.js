@@ -31,7 +31,7 @@ const EXT_LANG = {
 };
 const languageOf = (p) => EXT_LANG[(String(p).split(".").pop() || "").toLowerCase()] || "text";
 
-// THE MACHINE DOOR'S PLUGIN (RFC-069) — a file with no project: ("", absolute path). Same
+// THE MACHINE DOOR'S PLUGIN — a file with no project: ("", absolute path). Same
 // object-arg shape as hostFiles so CodePane speaks one language, but it carries ONLY what a
 // machine file has: read, write, delete. No changedFiles, no getDiff, no stageHunk, no
 // fileHistory, no search — git is a property of a repo, and CodePane renders those absent rather
@@ -238,7 +238,7 @@ export const hostFiles = (projectCode, root) => {
       if (r && r.ok === false) throw new Error(r.error || "could not diff the branch");
       return r;
     },
-    // the user's cleanup (RFC-059) — refusals pass through like switchBranch's: they are the answer
+    // the user's cleanup — refusals pass through like switchBranch's: they are the answer
     removeWorktree: async ({ path, force } = {}) => hub().removeWorktree(projectCode, { path, force, root }),
     deleteBranch: async ({ name, force } = {}) => hub().deleteBranch(projectCode, { name, force, root }),
     // land: accept a reviewed branch onto the one you are standing on — a conflict is a refusal

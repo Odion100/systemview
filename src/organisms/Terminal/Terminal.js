@@ -6,7 +6,7 @@ import "./styles.scss";
 import { THEMES, readLook } from "./themes";
 import { useAppDark } from "../../atoms/appTheme";
 
-// RFC-045 — A REAL TERMINAL, RENDERED HERE, RUN BY THE HOST.
+// A REAL TERMINAL, RENDERED HERE, RUN BY THE HOST.
 //
 // This is the piece RFC-042 got wrong and RFC-043 diagnosed: that build shipped an append-only
 // transcript with the escape codes STRIPPED, which cannot host anything that repaints — `systemview

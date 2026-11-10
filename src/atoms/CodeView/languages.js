@@ -8,7 +8,7 @@ import { python } from "@codemirror/lang-python";
 import { sql } from "@codemirror/lang-sql";
 import { yaml } from "@codemirror/lang-yaml";
 
-// RFC-018 — explicit language map (keyed by fileProviders.languageOf output) shared by CodeView and
+// explicit language map (keyed by fileProviders.languageOf output) shared by CodeView and
 // DiffView. A hand-picked set instead of the ~140-language mega bundle keeps the shipped build/ lean;
 // a SystemLynx project is JS-first. Unknown language → plain text (null).
 const LANGS = {

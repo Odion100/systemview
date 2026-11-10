@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 
-// RFC-028 — the chat store. ONE JSONL file per project+chat holds the whole conversation in EVERY
+// the chat store. ONE JSONL file per project+chat holds the whole conversation in EVERY
 // mode (his design call): join mode pushes each append down a held connection the moment it lands;
 // file mode drains the same file from an acked offset at the agent's next turn boundary. The file
 // is hub-local (`.systemview/chats/` beside connections.json's home) and plain JSONL — open it and
@@ -20,7 +20,7 @@ const DEFAULT_CHAT = "main";
 
 const safe = (s) => String(s || "").replace(/[^a-zA-Z0-9._-]/g, "_");
 
-// RFC-031 — what reaches an agent IDENTITY: the human's messages (always), plus other agents'
+// what reaches an agent IDENTITY: the human's messages (always), plus other agents'
 // messages when they carry a speaker (`as`, stamped server-side) that isn't you. Legacy agent
 // records have NO `as` and deliver to no agent — that's the self-loop guard: an old CLI's `say`
 // can never wake its own author's hold, so the upgrade can't create echo storms in rooms still
@@ -90,7 +90,7 @@ module.exports = function Chats({ chatFor } = {}) {
 
   // key `${pc}|${chat}` for everything in-memory
   const key = (pc, chat) => `${pc}|${chat || DEFAULT_CHAT}`;
-  const liveSeen = new Map(); // key → Map(identity → ts) — live presence PER IDENTITY (RFC-031)
+  const liveSeen = new Map(); // key → Map(identity → ts) — live presence PER IDENTITY
   // key → Map(identity → ts) — last time this identity OPENED THIS ROOM'S DOOR (a drain, a
   // message). Separate from liveSeen, which means "live RIGHT NOW".
   const entered = new Map();
@@ -115,7 +115,7 @@ module.exports = function Chats({ chatFor } = {}) {
   // On disk beside the room, so a hub restart doesn't silently unsubscribe everyone — the failure
   // that would look exactly like "the agents stopped answering".
   const visitorsMap = new Map(); // key → Map(identity → { ts, by })
-  // RFC-051 — reply windows: a non-subscriber who told into this room hears its replies for a
+  // reply windows: a non-subscriber who told into this room hears its replies for a
   // while, then silence. In-memory on purpose: a window is a courtesy measured in minutes, and a
   // hub restart forgetting one costs a re-tell, not a lost conversation. Subscriptions stay on disk.
   const TELL_WINDOW = 15 * 60 * 1000;
@@ -523,7 +523,7 @@ module.exports = function Chats({ chatFor } = {}) {
     // hold, arm, or drain anything to be present in someone else's conversation.
     fanout(pc, chat, record) {
       const speaker = record && record.as ? record.as : record && record.from === "you" ? null : pc;
-      // Subscribers plus open reply windows (RFC-051) — a window rides delivery only; it never
+      // Subscribers plus open reply windows — a window rides delivery only; it never
       // appears on the roster, because hearing an answer is not membership.
       const subs = [...loadVisitors(pc, chat).keys()];
       for (const id of openWindows(key(pc, chat))) if (!subs.includes(id)) subs.push(id);
@@ -532,7 +532,7 @@ module.exports = function Chats({ chatFor } = {}) {
     // The nudge threshold — the third windowed exchange is a conversation wearing a courtesy;
     // the CLI tells the sender so, and joining stays their decision.
     // A delivery to a windowed teller refreshes their window — "refreshed by each exchange"
-    // (RFC-051), so a slow answer doesn't close the door mid-conversation. Count is NOT bumped:
+    //, so a slow answer doesn't close the door mid-conversation. Count is NOT bumped:
     // the nudge measures the teller's own sends, not what they heard.
     touchWindow(pc, chat, identity) {
       const w = tellWindows.get(key(pc, chat));
@@ -546,7 +546,7 @@ module.exports = function Chats({ chatFor } = {}) {
       return { count: v.count, joined: loadVisitors(pc, chat).has(identity) };
     },
 
-    // RFC-029 — a COMMAND from the agent rides the same file (`kind: "command"`). It renders in
+    // a COMMAND from the agent rides the same file (`kind: "command"`). It renders in
     // the thread as a command line; the open UI EXECUTES it only when it arrives on the live push
     // (loading history renders old command lines but never re-executes them — the replay rule).
     // `say` is the agent's OWN sentence for the trip — what it wants said while the window moves.
@@ -621,7 +621,7 @@ module.exports = function Chats({ chatFor } = {}) {
       return [...new Set([...mirrored, ...hubRooms(pc)])];
     },
 
-    // RFC-031 — the room announces its own comings and goings (his ask: "you need to SEE
+    // the room announces its own comings and goings (his ask: "you need to SEE
     // systemview-logtest left"). A system record: rides the file like everything else, renders
     // as a subtle centered line, and — because `from` is neither "you" nor "agent" — is never
     // delivered to any agent's hold or inbox.
@@ -696,7 +696,7 @@ module.exports = function Chats({ chatFor } = {}) {
     // An explicit goodbye — the CLI sends this on SIGINT/SIGTERM so a deliberate disconnect shows
     // in the UI within one presence poll instead of waiting out the grace window. (An abrupt kill
     // still decays by silence — the grace window is the honest fallback.) Per-identity: a visitor
-    // jumping out must not take the home agent's presence with it (RFC-031).
+    // jumping out must not take the home agent's presence with it.
     leave(pc, chat, { identity } = {}) {
       const k = key(pc, chat);
       const me = identity || pc;
@@ -730,7 +730,7 @@ module.exports = function Chats({ chatFor } = {}) {
       markEntered(k, me); // draining a room is entering it — file-mode agents speak too
       let acks = {};
       try { acks = JSON.parse(fs.readFileSync(ackFile(dirFor(pc), pc, chat), "utf8")); } catch {}
-      // RFC-039 — A NEW CURSOR IS BORN AT NOW, not at zero. An identity that has never drained used
+      // A NEW CURSOR IS BORN AT NOW, not at zero. An identity that has never drained used
       // to start from the beginning of the room, so FIRST CONTACT served the entire history as if it
       // were unread traffic — an agent's first act in a room was timestamp-filtering hundreds of
       // stale records to discover that nothing had happened. (Both of the "full replay" reports we

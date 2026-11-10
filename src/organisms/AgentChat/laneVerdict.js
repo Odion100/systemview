@@ -6,7 +6,7 @@
 //   unknown  neither direction is clean: the tree has MOVED ON since the lane was cut
 //
 // `unknown` is honest and it is a dead end — which is how the row came to say "not brought in" about
-// work that was already committed, one step from being applied twice. A RECEIPT (RFC-063) is what an
+// work that was already committed, one step from being applied twice. A RECEIPT is what an
 // agent recorded at the moment it brought the lane in: dated, naming the base, checkable.
 //
 // THE ORDERING IS THE SAFETY PROPERTY. A receipt may only answer `unknown`. It never outranks `out`,

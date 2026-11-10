@@ -42,7 +42,7 @@ const FileBlock = (props) => {
   return props.kind === "inline" ? <FileLink {...props} /> : <FileEmbed {...props} />;
 };
 
-// RFC-025 §3 — THE REGISTRY. Adding a feature to every markdown surface in the app is adding a line
+// THE REGISTRY. Adding a feature to every markdown surface in the app is adding a line
 // here; the renderer never changes. Nothing renders that isn't in this map (see directives.js on why
 // that's also the security story).
 //
@@ -119,7 +119,7 @@ export const BLOCKS = {
   claims: { Component: Claims },
   // decision — a story's approve/reject verdict, wrapped around whatever is being proposed
   approval: { Component: Approval },
-  // RFC-033 — a commit message you press instead of copy. An agent writes it, a human clicks it;
+  // a commit message you press instead of copy. An agent writes it, a human clicks it;
   // the sha lands back in the document like any other input block's answer.
   commit: { Component: CommitBlock },
   // `::record{sha=…}` IS `::commit{sha=…}` — the same block, named for the posture. A commit

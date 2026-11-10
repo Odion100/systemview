@@ -51,7 +51,7 @@ const completionGuard = require("./completionGuard");
 const connectedUrls = new Set();
 
 async function loadManifest() {
-  // RFC-017: services come from the per-service files under `.systemview/`, assembled on read. An
+  // services come from the per-service files under `.systemview/`, assembled on read. An
   // explicit `--manifest <path>` still points at a single combined file (e.g. a saved snapshot).
   let manifest = null;
   if (flags.manifest) {
@@ -68,12 +68,12 @@ async function loadManifest() {
     const { SystemView } = await Client.loadService(api);
     await Promise.all(
       services.map(async ({ system, serviceId, specList, projectCode: svcProject, dynamic, hosted }) => {
-        // RFC-027 — HOSTED entries belong to the hosting unit (hostProjects.js), which re-hosts and
+        // HOSTED entries belong to the hosting unit (hostProjects.js), which re-hosts and
         // re-registers them with a fresh URL before this runs. Probing the stored URL here would
         // only report a stale port as "offline".
         if (hosted) return;
         if (!system || !system.connectionData) return;
-        // RFC-021 — a DYNAMIC (project-defined/synthesized) service has no live URL to probe: its
+        // a DYNAMIC (project-defined/synthesized) service has no live URL to probe: its
         // manifest was authored (by hand or an agent), not written by a running plugin. Register as-is.
         if (dynamic) {
           try {
@@ -232,17 +232,17 @@ async function loadCaseSetting() {
   const rawHelpFlag = process.argv.includes("--help") || process.argv.includes("-h");
 
   if (command === "init") {
-    // RFC-027 — the one command that makes a service-less codebase testable. Interview → config →
+    // the one command that makes a service-less codebase testable. Interview → config →
     // committed scaffold → registration; a running hub hosts it immediately.
     const exitCode = await initProject({ uiUrl: UI_URL, Client });
     flushAndExit(exitCode || 0);
   } else if (command === "delete") {
-    // RFC-027 — init's opposite, hosted projects only: unhost + deregister + remove the folder.
+    // init's opposite, hosted projects only: unhost + deregister + remove the folder.
     const deleteHosted = require("./deleteHosted");
     const exitCode = await deleteHosted(input[1], { uiUrl: UI_URL, Client, force: flags.force });
     flushAndExit(exitCode || 0);
   } else if (["join", "leave", "kick", "message-agent", "read", "visitors", "reply", "thread", "inbox", "nav", "refresh", "act", "highlight", "show", "tv"].includes(command) || (command === "status" && input[1])) {
-    // RFC-028 — the chat front door; RFC-029 — agent control rides the same door (a command is a
+    // the chat front door; RFC-029 — agent control rides the same door (a command is a
     // chat record the open UI executes). All one-shots. All need the hub up.
     if (!(await launchApp(DEFAULT_PORT))) flushAndExit(1);
     const chatCmd = require("./chat");
@@ -250,13 +250,13 @@ async function loadCaseSetting() {
       uiUrl: UI_URL, Client, chat: flags.chat, agent: flags.as, once: flags.once,
       report: flags.report, file: flags.file && flags.file[0], tab: flags.tab, topic: flags.topic,
       range: flags.range, service: flags.service,
-      // RFC-039 — `--history` on inbox asks for the back-catalog on purpose; without it a cursor
+      // `--history` on inbox asks for the back-catalog on purpose; without it a cursor
       // that has never been used starts at NOW instead of replaying the whole room.
       history: flags.history,
       // --say "…" — the sentence the agent wants said while the window moves (RFC-030). Optional on
       // every command; without it the trip is silent apart from the generated label.
       say: flags.say && flags.say[0],
-      // RFC-039 — `--pin` keeps that sentence: it also lands in the chat instead of evaporating
+      // `--pin` keeps that sentence: it also lands in the chat instead of evaporating
       // with the animation. Opt-in, because most pointing lines should stay ephemeral.
       pin: !!flags.pin,
       // `--json` belongs to the chat verbs generally, not to whichever ones remembered to splice it
@@ -284,7 +284,7 @@ async function loadCaseSetting() {
     // one's — the pair that retires join/arm/cursor/drain.
     else if (command === "read") exitCode = await chatCmd.read(input[1], opts);
     else if (command === "visitors") exitCode = await chatCmd.visitors(input[1], input[2], input[3], opts);
-    // RFC-039 — answer a report's thread in one command instead of a whole-document round-trip.
+    // answer a report's thread in one command instead of a whole-document round-trip.
     else if (command === "thread")
       exitCode = await chatCmd.thread(input[1], input[2], input[3], { ...opts, json: flags.json });
     else if (command === "reply")
@@ -373,7 +373,7 @@ async function loadCaseSetting() {
     });
     flushAndExit(exitCode || 0);
   } else if (command === "stats") {
-    // RFC-032 — the agent's eyes on the Stats page's numbers: same getStats(), same windowing math.
+    // the agent's eyes on the Stats page's numbers: same getStats(), same windowing math.
     await launchApp(DEFAULT_PORT);
     const statsCommand = require("./stats");
     const exitCode = await statsCommand(input[1], input[2], {
@@ -383,7 +383,7 @@ async function loadCaseSetting() {
     });
     flushAndExit(exitCode || 0);
   } else if (command === "comments") {
-    // RFC-034 — his code comments, by a verb rather than a folder path anyone has to remember.
+    // his code comments, by a verb rather than a folder path anyone has to remember.
     await launchApp(DEFAULT_PORT);
     // IDENTITY AT THE FRONT DOOR, same as every chat verb. This verb and `board` took a free-text
     // --as and wrote it straight into his files — his catch: *"why are people allowed to put
@@ -400,7 +400,7 @@ async function loadCaseSetting() {
     });
     flushAndExit(exitCode || 0);
   } else if (command === "skill") {
-    // RFC-039 — SystemView ships the skill instead of every project hand-writing one.
+    // SystemView ships the skill instead of every project hand-writing one.
     await launchApp(DEFAULT_PORT);
     const skillCommand = require("./skill");
     const exitCode = await skillCommand(input[1], {
@@ -420,10 +420,10 @@ async function loadCaseSetting() {
       json: flags.json,
       reply: flags.reply,
       at: flags.at,
-      // RFC-039 — agents leave notes too, not just him.
+      // agents leave notes too, not just him.
       add: flags.add,
       file: flags.file && flags.file[0],
-      // RFC-039 — a reply is stamped with WHO wrote it, so a note can hold a conversation.
+      // a reply is stamped with WHO wrote it, so a note can hold a conversation.
       as: flags.as,
     });
     flushAndExit(exitCode || 0);

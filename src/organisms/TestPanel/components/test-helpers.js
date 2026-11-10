@@ -5,7 +5,7 @@ export const rnb = (min, max) => Math.floor(Math.random() * (max - min + 1) + mi
 export const isObjectLike = (value) =>
   ["object", "array", "string"].indexOf(getType(value)) > -1;
 
-// A target-value reference — two grammars, both resolved by resolveTargetValue (RFC-020):
+// A target-value reference — two grammars, both resolved by resolveTargetValue:
 //   legacy positional — beforeTest.Action1.error   (kept for back-compat; mirrors the UI "Section → Action N" labels)
 //   natural path      — test.before[0].results / test.before.signIn.results / test.main[2].results.userId
 // Mirrors testing-utilities/test-helpers.js (the CLI copy). The natural form is a SUPERSET of the legacy
@@ -301,7 +301,7 @@ export const strFn = (str) => {
   return str;
 };
 
-// RFC-023 — REFERENCES FOLLOW THE STEP. After a drag/duplicate changes step positions, rewrite every
+// REFERENCES FOLLOW THE STEP. After a drag/duplicate changes step positions, rewrite every
 // reference the move displaced: `mapFn(sectionKey, index)` → `{ key, index }` (new position) or null
 // (unchanged). Rewrites the structured `targetValues` entry, the visible input text (object property
 // strings + embedded `tv(...)`), and evaluation values. Remapped LEGACY refs (beforeTest.ActionN…)
@@ -365,7 +365,7 @@ export const remapReferences = (FullTest, mapFn) => {
   });
 };
 
-// RFC-020 — the ONE resolver for a target-value reference (an arg targetValue OR an evaluation `tv()`).
+// the ONE resolver for a target-value reference (an arg targetValue OR an evaluation `tv()`).
 // Mirrors testing-utilities/test-helpers.js. FullTest is the **sections object** `{ before, main, …, <named> }`;
 // a reference IS an object path — `test.seedSum[0].results` → obj(sections).get("seedSum.0.results"). No
 // section-index table, no tag-gathering: the object's shape is the reference.

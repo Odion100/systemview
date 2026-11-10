@@ -1,5 +1,5 @@
 // Deterministic module → colour, shared by the Stats page's load columns and the topology graph —
-// and now by their `::load` / `::topology` embeds (RFC-025 §4.3). Extracted from
+// and now by their `::load` / `::topology` embeds. Extracted from
 // pages/Reports/Reports.js so the same colours hold wherever either is drawn.
 const MAP_HUES = ["#6886ba", "#8e5aa8", "#2e8b74", "#b98a1c", "#c25b78", "#4a7fb5", "#7a9b3e", "#5d6c8a"];
 // Deterministic module → hue: alphabetical position over the project's module list, so (a) a module

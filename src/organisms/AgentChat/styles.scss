@@ -11,7 +11,7 @@ $sv-board-states: (
 );
 
 @import "../../atoms/Markdown/chat-md";
-// RFC-028 — the BOT bubble + chat panel. The bubble is an identity (several will coexist): a
+// the BOT bubble + chat panel. The bubble is an identity (several will coexist): a
 // translucent circle with the bot face centered and its project label under it. It floats free —
 // drag anywhere, dock to edges — and the ring tells the truth: solid green = joined live, dashed
 // indigo = file listener (turn-boundary delivery), muted = nobody.
@@ -80,7 +80,7 @@ $sv-board-states: (
       border-color: #8f97e8;
       border-style: dashed;
     }
-    // RFC-031 — off visiting another room: a real live hold, just not here. SOLID like live —
+    // off visiting another room: a real live hold, just not here. SOLID like live —
     // dashed read as "file only" and undersold a live agent (his catch).
     &--visiting {
       border-color: #b06ab3;
@@ -177,7 +177,7 @@ $sv-board-states: (
     padding: 0 4px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
   }
-  // RFC-031 — the visitor badge on the bot's other shoulder (unread is green top-right, this is
+  // the visitor badge on the bot's other shoulder (unread is green top-right, this is
   // plum top-left): someone is in this room right now, visible even with the panel closed.
   &__visitors-badge {
     position: absolute;
@@ -1980,7 +1980,7 @@ $sv-board-states: (
     &--listener {
       background: #8f97e8;
     }
-    // RFC-031 — this project's agent is off in another room (real hold there, none here).
+    // this project's agent is off in another room (real hold there, none here).
     &--visiting {
       background: #b06ab3;
     }
@@ -2258,7 +2258,7 @@ $sv-board-states: (
     color: var(--sv-text-faint);
     opacity: 0.75;
   }
-  // RFC-031 — the roster strip: every identity currently holding a line in this room.
+  // the roster strip: every identity currently holding a line in this room.
   &__roster {
     position: relative;
     display: flex;
@@ -2439,7 +2439,7 @@ $sv-board-states: (
   &__compaction {
     background: var(--sv-hover);
   }
-  // RFC-029 — a COMMAND in the thread: not a bubble, a quiet mono receipt line ("→ opened …").
+  // a COMMAND in the thread: not a bubble, a quiet mono receipt line ("→ opened …").
   &__cmd {
     align-self: center;
     max-width: 95%;
@@ -2499,7 +2499,7 @@ $sv-board-states: (
         color: #e6e9f2;
       }
     }
-    // RFC-031 — a VISITOR's bubble: another project speaking in this room, wearing its name.
+    // a VISITOR's bubble: another project speaking in this room, wearing its name.
     &--visitor {
       border-left: 3px solid var(--vis, #b06ab3);
     }
@@ -2588,7 +2588,7 @@ $sv-board-states: (
     color: var(--vis, #b06ab3);
     margin-bottom: 2px;
   }
-  // RFC-031 — the room's own voice: "<project> joined/left the room". A centered plum pill —
+  // the room's own voice: "<project> joined/left the room". A centered plum pill —
   // his calibration: the faint version was "too subtle and easily missed"; this one you notice,
   // but it's still unmistakably a note, not a bubble.
   &__sys {
@@ -2623,7 +2623,7 @@ $sv-board-states: (
     letter-spacing: 0.03em;
     color: #4caf50;
     animation: sv-status-fade 0.4s ease;
-    // RFC-031 — a VISITOR cooking is plum, dots included: you can tell WHO at a glance.
+    // a VISITOR cooking is plum, dots included: you can tell WHO at a glance.
     &--visitor {
       color: var(--vis, #b06ab3);
       .agent-chat__dots i {
@@ -3131,7 +3131,7 @@ $sv-board-states: (
   }
 }
 
-// RFC-039 — a note holds a conversation now: his replies and the agent's, told apart by who wrote
+// a note holds a conversation now: his replies and the agent's, told apart by who wrote
 // them. The agent's keep the original quiet indent; his sit against the blue the rest of his own
 // writing uses in this app, so a thread reads as two voices without a single label being loud.
 .agent-chat {
@@ -3146,7 +3146,7 @@ $sv-board-states: (
   }
 }
 
-// RFC-039 — a show's row in the collector: open it on the left, take it off the list on the right.
+// a show's row in the collector: open it on the left, take it off the list on the right.
 // Two-step, like everything else here that removes something.
 .agent-chat {
   &__links-open {
@@ -3268,7 +3268,7 @@ $sv-board-states: (
   }
 }
 
-// RFC-046 — the live work feed, at the foot of the message list. It is deliberately quieter than a
+// the live work feed, at the foot of the message list. It is deliberately quieter than a
 // bubble: these are things the agent DID, sitting under the things it SAID, and they must never
 // compete with the conversation for attention.
 .agent-chat__work {
@@ -3280,7 +3280,7 @@ $sv-board-states: (
   border-left: 2px solid var(--sv-border);
 }
 
-// RFC-046 — the one press that moves the conversation out of the room and into the agent.
+// the one press that moves the conversation out of the room and into the agent.
 .agent-chat__attach {
   flex: none;
   display: flex;
@@ -4265,7 +4265,7 @@ $sv-board-states: (
   // way, invisibly.
 }
 
-// RFC-052 — IN THE RAIL. A small form drawn for a 44px strip: the face with its ring, the unread
+// IN THE RAIL. A small form drawn for a 44px strip: the face with its ring, the unread
 // count and the visitor pips; nothing else. Panels open to the RIGHT of the rail, from the bot's
 // own top, so the strip never has to hold them.
 .agent-chat--rail {
@@ -4337,7 +4337,7 @@ $sv-board-states: (
     display: none; // double-click or drag brings a docked agent out; the arrow is noise here
   }
 }
-// RFC-052 — OPEN FROM THE DOCK (his third ask): the chat drops a little so the name's row has room,
+// OPEN FROM THE DOCK (his third ask): the chat drops a little so the name's row has room,
 // and the rest of the icons come out in a row beside the name; the mic stays where it is.
 .agent-chat--rail-open {
   .agent-chat__bot > .agent-chat__miniboard,
@@ -4365,7 +4365,7 @@ $sv-board-states: (
   .agent-chat__bot > .agent-chat__minicode { left: 150px; }
 }
 
-// RFC-052 — DRAGGED OVER THE DOCK: dock-sized in your hand, before the drop. The same small form
+// DRAGGED OVER THE DOCK: dock-sized in your hand, before the drop. The same small form
 // the rail draws, on a bot that is still floating under the pointer.
 .agent-chat--overdock {
   .agent-chat__bot > *:not(.agent-chat__fab):not(.agent-chat__label) {
@@ -4463,7 +4463,7 @@ $sv-board-states: (
   flex-direction: row-reverse;
 }
 
-// RFC-039/054 — the TV list's rows: full-width, deletable in place. Same rhythm as everywhere.
+// the TV list's rows: full-width, deletable in place. Same rhythm as everywhere.
 .agent-chat__tv-pick-row {
   display: flex;
   align-items: center;
@@ -4554,7 +4554,7 @@ $sv-board-states: (
   input { display: none; }
 }
 
-// RFC-059 — lane rows: the delegation instruments, beside the worklist and whiteboard.
+// lane rows: the delegation instruments, beside the worklist and whiteboard.
 .agent-chat__lane {
   flex: none;
   padding: 2px 8px;
@@ -4637,7 +4637,7 @@ $sv-board-states: (
 // FLOATING, the lane panel is a side panel like the others: the `__tv` wrapper is the surface,
 // the panel itself fills it — no strip margins, no 46vh cap, the wrapper's size is the size.
 
-// RFC-059 — the lane panel: the deep look at one lane, in the strip's own area.
+// the lane panel: the deep look at one lane, in the strip's own area.
 .agent-chat__lanepanel {
   flex: none;
   margin: 2px 8px 4px;
@@ -4717,7 +4717,7 @@ $sv-board-states: (
 // the lane name is a button now — keep it reading like the label it was
 .agent-chat__lane-name { border: none; background: none; color: inherit; padding: 0; cursor: pointer; &:hover { text-decoration: underline; } }
 
-// RFC-062 — the docked row's recorder readout: state + elapsed, static.
+// the docked row's recorder readout: state + elapsed, static.
 .agent-chat__rec-clock {
   display: inline-flex;
   align-items: center;

@@ -1,4 +1,4 @@
-// RFC-055 — the context surface. Reads on the app's own tokens so it sits in the same world as
+// the context surface. Reads on the app's own tokens so it sits in the same world as
 // the codebase nav and the reports, light and dark, without a second palette to keep in sync.
 .ctx-mgr {
   padding: 16px 20px 60px;
@@ -540,7 +540,7 @@
   font-weight: 600;
 }
 
-// RFC-013 — the revealed note: the same two-second flash the nav's reveal uses.
+// the revealed note: the same two-second flash the nav's reveal uses.
 .ctx-mgr__note--revealed {
   outline: 2px solid var(--sv-accent);
   outline-offset: 1px;

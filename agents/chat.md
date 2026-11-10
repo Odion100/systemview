@@ -94,7 +94,7 @@ mcp__systemview__nav({ projectCode, namespace: "Math.add" })        // NAVIGATE 
 mcp__systemview__nav({ projectCode, file: ".systemview/report.<pc>.<Name>.md" })
 mcp__systemview__nav({ projectCode, file: "cli/index.js#L40-80" })  // open a file in the Code tab
 mcp__systemview__nav({ projectCode, file: "~/.autobot/jobs/x/job.md" }) // a MACHINE file — any
-                                                                    // absolute path opens (RFC-069)
+                                                                    // absolute path opens
 mcp__systemview__nav({ projectCode, stats: "load" })                // the Stats page
 mcp__systemview__refresh({ projectCode, scope: "docs" })            // panes re-read — never a reload
 mcp__systemview__act({ projectCode, test: "Math.add", say: "…" })   // run where the human is LOOKING

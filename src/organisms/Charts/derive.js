@@ -1,4 +1,4 @@
-// Derivations shared by the Stats page and the document embeds (RFC-025 §4.3). Extracted so a
+// Derivations shared by the Stats page and the document embeds. Extracted so a
 // `::topology` or `::load` block can never drift from what the page shows — one derivation, two
 // call sites.
 import { fmtInt } from "./format";

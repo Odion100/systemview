@@ -1,4 +1,4 @@
-// WHERE A TAB GOES WHEN CLICKED — extracted from Documentation's routeTo (RFC-069 slice 4) so the
+// WHERE A TAB GOES WHEN CLICKED — extracted from Documentation's routeTo so the
 // Agents page can route the SAME tabs without copying the map. One grammar: every center tab kind
 // resolves to a /specs location; the caller pushes it. Pure: (tab, pc, currentSearch) → {pathname,
 // search} — no history, no window, so both pages and any future host can share it.

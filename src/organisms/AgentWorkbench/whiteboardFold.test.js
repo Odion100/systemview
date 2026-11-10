@@ -63,7 +63,7 @@ describe("the whiteboard write timestamp — a replayed board is history, not ne
   });
 });
 
-// RFC-059 — the basic split (parent-tagged → lane, untagged → main, source joined from the
+// the basic split (parent-tagged → lane, untagged → main, source joined from the
 // sourced set) is pinned in feedRows.test.js. These pin the edges: lanes stay separate, the
 // join is strict about its prefix, and the log is a window, not a ledger.
 describe("splitLaneEvents — the edges of the lane split", () => {

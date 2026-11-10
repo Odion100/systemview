@@ -18,7 +18,7 @@ import Markdown from "../Markdown";
 import { passageKey } from "../../../utils/readAloud";
 import { subscribe as speechSubscribe, view as speechView } from "../../../molecules/SpeakReply/speechQueue";
 
-// RFC-025 — the two story-pane kinds a document was still missing: a FILE pane and a DIFF pane.
+// the two story-pane kinds a document was still missing: a FILE pane and a DIFF pane.
 //
 //   ::file[src/atoms/Markdown/registry.js#L20-46]   the file itself, at a line range
 //   ::diff[cli/index.js]                            working copy vs git HEAD
@@ -55,7 +55,7 @@ function useFileHost(attrs, scope, machinePath) {
   // comment store a fresh `Plugin` every render, which re-read the sidecar, which set state, which
   // rendered again — 6,500 readFile calls in five seconds, the page pinned at 100%, the box at a
   // load average of 600 (measured). The identity is the project; it changes when the project does.
-  // A ~/ABSOLUTE PATH IS A MACHINE ADDRESS (RFC-069) — the lane-worktree embeds in reports are
+  // A ~/ABSOLUTE PATH IS A MACHINE ADDRESS — the lane-worktree embeds in reports are
   // exactly this. The host says so instead of hunting a project that cannot hold the file.
   return useMemo(
     () => (machinePath ? { machine: true, projectCode: "" } : projectCode ? { projectCode } : null),
@@ -252,7 +252,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
     return () => window.removeEventListener("sv:git", onGit);
   }, [load]);
 
-  // RFC-034 — the same threads the pane shows, from the same sidecar. Reading and replying only:
+  // the same threads the pane shows, from the same sidecar. Reading and replying only:
   // starting one needs a right-click on the code, and in a document that right-click is the
   // document's.
   const { threads, addReply, removeThread } = useCodeComments(Plugin, path);
@@ -482,7 +482,7 @@ const Embed = ({ label, attrs = {}, opens }) => {
             changeMarks={changeMarks}
             hunks={hunks}
             onStageHunk={stageHunkAt}
-            // RFC-034 — the file's threads, read and replied to from inside the document. Same
+            // the file's threads, read and replied to from inside the document. Same
             // sidecar the pane writes, so a conversation started in one is the same conversation in
             // the other. Writing a NEW one stays in the pane: the body's right-click belongs to the
             // document here, and that's the only way in.

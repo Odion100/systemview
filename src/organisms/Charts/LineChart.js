@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "./styles.scss";
 
-// RFC-025 §4.3 — extracted OUT of pages/Reports/Reports.js so it isn't trapped on one page.
+// extracted OUT of pages/Reports/Reports.js so it isn't trapped on one page.
 // The Stats page and a `::chart` embed inside any document now render the exact same component
 // (self-contained SVG — no external chart lib, which also keeps the artifact CSP story simple).
 

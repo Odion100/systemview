@@ -14,7 +14,7 @@ import {
 import { contextStats } from "../../utils/hostAgents";
 import CorporaPanel from "../CorporaPanel/CorporaPanel";
 
-// RFC-055 — THE CONTEXT SURFACE. His ask: see every store, query it (by voice), and edit what's
+// THE CONTEXT SURFACE. His ask: see every store, query it (by voice), and edit what's
 // there. The store is a HARNESS capability; this is a reader/editor over it, never its owner.
 //
 // Three kinds of source, deliberately kept as their own sections because they answer to different
@@ -207,7 +207,7 @@ const ContextManager = ({ projectCode, agentId, focus = null }) => {
   // section). `focus.n` bumps on every click so clicking the same count again still refocuses.
   useEffect(() => {
     if (focus && focus.scope) setScope(focus.scope);
-    // RFC-013 — a subscription row clicked in the profile lands HERE: same lens as the counts,
+    // a subscription row clicked in the profile lands HERE: same lens as the counts,
     // one note deeper. The reveal waits for the scope's items to load below.
     if (focus && focus.note) setRevealNote({ id: focus.note, n: focus.n });
   }, [focus]);

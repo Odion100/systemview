@@ -28,7 +28,7 @@ const when = (ts) => {
 
 // The file is markdown: an optional `# title`, then cards separated by an invisible stamp comment.
 // A card may carry ONE reply from an agent, under the note it answers.
-// RFC-039 — A NOTE CAN HOLD A CONVERSATION. It used to hold exactly one reply, and writing a second
+// A NOTE CAN HOLD A CONVERSATION. It used to hold exactly one reply, and writing a second
 // one REPLACED the first, so nothing that was said back and forth survived. His words: "an agent can
 // reply, I can reply" — so replies are a list, each stamped with who wrote it, in the order they
 // were written. `<!--reply-->` (no author) is the old single-reply form and still reads, as his.
@@ -152,9 +152,9 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
   }
 
   // ANSWERING A NOTE, in the same file, so he sees it answered without a second room. Replies
-  // ACCUMULATE now (RFC-039) — he replies, an agent replies, each stamped with who.
+  // ACCUMULATE now — he replies, an agent replies, each stamped with who.
   if (reply != null) {
-    // RFC-039 — ADDRESS BY ID, NOT BY POSITION. `--at 2` names a place in a list that reorders the
+    // ADDRESS BY ID, NOT BY POSITION. `--at 2` names a place in a list that reorders the
     // moment he adds a note: read the board, he writes one, answer — and the reply lands on a card
     // you never read. That happened. Cards carry a stable ts; `--at` now takes either, and the
     // listing prints the id so there is something stable to pass back.

@@ -4,11 +4,11 @@ import { StepShell } from "../../MultiTestSection/MultiTestSection";
 
 import "./styles.scss";
 
-// RFC-020 — Main can hold MULTIPLE steps (it's an array under the hood; it just used to render step 0).
+// Main can hold MULTIPLE steps (it's an array under the hood; it just used to render step 0).
 // They render IDENTICALLY — each titled "Main:", no 1/2/3 distinction — with the same look Main always
 // had (not the boxed MultiTestSection wrapper). A + adds another main step; delete shows once there's
 // more than one (so the last can't be removed).
-// RFC-023 — Main's steps wear the same StepShell as every editable section: drag to reorder / move
+// Main's steps wear the same StepShell as every editable section: drag to reorder / move
 // across sections, ⧉ to duplicate. Main itself stays anchored — only its steps move.
 const MainTest = ({ TestController, TestSection, sectionKey, onStepMove, onStepDuplicate }) => {
   return (

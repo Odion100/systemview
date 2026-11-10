@@ -107,7 +107,7 @@ export default function Argument(
     return this;
   };
 
-  // RFC-020 — resolution lives in test-helpers (legacy positional + natural path) so `validators` can
+  // resolution lives in test-helpers (legacy positional + natural path) so `validators` can
   // reuse it for evaluation `tv()` references. Brings the browser to parity with the CLI resolver.
   const getTargetValue = (input) => resolveTargetValue(input, FullTest);
 }

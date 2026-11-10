@@ -12,7 +12,7 @@ const path = require("path");
 // ever carries TARGETS (locators); ☠ the real bytes come from here at render time
 // [RETIRED-2026-08-26 — render-time bytes come from the hub].
 //
-// RFC-027: the providers are also a LIBRARY — createFileProviders(rootDir) binds the whole set to
+// the providers are also a LIBRARY — createFileProviders(rootDir) binds the whole set to
 // an explicit root, so the hub can serve a HOSTED project's files from that project's directory
 // instead of its own cwd. The default export stays bound to process.cwd() (the plugin's own case).
 
@@ -598,7 +598,7 @@ function createFileProviders(rootDir) {
     return { path: relFromRoot(abs), bytes: Buffer.byteLength(content || "", "utf8") };
   }
 
-  // RFC-034 — DELETE a file, snapshotted first so ⏱ can bring it back. There was no way to remove a
+  // DELETE a file, snapshotted first so ⏱ can bring it back. There was no way to remove a
   // file at all: `discardFiles` deletes an UNTRACKED one, but only as git's "throw away this new
   // file", which is the wrong verb (and the wrong outcome) for anything git already tracks. The
   // caller that needed it is the comment sidecar — the last thread leaving has to take the file with

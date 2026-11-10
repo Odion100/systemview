@@ -4,7 +4,7 @@ const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const Client = createClient(createCookieHttpClient());
 
-// RFC-039 — `systemview skill <projectCode> [--print] [--force]`
+// `systemview skill <projectCode> [--print] [--force]`
 //
 // SystemView ships `agents/*.md`: documentation an agent has to be TOLD to read. What every project
 // ends up with instead is a hand-written command file — 135 lines, hardcoded to one repo's paths and
@@ -64,7 +64,7 @@ systemview status ${projectCode} "<text>"         # the cooking line he watches 
 systemview inbox ${projectCode}                   # UNATTACHED sessions only — if his words already reach your conversation, never call this
 \`\`\`
 
-## Talking to other projects (RFC-051)
+## Talking to other projects
 
 \`\`\`bash
 systemview message-agent <them> "<text>" --as ${projectCode}   # a message to ANOTHER agent's room.

@@ -3,7 +3,7 @@ import { MAP_HUES } from "./hues";
 import { fmtInt, fmtMs, fmtPct } from "./format";
 import "./styles.scss";
 
-// Load concentration as vertical columns — extracted from pages/Reports/Reports.js (RFC-025 §4.3)
+// Load concentration as vertical columns — extracted from pages/Reports/Reports.js
 // so a document can embed the same thing the Stats page draws.
 // Load concentration as VERTICAL columns: height = wall-time share, fill = module hue (grouping),
 // the top CAP = health state (amber watch / red bad) — grouping and state share the bar without

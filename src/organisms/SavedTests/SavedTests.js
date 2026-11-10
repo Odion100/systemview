@@ -227,7 +227,7 @@ const SavedTests = ({
   };
 
   const editTest = (rawTest, index) => {
-    // RFC-020 — load built-ins AND the test's named-action sections into the scratchpad (one shared
+    // load built-ins AND the test's named-action sections into the scratchpad (one shared
     // sections object so cross-section refs resolve while editing).
     const { Tests, named, order } = resetScratchpad(rawTest, connectedServices);
     if (Tests[1] && Tests[1][0]) {
@@ -235,7 +235,7 @@ const SavedTests = ({
       Tests[1][0].savedNamespace = rawTest.namespace; // …and which FILE that slot belongs to
     }
     // top-level title → the title input; top-level namespace → the save-target chip; the test's own
-    // RUN ORDER → the builder renders exactly that arrangement (RFC-023).
+    // RUN ORDER → the builder renders exactly that arrangement.
     setFullTest(Tests, named, rawTest.title, rawTest.namespace, order);
   };
   const deleteTest = async (index, namespace) => {

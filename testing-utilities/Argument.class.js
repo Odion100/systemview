@@ -99,7 +99,7 @@ function Argument(name, FullTest, input_type = "undefined", input, targetValues 
   };
 
   // FullTest is [Before, Main, Events, After] — a section per slot, each an array of Test steps that each
-  // carry `.results` after running. A reference resolves to a value inside that structure (RFC-020). The
+  // carry `.results` after running. A reference resolves to a value inside that structure. The
   // resolution itself lives in test-helpers so `validators` can reuse it for evaluation `tv()` references.
   const getTargetValue = (input) => resolveTargetValue(input, FullTest);
 }

@@ -31,7 +31,7 @@ const SystemNav = ({
   onCollapse,
   openFile,
   onOpenFile = () => {},
-  // RFC-025 — a pointer from a document: expand to it and highlight it, but never select it.
+  // a pointer from a document: expand to it and highlight it, but never select it.
   reveal = null,
 }) => {
   const [serviceStatus, setServiceStatus] = useState({});
@@ -50,10 +50,10 @@ const SystemNav = ({
   // attaches. Abandon the input and it never existed.
   // Double-clicking a project's name edits it in place (see CodebaseNav) — this holds which one.
   const [renaming, setRenaming] = useState(null);
-  // RFC-055 — AGENTS IS A TAB IN THIS STRIP, beside Projects (his call: "we already have a
+  // AGENTS IS A TAB IN THIS STRIP, beside Projects (his call: "we already have a
   // navigation tab" — not a second nav, not a second pill row over this one). One navigator,
   // two tabs; the whole thing travels to every page.
-  // RFC-062 — TWO VIEWS, one panel. "list" is every project stacked (what always existed);
+  // TWO VIEWS, one panel. "list" is every project stacked (what always existed);
   // "tabs" is one tab per agent — icon + name — and the whole panel becomes that agent's world.
   // The Projects/Agents pills are gone: the tab strip IS the agents, and the agent's chat lives
   // as a section inside its tab, so a second place to look at agents was a second nav.
@@ -256,7 +256,7 @@ const SystemNav = ({
       // to a gated service — including a signIn whose Set-Cookie must be STORED — already carries
       // withCredentials. Otherwise an early non-credentialed request drops the Set-Cookie and the
       // session never persists. A service is credentialed when it declares a header profile OR
-      // registered the cookie-only `credentials: true` flag (RFC-013).
+      // registered the cookie-only `credentials: true` flag.
       all.forEach((s) => {
         const url =
           (s.system && s.system.connectionData && s.system.connectionData.serviceUrl) ||
@@ -356,7 +356,7 @@ const SystemNav = ({
     }
   };
 
-  // RFC-027 — a hosted service's configuration hand: rename the service, add/delete/rename modules.
+  // a hosted service's configuration hand: rename the service, add/delete/rename modules.
   // The hub does the file op on the committed folder, re-hosts, and answers with the updated
   // registration; a full refetch keeps every row honest (a rename changes the serviceId itself).
   const handleHostedOp = async (pc, op, payload = {}) => {
@@ -620,7 +620,7 @@ const SystemNav = ({
   );
 };
 
-// RFC-062 — ONE AGENT'S WORLD: the same codebase card list view renders, one project, spanning
+// ONE AGENT'S WORLD: the same codebase card list view renders, one project, spanning
 // the panel. The agent docks into the card's own slot exactly as it does everywhere else — the
 // first cut built the chat a second home in a separate pane, which is why docking broke and the
 // chat vanished: the card was already the home. The only thing tabs view changes is ROOM — the

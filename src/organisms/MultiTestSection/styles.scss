@@ -1,7 +1,7 @@
 .multi-test-section {
   width: 100%;
 
-  // RFC-023 — a COLLAPSED section reads as a BLOCK (the saved-action card language): white card,
+  // a COLLAPSED section reads as a BLOCK (the saved-action card language): white card,
   // colored left edge, badge + title + count. Uniform blocks are what make rearranging legible.
   &--closed {
     background: var(--sv-surface);
@@ -68,7 +68,7 @@
       background: var(--sv-blue-hover);
     }
   }
-  // RFC-020 — a named-action section's identity in the scratchpad: an "action" tag + a remove (×).
+  // a named-action section's identity in the scratchpad: an "action" tag + a remove (×).
   // Plum, NOT blue — blue is the running/loading border color.
   &__tag {
     display: inline-block;
@@ -103,7 +103,7 @@
   font-size: 14px;
 }
 
-// RFC-023 — the shell around one step: grip (drag) + ⧉ (duplicate) hover tools, and the drop
+// the shell around one step: grip (drag) + ⧉ (duplicate) hover tools, and the drop
 // indicator line (top/bottom = before/after). Shared by every editable section, Main included.
 .step-shell {
   position: relative;
@@ -209,7 +209,7 @@
   text-align: center;
 }
 
-// RFC-023 — the SECTION drag grip (header, next to Run/+). Same quiet grip language as the step row.
+// the SECTION drag grip (header, next to Run/+). Same quiet grip language as the step row.
 .multi-test-section__sec-grip,
 .named-section__grip {
   cursor: grab;

@@ -8,7 +8,7 @@ import "../WallPanel/styles.scss";
 import { hostFiles, machineFiles } from "../../utils/hostFiles";
 import { browseSplit, browseMatch, browseJoin } from "./browse";
 
-// THE CENTER TAB STRIP — the one component, extracted from Documentation (RFC-069 slice 4) after
+// THE CENTER TAB STRIP — the one component, extracted from Documentation after
 // his correction landed twice in one day: *"that's not the same component… it needs to actually be
 // the same component everywhere, meaning the same state."* The first attempt was a lookalike strip
 // wearing these classes; a lookalike is a second implementation, and a second implementation is
@@ -333,7 +333,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
   );
 }
 
-// THE OPEN-BY-PATH DOOR'S BRAIN, shared the same way (RFC-069 §4.4): the path goes through
+// THE OPEN-BY-PATH DOOR'S BRAIN, shared the same way: the path goes through
 // /sv-resolve like every chip, a known root wins over the machine form, recents are addresses.
 export function useOpenByPath(tabsPc) {
   const [open, setOpen] = useState(false);

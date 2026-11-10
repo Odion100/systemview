@@ -155,7 +155,7 @@ Open (flagged, not yet fixed):
 - [x] `--header` > manifest header precedence  *(BUG #3 — CLI.probe.json)*
 - [ ] project-level vs service-level cascade  *(after the cascade is built — extra credit)*
 - [~] cookie: capture → re-send covered in-process (`Auth.getSession.json`); cross-process persist is
-  now opt-in via the `session.save` policy (RFC-016) — *proposed fixture `CLI.session.json`*
+  now opt-in via the `session.save` policy — *proposed fixture `CLI.session.json`*
 - [ ] secret stays out of the manifest (save writes the `@file` pointer, not the value)
 
 ### 7. meta / lifecycle  (tier B/C)

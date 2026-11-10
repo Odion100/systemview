@@ -4,7 +4,7 @@ import loadServiceWithHeaders from "../../utils/loadService";
 import ServiceContext from "../../ServiceContext";
 import { raiseError } from "../Banner/bannerStore";
 
-// RFC-025 §12 — reply threads on a BLOCK, the same conversation a story pane already carries.
+// reply threads on a BLOCK, the same conversation a story pane already carries.
 //
 // Storage is a SIDECAR, not the document. A comment is *about* the document, not part of it: writing
 // threads inline would put conversation into every git diff and carry it to anyone the file is shared

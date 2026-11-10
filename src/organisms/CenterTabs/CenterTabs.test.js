@@ -1,5 +1,5 @@
 // THE STRIP'S VERBS, AS CLAIMS — CenterTabs is the one tab strip two pages now mount over one
-// store (RFC-069 slice 4), and until this file existed the proof of the extraction was "press it
+// store, and until this file existed the proof of the extraction was "press it
 // and see". These claims render the real component over the REAL tabsStore — a mocked store would
 // test the mock's idea of close-right — with a fresh project key per test so no state crosses.
 import React from "react";

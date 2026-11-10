@@ -78,11 +78,11 @@ const FullTestInner = ({
     methodName: "on",
   };
   const [Events, setEventTest] = useState([]);
-  // RFC-020 — the test's NAMED-ACTION sections: ordered [{ name, tests, pos }] where pos places the
+  // the test's NAMED-ACTION sections: ordered [{ name, tests, pos }] where pos places the
   // section "pre" (between Before and Main) or "post" (between Main and After). They load with a saved
   // test's `sections`/`run`, get added at either insertion point, and removed by ×.
   const [named, setNamed] = useState([]);
-  // RFC-020 — references walk a **sections object** keyed by name (test.before[0] / test.seedSum[0]). The
+  // references walk a **sections object** keyed by name (test.before[0] / test.seedSum[0]). The
   // scratchpad builds the four built-ins plus every named section; each key points at its live state array
   // so results land where refs read them. RUN_ORDER is the run-procedure the engine loops — named sections
   // sit around main per their pos (events keep their historical slot).
@@ -96,7 +96,7 @@ const FullTestInner = ({
   named.forEach(({ name, action }) => {
     namedRefs[name] = action || name;
   });
-  // RFC-023 — the section ORDER is state, not a skeleton. It loads from the saved test's `run` (tests
+  // the section ORDER is state, not a skeleton. It loads from the saved test's `run` (tests
   // aren't always built in the UI — any arrangement is possible), renders in that order, and section
   // drag rearranges it. Main is the anchor: it's in the order but never drags.
   const DEFAULT_SECTION_ORDER = ["before", "events", "main", "after"];
@@ -166,7 +166,7 @@ const FullTestInner = ({
   const BeforeCtrl = testCtrl(Before, setTestBefore, 0, FullTest);
   const EventCtrl = testCtrl(Events, setEventTest, 2, FullTest);
   const AfterCtrl = testCtrl(After, setTestAfter, 3, FullTest);
-  // RFC-023 — the editable DEFAULT sections' state setters, keyed like FullTest. (Named/action
+  // the editable DEFAULT sections' state setters, keyed like FullTest. (Named/action
   // sections are SEALED blocks — steps never drag in or out of them.)
   const SECTION_SETTERS = {
     before: setTestBefore,
@@ -408,7 +408,7 @@ const FullTestInner = ({
     // A fresh scratchpad (new test / navigation) is EXPANDED — only Edit-loading a saved test collapses.
     setFoldAll(true);
   };
-  // RFC-020 — the PROJECT's saved actions (every service's, merged), offered as insertable sections
+  // the PROJECT's saved actions (every service's, merged), offered as insertable sections
   // in the builder. A signIn action saved on one service is usable in any test — tests already call
   // across namespaces, and actions are just named steps.
   const [availableActions, setAvailableActions] = useState([]);
@@ -694,7 +694,7 @@ const FullTestInner = ({
   );
 };
 
-// RFC-020 — an insertion point for a shared-action section. Collapsed: one slim "+ section" button.
+// an insertion point for a shared-action section. Collapsed: one slim "+ section" button.
 // Open: a horizontally scrollable strip of the service's saved actions (there can be many) — click one
 // and it lands as a section right at this spot.
 // `+ section` on the LEFT, an optional `rightSlot` (e.g. `+ main`) on the RIGHT — one shared row so the
@@ -745,11 +745,11 @@ const AddSectionRow = ({ actions, onAdd, rightSlot }) => {
   );
 };
 
-// RFC-020 — a shared-action section INSIDE a test is a REFERENCE, not editable steps. It renders read-only
+// a shared-action section INSIDE a test is a REFERENCE, not editable steps. It renders read-only
 // (the same step cards a saved test / saved action shows), runnable on its own, and removable (×). To
 // change its steps you edit the ACTION itself. `ran` derives from the steps so it reflects BOTH a per-
 // section run here and a whole-test "Run all".
-// RFC-023 — one section's row: the drop target for SECTION drag (top half = land above, bottom half
+// one section's row: the drop target for SECTION drag (top half = land above, bottom half
 // = below). Pure order change — references don't move, so no remap here.
 const SECTION_MIME = "application/x-sv-section";
 const SectionRow = ({ sectionKey, onSectionMove, children }) => {

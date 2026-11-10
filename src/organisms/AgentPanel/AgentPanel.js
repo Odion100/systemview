@@ -3,7 +3,7 @@ import "./styles.scss";
 import { hasAgents, listDefs, liveSessions, agentRuns, killSession } from "../../utils/hostAgents";
 import { spotId, useDockOrder, orderProjects, moveInDock } from "../AgentChat/navDock";
 
-// RFC-055 — THE AGENT PANEL, IN THE NAV. His ask: the little card the browser's agent panel shows
+// THE AGENT PANEL, IN THE NAV. His ask: the little card the browser's agent panel shows
 // — who's running, where, on what — should show on ANY view, as the nav's Agents tab, "because I
 // don't like the fact that there's nothing there." This is SystemView's version of that card, the
 // one we refine here before it moves back into the browser chrome.

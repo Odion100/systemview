@@ -5,7 +5,7 @@ import { sendUpdateTo } from "../docSend";
 import { useBlockFailure } from "../blockFailure";
 import { gitNotice } from "./gitNotice";
 
-// RFC-033 — `::commit{message="…"}`. A commit message in a report is a line to copy into a
+// `::commit{message="…"}`. A commit message in a report is a line to copy into a
 // terminal; this makes it a button.
 //
 //   ::commit{message="feat(nav): version-control lens"}

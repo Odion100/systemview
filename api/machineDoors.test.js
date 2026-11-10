@@ -1,4 +1,4 @@
-// THE MACHINE DOOR'S CLAIMS (RFC-069). These four verbs answer for any absolute path on the
+// THE MACHINE DOOR'S CLAIMS. These four verbs answer for any absolute path on the
 // machine, so their bounds were the review's whole argument — and until this suite, every one of
 // them was held on faith: absolute-only (the relative grammar belongs to projects), `~` expanded,
 // `file://` stripped, writes refusing to cascade directories into existence, and delete being `rm`,

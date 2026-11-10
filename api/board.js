@@ -49,7 +49,7 @@ const stateOf = (text) => {
 };
 
 // The file is markdown: an optional `# title`, then cards separated by an invisible stamp comment.
-// RFC-039 — A NOTE HOLDS A CONVERSATION. Replies used to be a single slot, so writing a second one
+// A NOTE HOLDS A CONVERSATION. Replies used to be a single slot, so writing a second one
 // erased the first; they are a list now, each stamped with who wrote it. `<!--reply-->` with no
 // author is the old single form and still reads, as his.
 function parseBoard(text) {
@@ -399,7 +399,7 @@ function boardOn({ readFile, writeFile }) {
     }
 
     if (reply != null) {
-      // RFC-039 — ADDRESS BY ID, NOT BY POSITION. `at: 2` names a place in a list that reorders the
+      // ADDRESS BY ID, NOT BY POSITION. `at: 2` names a place in a list that reorders the
       // moment a note is added: read the board, he writes one, answer — and the reply lands on a
       // card nobody read. That happened. Cards carry a stable ts, and it is always returned.
       const want = String(at || "1");

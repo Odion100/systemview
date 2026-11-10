@@ -1,6 +1,6 @@
 // REPORTS, AS THE HUB'S OWN FILE LAYER — what `show`, `tv` and `reply` are actually made of.
 //
-// RFC-040: a report is a DOCUMENT, and the chat record is a pointer to it. The writing lived in
+// a report is a DOCUMENT, and the chat record is a pointer to it. The writing lived in
 // `cli/chat.js`, which reached the project's folder the long way round: load the hub over HTTP, ask
 // it for the project root, call back through a plugin shim. Inside the hub all three hops are one
 // function call — it holds the roots and it is the thing being dialled.

@@ -1,4 +1,4 @@
-// RFC-045 — WHAT'S OURS TO COLOUR, and it is worth being precise because he asked exactly this:
+// WHAT'S OURS TO COLOUR, and it is worth being precise because he asked exactly this:
 // "is that something that comes straight from my computer, or do we have control over that?"
 //
 // Both, split cleanly. The BACKGROUND, the default foreground, the cursor and the 16-colour PALETTE

@@ -3,7 +3,7 @@ import { fillStyle } from "../../atoms/meterWidth";
 import "./styles.scss";
 import { callStats } from "../../utils/hostAgents";
 
-// RFC-057 — THE CALL LEDGER, READ. The context store could always answer "is this note earning its
+// THE CALL LEDGER, READ. The context store could always answer "is this note earning its
 // place?" because every retrieval is stamped. Nothing else was: tool calls, MCP calls, skill fires
 // and hook fires went out to the live feed and vanished with the session. This is the other half of
 // that question — "if we created these internal tools, are they being used properly?" (his words).

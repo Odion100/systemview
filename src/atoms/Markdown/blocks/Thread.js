@@ -8,7 +8,7 @@ import { threadMembers, threadMembersAttr } from "../docMembers";
 import { readSeen, writeSeen, replyStamps, unseenCount, newestOf } from "../threadSeen";
 import useDictation from "../../../utils/useDictation";
 
-// RFC-025 §12 — `:::thread{id=extraction}` wraps anything (prose, a table, a code block, an embed)
+// `:::thread{id=extraction}` wraps anything (prose, a table, a code block, an embed)
 // and gives it the SAME reply thread a story pane has: the 💬 corner button, your replies and agent
 // replies with distinct looks, ⌘↵ to post.
 //

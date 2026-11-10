@@ -3,7 +3,7 @@ const path = require("path");
 const net = require("net");
 const { createApp } = require("systemlynx");
 
-// RFC-027 — the hub HOSTS a real service for a codebase with none. The committed folder (named by
+// the hub HOSTS a real service for a codebase with none. The committed folder (named by
 // the project code) holds the whole thing: service.json + methods/ (one file per module — the
 // filename IS the module name, the exported object IS the module) + specs/. This unit reads that
 // folder, stands up a SystemLynx app inside the hub's process, and applies the full systemview-plugin
@@ -377,7 +377,7 @@ module.exports = function createHostProject(hubPort = 3000) {
     };
   }
 
-  // RFC-027 §4 — configuration FROM THE UI, as file operations on the committed folder. You get one
+  // configuration FROM THE UI, as file operations on the committed folder. You get one
   // service (renameable) and you can add/delete/rename modules — each module is a file, so each op
   // is a file op, followed by an awaited re-host so the caller reads back the updated registration.
   // Specs (docs/tests) are the user's data — never touched here; a renamed module keeps its old

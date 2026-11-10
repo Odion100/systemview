@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { MAP_HUES } from "./hues";
 import "./styles.scss";
 
-// The who-calls-whom graph — extracted whole from pages/Reports/Reports.js (RFC-025 §4.3), no
+// The who-calls-whom graph — extracted whole from pages/Reports/Reports.js, no
 // behaviour change: draggable nodes with a persisted layout, per-caller hues, cards that expand into
 // the methods called on them, and edges that split per method near an expanded card.
 import { fmtInt, fmtMs } from "./format";

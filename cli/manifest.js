@@ -50,7 +50,7 @@ module.exports.save = function saveManifest(manifestServices, manifestFile = DEF
   log.success(`Manifest saved to ${manifestFile} — ${parts.join(", ")}`);
 };
 
-// RFC-017: re-probe each per-service file under `.systemview/` and DELETE the stale ones (instead of
+// re-probe each per-service file under `.systemview/` and DELETE the stale ones (instead of
 // rewriting a shared array). Each `<serviceId>.manifest.json` is independent, so pruning is a file unlink.
 module.exports.clean = async function cleanManifest() {
   const manifest = readFolderManifest();

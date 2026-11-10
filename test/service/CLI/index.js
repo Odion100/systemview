@@ -10,7 +10,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
-// Isolated manifest for the session-persistence fixture (RFC-016), so those cases never touch the
+// Isolated manifest for the session-persistence fixture, so those cases never touch the
 // shared cwd manifest other CLI tests depend on. Probing with `--manifest <this>` also dogfoods the
 // header-source reconciliation (a session must persist to AND ride back from the same manifest).
 const SESSION_MANIFEST = "test/service/.session.manifest.json";

@@ -13,7 +13,7 @@ const {
   getFilesByNamespace,
 } = require("./utils");
 const fileProviders = require("./fileProviders");
-// RFC-027: `root` = the observed project's directory (default cwd — the plugin's own case). A HOSTED
+// `root` = the observed project's directory (default cwd — the plugin's own case). A HOSTED
 // service runs inside the hub's process, so its root is the target repo, not the hub's cwd. `hosted`
 // (the committed folder's path relative to root) rides the connection so the flag survives every
 // refresh — same trap as `credentials` below.
@@ -124,7 +124,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
         pushSpecList();
       }
     };
-    // RFC-020 — shared actions. A shared action = a name + an ordered list of steps (the same shape as a
+    // shared actions. A shared action = a name + an ordered list of steps (the same shape as a
     // test's Before/Main/After array). PERMANENT ones live in `specs/actions/<name>.json` (a third sibling
     // to docs/ and tests/), travel with the repo, and are pulled into tests/stories via `{ use: <name> }`.
     // One action per file, keyed by NAME (not Module.method like tests).
@@ -198,7 +198,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     };
     // (Plugin.getLog was a duplicate door — every log read goes through SystemView.getLog in
     // index.js; the second copy here had zero callers and was retired in 2.23.0.)
-    // RFC-017: assemble the whole project from the per-service files the plugins wrote (siblings share
+    // assemble the whole project from the per-service files the plugins wrote (siblings share
     // this cwd, so one call returns every service — no hub needed), materialize the combined
     // `.systemview/manifest.json`, and return it. Safe to save here: getManifest is called on-demand by a
     // single caller (a CLI/UI request), NOT by the services stampeding at boot — that stampede was the
@@ -243,7 +243,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
       }
     };
 
-    // RFC-018 — ground-truth file/code providers. These run inside THIS service and read its own
+    // ground-truth file/code providers. These run inside THIS service and read its own
     // source from `root` (cwd for a plugin-run service, the target repo for a hosted one),
     // path-guarded to that root. The AI Window's stage carries only locators; ☠ the browser calls
     // these directly (like getDoc) to fetch the real bytes at render time [RETIRED-2026-08-26 —
@@ -255,7 +255,7 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.stageFiles = providers.stageFiles;
     this.stageHunk = providers.stageHunk;
     this.discardFiles = providers.discardFiles;
-    // RFC-033 — ☠ these exist to serve a CLICK (the version-control panel, a `::commit` block in a
+    // ☠ these exist to serve a CLICK (the version-control panel, a `::commit` block in a
     // document) [RETIRED-2026-08-26 — those clicks go to the HUB now; this attachment is the hosted-
     // project library path]. Deliberately absent from the CLI: an agent can write the block, only a
     // human presses it.
@@ -265,10 +265,10 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.search = providers.search;
     this.getDiff = providers.getDiff;
     this.writeFile = providers.writeFile;
-    // RFC-034 — a file can be removed now, snapshotted first. The comment sidecars need it: the last
+    // a file can be removed now, snapshotted first. The comment sidecars need it: the last
     // thread leaving takes its file with it.
     this.deleteFile = providers.deleteFile;
-    // RFC-035 — the tree can rearrange itself: rename/move and duplicate, both refusing to overwrite.
+    // the tree can rearrange itself: rename/move and duplicate, both refusing to overwrite.
     this.moveFile = providers.moveFile;
     this.copyFile = providers.copyFile;
     // Doc undo — the snapshot ring writeFile/saveDoc feed: list a file's saved versions, read one
@@ -277,8 +277,8 @@ module.exports = ({ App, specs, projectCode, serviceId, module = {}, credentials
     this.fileHistory = providers.fileHistory;
     this.readSnapshot = providers.readSnapshot;
 
-    // RFC-018 — saved views (the agent's communications as documents). A view = a stage description
-    // {layout, panes}. Stored per-name in `.systemview/views/` so it TRAVELS with the repo (RFC-017):
+    // saved views (the agent's communications as documents). A view = a stage description
+    // {layout, panes}. Stored per-name in `.systemview/views/` so it TRAVELS with the repo:
     // a teammate who clones gets "here's what we did" reopenable. Name is basename-sanitized (no
     // traversal). Any service in a project can serve these — they share this cwd.
     const viewsDir = () => path.join(svDir, "views");

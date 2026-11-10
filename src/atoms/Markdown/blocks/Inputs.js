@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useMarkdownWrite } from "../context";
 
-// RFC-025 §4.5 — INPUT blocks. The document asks *you* something, and your answer lands back in the
+// INPUT blocks. The document asks *you* something, and your answer lands back in the
 // document (§4.6): the block rewrites its own attribute in the source and the surface saves it. No
 // second store, so an answer is durable, shared and committed with the file. Where a surface can't
 // save (a help topic is a code constant), the control is disabled and says so.

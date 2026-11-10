@@ -358,7 +358,7 @@ module.exports = {
     const chat = `tv-${Date.now()}`; // its own room per run — never touches the real TV
     const stamp = Date.now();
 
-    // RFC-040 — A REPORT IS A DOCUMENT, so this fixture pushes what `systemview show` now pushes: a
+    // A REPORT IS A DOCUMENT, so this fixture pushes what `systemview show` now pushes: a
     // POINTER record naming a file. It used to push `args.text` and assert the hub handed that text
     // back, which stopped being true the day inline shows stopped being reports — the failure was
     // the test guarding the old contract, not the code breaking.

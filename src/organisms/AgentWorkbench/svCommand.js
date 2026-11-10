@@ -37,7 +37,7 @@ const VERBS = {
   projects: { icon: "◫", what: "listed the projects" },
 };
 
-// RFC-056 — THE SAME ROW FOR THE NEW DOOR. The verbs moved from bash lines to internal MCP tools;
+// THE SAME ROW FOR THE NEW DOOR. The verbs moved from bash lines to internal MCP tools;
 // the STYLE stays exactly where it was (his rule: "the systemview logs already had a style — why
 // are you recreating one?"). An mcp__systemview__ call maps to the SAME shape parseSvCommand
 // returns, so every row, badge, status line and treatment applies unchanged — the mechanism moved,

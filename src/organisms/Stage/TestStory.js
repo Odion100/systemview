@@ -118,7 +118,7 @@ const ValText = ({ v }) => {
   );
 };
 
-// RFC-018 — a saved test rendered as a compact, readable STORY for the AI Window (not the full
+// a saved test rendered as a compact, readable STORY for the AI Window (not the full
 // SavedTests scratchpad UI, which is built for editing and sprawls here). Setup → call → args →
 // response → the assertions that pin it, with a Run that shows inline pass/fail. Reuses the proven
 // runner (initializeSavedTests + FullTestController); the presentation is purpose-built for this spot.
@@ -170,7 +170,7 @@ const evalsOf = (action) => {
 };
 
 // Exported — the per-step card (title, call, args, returns, evaluations) is shared presentation: TestStory
-// phases use it, and the ActionsPanel's ActionCard renders an action's steps with it (RFC-020).
+// phases use it, and the ActionsPanel's ActionCard renders an action's steps with it.
 export function TestAction({ action, ran, phaseSig, phaseCollapsed, autoExpand }) {
   const ns = action.namespace || {};
   const errs = ran ? errsOf(action) : [];
@@ -365,7 +365,7 @@ const TestStory = React.forwardRef(
     const [running, setRunning] = useState(false);
     const [ran, setRan] = useState(false);
 
-    // RFC-029 — ALREADY-RAN. `recorded` carries a completed run's per-step results (from a run
+    // ALREADY-RAN. `recorded` carries a completed run's per-step results (from a run
     // file an agent wrote): the instances hydrate with those responses and re-validate against
     // them, so the test displays exactly as if it had just run in this window — statuses,
     // responses, verdicts — without executing anything. Play still re-runs fresh (run() always

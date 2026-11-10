@@ -1,6 +1,6 @@
 import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan } from "./tabsStore";
 
-// RFC-054 — the open set. The rules under test are the ones his asks named: multiple files open at
+// the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
 // and the strip survives a reload because the set is cached.
 // ONE PROJECT PER TEST — the in-memory store deliberately outlives localStorage clears (a project's

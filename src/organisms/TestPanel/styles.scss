@@ -29,7 +29,7 @@
   max-height: none;
   &__section {
     margin-bottom: 6px;
-    // RFC-023 — SECTION drag drop-indicator: which side of this section the dragged one will land.
+    // SECTION drag drop-indicator: which side of this section the dragged one will land.
     border-top: 2px solid transparent;
     border-bottom: 2px solid transparent;
     &--over-before {
@@ -246,7 +246,7 @@
   }
 }
 
-/* RFC-020 — an insertion point for a named-action section (one before Main, one after). Collapsed: a
+/* an insertion point for a named-action section (one before Main, one after). Collapsed: a
    slim "+ section" affordance. Open: a HORIZONTALLY SCROLLABLE strip of saved-action chips (there can be
    many). Plum — NOT blue (blue is the running border). */
 .test-panel__add-section {
@@ -316,7 +316,7 @@
   padding: 0 4px;
 }
 
-/* RFC-020 — a REFERENCED named-action section inside a test (scratchpad): read-only + runnable +
+/* a REFERENCED named-action section inside a test (scratchpad): read-only + runnable +
    removable, NOT an editable builder. Same plum identity the saved-action card wears. */
 .named-section {
   background: var(--sv-surface);

@@ -21,7 +21,7 @@ const SCOPES = ["docs", "reports", "nav", "stats", "all"];
 const servicesOf = (projectCode, connections) =>
   (connections || []).filter((c) => String(c.projectCode).toLowerCase() === String(projectCode).toLowerCase());
 
-// RFC-029 — resolve against the LIVE tree, at every granularity: "add", "Math.add" and
+// resolve against the LIVE tree, at every granularity: "add", "Math.add" and
 // "TestService.Math.add" all reach the same method. An unvalidated push once walked him to a
 // namespace that did not exist, which is a worse outcome than a refusal.
 function resolveNamespace(projectCode, nsInput, connections) {
@@ -91,7 +91,7 @@ function nav({ projectCode, namespace, file, report, stats, range, service, tab,
     const f = splitRange(file);
     args.file = f.path;
     if (f.lines) args.lines = f.lines;
-    // RFC-069 — the hub resolved this before it got here (see index.js nav): a machine file is
+    // the hub resolved this before it got here (see index.js nav): a machine file is
     // addressed as one so the window reads it through the machine door, and a file living in
     // ANOTHER project carries that project so the pane asks the right root.
     if (machine) args.machine = true;

@@ -10,7 +10,7 @@ const { matchNamespace } = require("./utils/matchNamespace");
 
 module.exports = async function listTests(url, project_code, namespace, { connectedUrls = new Set(), verbose = false, json = false, collect = false } = {}) {
   const api = `${url}/systemview/api`;
-  // RFC-056 — LIB MODE: return the data instead of printing. One lister, two faces (CLI + MCP).
+  // LIB MODE: return the data instead of printing. One lister, two faces (CLI + MCP).
   if (collect) json = true;
 
   if (!project_code) {

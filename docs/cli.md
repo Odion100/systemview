@@ -196,7 +196,7 @@ used to live here (`--diff`, `--test`, `stage add`, `--match`) are dead with the
 
 ### `systemview comments <projectCode> [path] [--json]`
 
-His **comments on the code** (RFC-034) — notes anchored to a line range in a file, written in the UI
+His **comments on the code** — notes anchored to a line range in a file, written in the UI
 by right-clicking the lines. They are never written into the source file: a comment about code is not
 code. They live beside the repo, one sidecar per file, mirroring the tree:
 
@@ -287,7 +287,7 @@ An unknown id lists the ids that do exist rather than failing blankly.
 and print the boot banner, which reads as silence — a newer verb looked like it had worked. It now
 names the closest match and says the version may differ from another project's install.
 
-**Reports are documents** (RFC-040). `systemview show` writes
+**Reports are documents**. `systemview show` writes
 `.systemview/report.<project>.<slug>.md`, adds it to the reports index, and the chat record carries
 only a pointer — so re-pushing the same title is a SAVE (no duplicate entries), deleting is deleting
 a file, and his answers live in the document rather than in a chat record.
@@ -440,7 +440,7 @@ the commands below are for reaching OTHER agents, managing who hears a room, and
 ### Talking
 
 ```bash
-systemview message-agent <them> "text" --as <me>   # a message to ANOTHER agent's room (RFC-051).
+systemview message-agent <them> "text" --as <me>   # a message to ANOTHER agent's room.
                                          # --as is required and cannot be the target. Does NOT
                                          # subscribe — it opens a 15-min reply window so the
                                          # answer reaches you, then closes. --file <p.md> for long

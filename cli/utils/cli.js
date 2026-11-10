@@ -27,7 +27,7 @@ const HELP_TEXT = `
                                            for long messages.
                                            TALKING TO THE HUMAN? You are in the chat — put it in
                                            your reply; markdown renders there. No command needed
-    join <project> --as <me>               Enter the conversation (RFC-051): on the room's list,
+    join <project> --as <me>               Enter the conversation: on the room's list,
                                            the hub delivers everything said there into yours. No
                                            hold, nothing to arm — deliberate, instant, done
     leave <project> --as <me>              Out of the conversation; delivery stops, records stay
@@ -70,7 +70,7 @@ const HELP_TEXT = `
                                            [also: bare cs / ci; works in interactive mode]
     open [projectCode] [namespace]         Open the browser UI
 
-  Agent control (RFC-029) — drive the OPEN window; every command shows in the chat as a "→ …" receipt:
+  Agent control — drive the OPEN window; every command shows in the chat as a "→ …" receipt:
     nav <project> <namespace>              NAVIGATE (select for real): route to a live namespace —
                                            validated + fuzzily resolved against the live tree
                                            ("Math.add" works); a bad name is refused, never a ghost
@@ -141,7 +141,7 @@ const HELP_TEXT = `
     --chat <name>                          chat verbs: a named chat (default "main")
     --as <projectCode>                     chat verbs: the PROJECT you speak as (the agent IS the
                                            project; omitted/unknown = the room's own agent).
-                                           Speaking does NOT subscribe you — join does (RFC-051)
+                                           Speaking does NOT subscribe you — join does
 
   Examples:
     systemview start
@@ -244,7 +244,7 @@ function parseArgs(rawArgs) {
     highlight: listOf("--highlight"),
     clear: rawArgs.includes("--clear"),
     force: rawArgs.includes("--force"),
-    // RFC-039 — `skill --print` (show it without writing), `inbox --history` (ask for the
+    // `skill --print` (show it without writing), `inbox --history` (ask for the
     // back-catalog on purpose), `nav … --pin` (keep the --say line in the chat).
     print: rawArgs.includes("--print"),
     history: rawArgs.includes("--history"),
@@ -274,7 +274,7 @@ function parseArgs(rawArgs) {
     note: valOf("--note"),
     at: valOf("--at"),
     reply: valOf("--reply"),
-    // RFC-039 — `board --add "…"`, or `--add --file <path.md>` when it's long enough to write in a
+    // `board --add "…"`, or `--add --file <path.md>` when it's long enough to write in a
     // file. Bare `--add` with a file is why this can't just be valOf: the value may be absent.
     add: (() => {
       const i = rawArgs.indexOf("--add");
@@ -291,7 +291,7 @@ function parseArgs(rawArgs) {
     report: valOf("--report"),
     tab: valOf("--tab"),
     topic: valOf("--topic"),
-    // RFC-032 — nav <pc> stats [tab] [--range] [--service]
+    // nav <pc> stats [tab] [--range] [--service]
     range: valOf("--range"),
     service: valOf("--service"),
     // ORDERED pane sequence for `assemble` — walk the raw args left→right so panes render in the

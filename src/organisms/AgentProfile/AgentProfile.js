@@ -30,7 +30,7 @@ import { listJobs, jobRuns, rateJobRun, hasHostJobs, saveJob } from "../../utils
 import SvSelect from "../../atoms/SvSelect/SvSelect";
 import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
 
-// RFC-055 — THE AGENT PROFILE. One window where he sees and changes EVERYTHING feeding an agent.
+// THE AGENT PROFILE. One window where he sees and changes EVERYTHING feeding an agent.
 // The rules this page runs on (all his):
 //   - Docs open in the RIGHT panel (onOpenDoc lifts them) — code view + markdown, not textareas.
 //   - A skill IS a doc that loads ON DEMAND; the always-loaded docs and the skills are one family,
@@ -88,7 +88,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
   const doReinitRef = useRef(() => {});
   const [sel, setSel] = useState(null); // selected agent record
   const [draft, setDraft] = useState(null); // editable copy
-  // RFC-013 — the subscriptions rows, RESOLVED (title, size, spent, broken) by the host, and
+  // the subscriptions rows, RESOLVED (title, size, spent, broken) by the host, and
   // refreshed the moment the defs dir moves — a subscribe appears here with no page refresh
   // (his rule: if you subscribe to something, it should just be there).
   const [subsRows, setSubsRows] = useState([]);
@@ -2159,7 +2159,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                           different trust past it — so the loud one is labelled loudly. */}
                       {h.kind === "work" && <span className="agent-profile__hook-work">work</span>}
                       {/* WHO WROTE IT — shown only when it was not you. An agent can propose a hook
-                          now (RFC-005 §7), and a proposal that looks identical to something you
+                          now, and a proposal that looks identical to something you
                           wrote yourself is a proposal you approve by forgetting you did not. The
                           write is inert either way; this is the row telling you whose idea it was. */}
                       {/^agent:/.test(h.author || "") && (
@@ -2412,7 +2412,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
               </button>
             </div>
 
-            {/* SUBSCRIPTIONS — context this agent chose to have DELIVERED UNASKED (RFC-013).
+            {/* SUBSCRIPTIONS — context this agent chose to have DELIVERED UNASKED.
                 These rows are LENSES, exactly like the counts above them (his point, made twice):
                 clicking one filters the context table below to that note's scope and reveals the
                 note itself — you read the real context where context lives, not a preview card.

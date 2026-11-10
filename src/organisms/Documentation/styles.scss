@@ -134,7 +134,7 @@
     background: color-mix(in srgb, currentColor 13%, transparent);
   }
 
-  // RFC-054 — a tab is an OPEN DOCUMENT now; the span wraps a face and a close so the × never
+  // a tab is an OPEN DOCUMENT now; the span wraps a face and a close so the × never
   // triggers the focus click. The old fixed-tab styling stays byte-identical for the active
   // underline; the kind wears a colored dot (his rule: distinct-looking tabs per type).
   display: inline-flex;
@@ -447,7 +447,7 @@
   }
 }
 
-// RFC-069 §4.4 — the open-by-path door on the strip. An ADDRESS, never a picker.
+// the open-by-path door on the strip. An ADDRESS, never a picker.
 // THE DOORS ONTO CENTRE TABS — THE STRIP'S TAIL, OUTSIDE THE SCROLLER. A direct child of
 // `.doc-tabs`, so it holds its place beside the chat whatever the tabs do; nothing here is sticky
 // because there is nothing to stick to. They are deliberately NOT `.doc-tabs__plus`: a suite

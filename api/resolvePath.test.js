@@ -165,7 +165,7 @@ describe("the hint — a link written inside a document has a home repo", () => 
   });
 });
 
-describe("a machine address — outside every root, the file itself is the identity (RFC-069)", () => {
+describe("a machine address — outside every root, the file itself is the identity", () => {
   test("an absolute path outside every project resolves as a MACHINE file when it exists", () => {
     const loose = path.join(tmp, "loose-note.md");
     write(loose, "outside everything");

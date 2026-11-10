@@ -1,4 +1,4 @@
-// RFC-045 — THE HOST SEAM.
+// THE HOST SEAM.
 //
 // SystemView renders a terminal; it never runs one. The process lives in whatever is embedding the
 // app (autobot's Electron shell today), and the only thing that crosses the line is this transport.

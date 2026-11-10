@@ -7,7 +7,7 @@ import { routeResult } from "../docSend";
 import { useBlockFailure } from "../blockFailure";
 import { useEffect } from "react";
 
-// RFC-025 §4.2 — `::test{Math.chainUse}` · `::test{GatedService.Auth.getSession}` · `::test{Math.add:1}`
+// `::test{Math.chainUse}` · `::test{GatedService.Auth.getSession}` · `::test{Math.add:1}`
 //
 // A SAVED TEST, runnable in place, inside a document. This is not a new runner: it renders the exact
 // component the story test panes render, so a story test pane is literally this block with a frame

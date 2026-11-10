@@ -1,7 +1,7 @@
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import { useCallback, useEffect, useState } from "react";
 
-// RFC-034 — COMMENTS ON CODE. Threads on a source file, the same conversation a document thread
+// COMMENTS ON CODE. Threads on a source file, the same conversation a document thread
 // carries, except nothing is ever written into the file: a comment about code is not code, and
 // `:::thread` in a `.js` would mean editing his source to talk about it.
 //
@@ -181,7 +181,7 @@ export function useCodeComments(Plugin, path) {
 // listen, press again to stop, finals append. Interim text streams too — the live line IS the
 // recording indicator, same as the chat's mic.
 export function dictateInto(textarea, onState) {
-  // RFC-045 — THE FOURTH MICROPHONE, and the one that stayed broken longest. Inside the shell
+  // THE FOURTH MICROPHONE, and the one that stayed broken longest. Inside the shell
   // `webkitSpeechRecognition` exists and never returns a result, so this returned a live-looking
   // recogniser and the comment box simply never filled in — "speech recognition is broken in
   // comments". Host first, exactly like the chat and the board.

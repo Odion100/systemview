@@ -15,7 +15,7 @@ import "./styles.scss";
 // restarted, or 20 runs later) → the text result still stands, nothing lost.
 const TestPaneLazy = lazyLoad(() => import("../Stage/TestPane"));
 
-// RFC-046 — THE FEED ITSELF, with no chrome around it, because it has to sit in two places: the
+// THE FEED ITSELF, with no chrome around it, because it has to sit in two places: the
 // agent's CHAT (where he actually talks to us, and where the silence between messages is the thing
 // he complained about) and a standalone pane. His correction, when I built the pane first:
 // *"there's a new agent in a section in a navigation, and that's not what I meant by anything I
@@ -286,7 +286,7 @@ const HookRow = ({ row }) => {
   );
 };
 
-// RFC-013 — the injected-context receipt, OPENABLE (his catch: "since when is a log only a bar?
+// the injected-context receipt, OPENABLE (his catch: "since when is a log only a bar?
 // you click to open it and see what it's about"). Closed it reads like the hook row — the same
 // kind of moment, context arriving unasked — and open it shows exactly what was delivered, the
 // same text the model saw. Whole header toggles, sign always visible: the feed's own fold rules.

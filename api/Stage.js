@@ -1,4 +1,4 @@
-// RFC-018 — the LIVE stage: an in-memory, per-project view description that the agent (or the user)
+// the LIVE stage: an in-memory, per-project view description that the agent (or the user)
 // drives in real time. Ephemeral by design — a persisted "saved view" is a separate thing (Views,
 // Phase 3). It rehydrates on reconnect because the UI calls getStage() on mount and then subscribes
 // to `stage-updated:<projectCode>`. The stage carries only TARGETS (locators) + inline prose, never

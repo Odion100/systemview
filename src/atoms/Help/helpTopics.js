@@ -2,7 +2,7 @@
 // Every topic both NARRATES (what/why) and SHOWS (an example) — never one without the other.
 // Keys are stable addresses; sub-area topics use dots ("scratchpad.events") if we ever need depth.
 //
-// RFC-025: help topics render through the SAME markdown atom as every other document, so they USE
+// help topics render through the SAME markdown atom as every other document, so they USE
 // the interactive vocabulary instead of describing it — namespace chips that navigate, file chips
 // that open the code, runnable tests, live charts, tabs, folds. The documentation demonstrates the
 // product. (Checklists here are read-only: this registry is code, not a file on disk, so there is
@@ -252,7 +252,7 @@ services-only, or both — every shape is a real project.`,
 
 Every markdown surface in SystemView — this help page, the **Documentation** tab, story markdown and
 \`.md\` file panes, agent notes on tests, the codebase preview — renders through one renderer. A block
-written in any of them works in all of them (RFC-025).
+written in any of them works in all of them.
 
 **Everything below is live.** Source first, the real thing under it.
 

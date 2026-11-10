@@ -1,4 +1,4 @@
-// RFC-055 — the agent profile. On the app's own tokens, same world as the Context page.
+// the agent profile. On the app's own tokens, same world as the Context page.
 .agent-profile {
   // tight at the bottom (his call): the knowledge section leads STRAIGHT into the context
   // section below — dead space between them broke the flow.
@@ -1157,14 +1157,14 @@
   color: var(--sv-text);
 }
 
-// RFC-013 — the subscriptions region's empty line: the hint's muted voice, one line.
+// the subscriptions region's empty line: the hint's muted voice, one line.
 .agent-profile__empty {
   color: var(--sv-text-muted, #8a8f98);
   font-size: 12px;
   padding: 2px 0 6px;
 }
 
-// RFC-013 — the subscriptions rows: lenses like the counts above them — one line each, clickable.
+// the subscriptions rows: lenses like the counts above them — one line each, clickable.
 .agent-profile__subs { margin-top: 10px; }
 .agent-profile__subs-head { font-size: 12px; font-weight: 600; color: var(--sv-text-muted, #8a8f98); margin-bottom: 4px; }
 .agent-profile__sub {

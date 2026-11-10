@@ -56,7 +56,7 @@ function load() {
   // caching that empty read would blind it forever. Re-read until headers actually appear, then cache.
   if (headers && Object.keys(headers).length) return headers;
   headers = {};
-  // RFC-017: config-header DEFAULTS now live in the per-service manifest files the plugins wrote
+  // config-header DEFAULTS now live in the per-service manifest files the plugins wrote
   // (`.systemview/*.manifest.json` → entry.headers). Pull those first, keyed by origin.
   try {
     const { readFolderManifest } = require("./manifestStore");

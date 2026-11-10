@@ -61,7 +61,7 @@ const stampOf = (file) => {
 };
 
 // NOT spawnSync, AND THIS IS THE REASON — the Test service is HOSTED INSIDE THE HUB'S OWN PROCESS
-// (RFC-027), so a synchronous two-minute child blocks the hub's event loop and the window with it.
+//, so a synchronous two-minute child blocks the hub's event loop and the window with it.
 // Measured 2026-11-09: running this document's proofs took the hub to zero responses, he reported
 // "the hub is unreachable", and the honest cause was this function rather than anything in the
 // suite. An async child yields between ticks, so the hub keeps answering while the suite runs.

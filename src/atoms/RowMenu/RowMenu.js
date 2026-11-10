@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-// RFC-027 — the row context menu: right-click is where connections get removed (any service, any
+// the row context menu: right-click is where connections get removed (any service, any
 // project — the old tree tab's delete buttons live here now) and where a HOSTED service is
 // configured (rename/add/delete modules, delete the project). Destructive items are TWO-STEP: the
 // item arms into an inline confirm — no browser dialogs. One menu instance per surface.

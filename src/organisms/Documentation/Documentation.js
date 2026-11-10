@@ -83,7 +83,7 @@ export default function Documentation({
   // can be linked — the same rule an open file follows.
   const reportPath = new URLSearchParams(location.search).get("rdoc") || null;
 
-  // RFC-054 — THE OPEN SET. The strip renders from the store; the URL names the ACTIVE tab (his
+  // THE OPEN SET. The strip renders from the store; the URL names the ACTIVE tab (his
   // rule: "the URL routing includes what TYPE someone is in the center"). Existing params keep
   // their meaning by becoming open-or-focus operations — his dedupe rule, one entry point.
   const tabsPc = projectCode || "@none";
@@ -201,7 +201,7 @@ export default function Documentation({
   }, [tabsPc, urlTab, onFloor, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
   // store → URL, on a strip click: the active tab writes the params that MEAN it — which is exactly
   // what keeps every deep link, chip and agent command working unchanged.
-  // THE MAP LIVES IN tabRoutes.buildRoute NOW (RFC-069 slice 4) — the Agents page routes the
+  // THE MAP LIVES IN tabRoutes.buildRoute NOW — the Agents page routes the
   // same tabs, and a second copy of this map is exactly the drift the extraction exists to kill.
   const routeTo = useCallback((t) => {
     history.push(buildRoute(t, tabsPc, window.location.search));
@@ -241,7 +241,7 @@ export default function Documentation({
     q.set("tab", "docs");
     history.push({ pathname: `/specs/${projectCode}`, search: `?${q.toString()}` });
   }, [tabsPc, routeTo, history, projectCode]);
-  // RFC-069 §4.4 — the open-by-path door, shared from CenterTabs (one brain, every host).
+  // the open-by-path door, shared from CenterTabs (one brain, every host).
   const plusDoor = useOpenByPath(tabsPc);
   // The Code page's own menu rows — a file reveals in the codebase and copies its path.
   const extraMenuItems = useCallback((t) => {
@@ -336,7 +336,7 @@ export default function Documentation({
         {/* Tabs ALWAYS show — SystemView mode doesn't switch the page, it just shows a different document.
             The selected namespace rides at the END of this same row (no separate title row → more vertical
             space for the document / stories / logs below). */}
-        {/* THE ONE STRIP (RFC-069 slice 4) — extracted whole into CenterTabs after the lookalike
+        {/* THE ONE STRIP — extracted whole into CenterTabs after the lookalike
             lesson; the Agents view mounts the same component over the same store. This page hands
             it meaning: the URL answers "active", clicks route, closes move the URL. */}
         <CenterTabs
@@ -474,7 +474,7 @@ export default function Documentation({
           </div>
         )}
         {/* REPORTS — one document with the whole panel. The picker shows only until you choose;
-            then the document owns the space and an ✕ brings the list back (RFC-025). */}
+            then the document owns the space and an ✕ brings the list back. */}
         {/* With a file open, Logs and Report run at the PROJECT level — same rule as Stories. */}
         {!helpOpen && tab === "reports" && reportPath && (
           <ReportsTab
@@ -668,7 +668,7 @@ const DocDescription = ({ doc, setDocument, Plugin, label, crumb = null, readOnl
               children={text}
               scope={scope}
               commentKey={`doc-${(scope && scope.projectCode) || ""}-${[doc.namespace && doc.namespace.serviceId, doc.namespace && doc.namespace.moduleName, doc.namespace && doc.namespace.methodName].filter(Boolean).join(".") || "project"}`}
-              // RFC-025 §4.6 — the document IS the store. A checklist toggle is a narrower edit down
+              // the document IS the store. A checklist toggle is a narrower edit down
               // the same saveDoc path the editor uses.
               onSourceChange={
                 Plugin && !readOnly

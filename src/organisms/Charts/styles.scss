@@ -3,7 +3,7 @@ $ok: #2e7d32;
 $watch: #d4a017;
 $bad: #c62828;
 
-// Chart styles — MOVED here from pages/Reports/styles.scss with the component (RFC-025 §4.3), so a
+// Chart styles — MOVED here from pages/Reports/styles.scss with the component, so a
 // chart is styled wherever it renders: the Stats page, a story pane, a `::chart` inside a document.
 // Class names are unchanged (`report-chart*`) so nothing on the Stats page had to move with them.
 .report-chart {
@@ -68,7 +68,7 @@ $bad: #c62828;
 }
 
 
-// ── moved from pages/Reports/styles.scss with their components (RFC-025 §4.3) ─────────────────
+// ── moved from pages/Reports/styles.scss with their components ─────────────────
 .report-mock {
   display: inline-block;
   font-family: monospace;

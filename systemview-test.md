@@ -4,7 +4,7 @@ SystemView's own **dogfood project**: the fixture services the CLI suite and the
 against. Everything here is real — these services run locally, the tests below execute, and the
 charts are this project's own traffic.
 
-It is also a **live document** (RFC-025): the second half demonstrates every markdown block the app
+It is also a **live document**: the second half demonstrates every markdown block the app
 supports, source first and rendered result underneath. Same file, both jobs.
 
 ## The services

@@ -36,7 +36,7 @@ export default function Ask({ attrs = {}, label, children }) {
   // is the mistake that gets you here — the text goes in the LABEL and `why=` is the only
   // attribute — and what that used to paint was a band with an arrow and nothing beside it, which
   // reads as a broken UI rather than as a malformed block. An unknown block already names itself
-  // (RFC-025 §8); the one thing needed from the human is not allowed to be blank and silent.
+  //; the one thing needed from the human is not allowed to be blank and silent.
   if (!question && !children) {
     return (
       <span
