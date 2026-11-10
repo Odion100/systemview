@@ -1,4 +1,4 @@
-import React, { useEffect, useContext, useRef, useState } from "react";
+import React, { useEffect, useContext, useMemo, useRef, useState } from "react";
 import { useHistory } from "react-router-dom";
 import ServiceContext from "../../ServiceContext";
 import "./styles.scss";
@@ -18,6 +18,7 @@ import {
   hostProjectEntry,
 } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
+import { tabOrder, beginRun, endRun, workingNow, glowing } from "./tabOrder";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useDockOrder, orderProjects, isNavDocked, pinId } from "../AgentChat/navDock";
 import { liveSessions } from "../../utils/hostAgents";
@@ -92,23 +93,33 @@ const SystemNav = ({
   }, [view]);
   // WHO IS COOKING — announced by each chat (`sv:agentState`) as its state changes; the tab wears
   // the mark. Not polled: the chats already know, and the strip only has to listen.
-  const [cookingPcs, setCookingPcs] = useState(() => new Set());
+  //
+  // AND THE SAME ANNOUNCEMENT IS WHAT MOVES THE TAB. `runs` keeps when each agent started and
+  // when its afterglow runs out, which is what `tabOrder` needs to be stable; the dot is DERIVED
+  // from it, so the mark and the place can never disagree about who is working.
+  const [runs, setRuns] = useState({});
   useEffect(() => {
     const on = (e) => {
       const d = (e && e.detail) || {};
       if (!d.projectCode) return;
-      setCookingPcs((cur) => {
-        const cooking = d.state === "working" || d.state === "waiting";
-        if (cur.has(d.projectCode) === cooking) return cur;
-        const n = new Set(cur);
-        if (cooking) n.add(d.projectCode);
-        else n.delete(d.projectCode);
-        return n;
-      });
+      const cooking = d.state === "working" || d.state === "waiting";
+      setRuns((cur) => (cooking ? beginRun(cur, d.projectCode) : endRun(cur, d.projectCode)));
     };
     window.addEventListener("sv:agentState", on);
     return () => window.removeEventListener("sv:agentState", on);
   }, []);
+  const cookingPcs = useMemo(() => workingNow(runs), [runs]);
+  // A CLOCK ONLY WHILE AN AFTERGLOW IS COUNTING DOWN. Nothing else in the order is time-dependent:
+  // working is working until the chat says otherwise, so a strip with nothing fading needs no tick.
+  const [glowBeat, setGlowBeat] = useState(0);
+  useEffect(() => {
+    if (!glowing(runs)) return undefined;
+    const t = setInterval(() => setGlowBeat((n) => n + 1), 4000);
+    return () => clearInterval(t);
+  }, [runs, glowBeat]);
+  // FROZEN WHILE HE IS ON THE STRIP — hovering the tabs means he is about to press one, and a tab
+  // that moves out from under a click is worse than a tab he had to look for.
+  const [onStrip, setOnStrip] = useState(false);
   const dockOrderList = useDockOrder();
   // THE TAB WEARS THE AGENT ONLY WHILE IT'S HOME (his indicator): pulled out, the face leaves the
   // tab and only the project name remains — you can see at a glance which agents are out floating.
@@ -442,10 +453,24 @@ const SystemNav = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [Plugin, projectCode]);
   // The tabs are the projects in the dock's order — same order the cards and the rail keep.
-  const tabPcs = orderProjects(
+  const dockPcs = orderProjects(
     dockOrderList,
     [...new Set([...husks.map((h) => h.projectCode), ...connectedServices.map((c) => c.projectCode)])],
   );
+  // AND THEN THE WORKING ONES COME TO THE FRONT, which is a layer over that order rather than a
+  // change to it: `orderProjects` is ONE order shared by the dock, the rail, the codebase panel
+  // and the agent panel (his rule), so sorting it by activity would rearrange cards on four other
+  // surfaces. The strip asked for this; the strip alone gets it. `tabOrder` owns the part that is
+  // hard — not moving anything that does not have to move.
+  const lastTabs = useRef([]);
+  const tabPcs = useMemo(
+    () => tabOrder({ order: dockPcs, runs, frozen: onStrip, last: lastTabs.current }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dockPcs.join("|"), runs, onStrip, glowBeat],
+  );
+  useEffect(() => {
+    lastTabs.current = tabPcs;
+  }, [tabPcs]);
   const activeTabPc = tabPcs.includes(tabPc) ? tabPc : tabPcs[0] || "";
   // DOCKED STAYS DOCKED ACROSS THE VIEW SWITCH (his correction — the bug was eviction, not
   // docking: tabs view unmounted every card slot, "slot gone" means float, so flipping the view
@@ -470,7 +495,11 @@ const SystemNav = ({
               (or the + in list view), and a small collapse chevron where the title row used to be. */}
           <div className="system-nav__bar">
                 {view === "tabs" ? (
-                  <div className="system-nav__agenttabs">
+                  <div
+                    className="system-nav__agenttabs"
+                    onPointerEnter={() => setOnStrip(true)}
+                    onPointerLeave={() => setOnStrip(false)}
+                  >
                     {tabPcs.map((pc) => (
                       <button
                         key={pc}
