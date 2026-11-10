@@ -394,9 +394,7 @@ or tell nobody, so the people on the document would learn about decisions by re-
 sitting in this document so the gesture can be done where you are reading it rather than in another
 file:
 
-:::claim[A disposable claim, for trying the gesture on → right-click it, choose *add a proof*, and watch it grow room for one]{id=cTRY kind=experiential told=systemview-test state=met by=you at=1793998942884}
-
-:::
+::claim[A disposable claim, for trying the gesture on → right-click it, choose *add a proof*, and watch it grow room for one]{id=cTRY kind=experiential told=systemview-test}
 
 Right-click it, pick *Add a proof*, and watch the line grow its fences around an empty body with the
 statement untouched. Then put it back and do it again:
