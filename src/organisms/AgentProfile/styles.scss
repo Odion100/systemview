@@ -1299,6 +1299,14 @@
   font-size: 11px;
   color: #63b98a;
 }
+// AN OFFERABLE INPUT IS THE SAME KEY, SAID QUIETER. The green above is "this is what the job takes";
+// a required name earns it because leaving it blank refuses the hook. An optional one is an
+// invitation, so it is drawn in the muted text colour and the placeholder carries the word
+// `optional` — two signals, because the row is otherwise identical and a reader deciding whether to
+// leave a box empty gets no help from a text input.
+.agent-profile__hookform-withkey--opt {
+  color: var(--sv-text-muted);
+}
 
 // JOBS — RFC-067 §8.8. Amber, because that is this system's colour for the loud kind of thing: a
 // job is given and it runs, where a skill is offered and the agent decides.

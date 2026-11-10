@@ -25,6 +25,7 @@ import {
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
 import { groupSkillsBySource, sourceCountLabel, skillDoc } from "./skillSources";
 import { CATEGORIES, COUNTS, GAP_UNITS, MODES, isCrossing, readRate, saysRate, writeRate } from "./hookRate";
+import { hookWithFields, hookWithNote, hookWithHint } from "./hookWith";
 import { listJobs, jobRuns, rateJobRun, hasHostJobs, saveJob } from "../../utils/hostJobs";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
 import { raiseKeyed, clearKeyed } from "../../atoms/Banner/bannerStore";
@@ -800,6 +801,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     [
       "---",
       'requires: []',
+      'optional: []',
       "---",
       "",
       `# ${id}`,
@@ -822,10 +824,20 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
       "",
       "## 2 · What it must be given",
       "",
-      "List each input in `requires:` above, and say here what it is for. A missing input is a",
-      "refusal, not a guess — the harness compares `requires:` against the hook's `with:` and opens",
-      "no run if one is absent. An input a chore line could never supply makes this job unassignable",
-      "from a board, so keep the list to what a hook can hand over.",
+      "List each input above and say here what it is for. There are TWO lists and the difference is",
+      "what happens when one is blank:",
+      "",
+      "- `requires:` — must be supplied. A missing one is a refusal, not a guess: the harness",
+      "  compares it against the hook's `with:` and opens no run if one is absent. An input a chore",
+      "  line could never supply makes this job unassignable from a board, so keep this list to what",
+      "  a hook can hand over.",
+      "- `optional:` — may be supplied, and a blank one refuses nothing. This is how a job offers a",
+      "  way to AIM it without demanding one: declare it and the hook form draws a field for it.",
+      "  Describing an optional input in prose alone hides it, because prose is invisible to a",
+      "  surface — the capability then exists only for somebody willing to hand-edit a hook file.",
+      "",
+      "A job that declares nothing needs nothing, and that is a real answer: plenty of jobs take",
+      "their target from the moment that fired them, or read it off their own state.",
       "",
       "## 3 · The procedure",
       "",
@@ -908,7 +920,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     const d = hookDraft && String(hookDraft.do || "");
     if (!d || !d.startsWith("job:")) return null;
     const id = d.slice(4);
-    return (jobs || []).find((j) => j.id === id) || { id, name: id, requires: [] };
+    return (jobs || []).find((j) => j.id === id) || { id, name: id, requires: [], optional: [] };
   })();
   // The rate as TWO controls — kind, and the duration when the kind is a cooldown.
   const rateParts = readRate(hookDraft && hookDraft.rate);
@@ -1031,30 +1043,43 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                     </span>
                   </div>
 
-                  {/* WHAT IT IS GIVEN — one input per name in the job's own `requires:`. Nothing is
-                      typed from memory and nothing is invented here: the document declares the keys
-                      and this form asks for exactly those. A hook that cannot supply them is refused
-                      at the save, by name, rather than refusing silently on every match. */}
+                  {/* WHAT IT IS GIVEN — one input per name the job DECLARES, across both of its
+                      lists. Nothing is typed from memory and nothing is invented here: the document
+                      declares the keys and this form asks for exactly those.
+
+                      TWO LISTS, BECAUSE `requires:` WAS DOING TWO JOBS. Making a field appear meant
+                      making it mandatory, so the moment the arc job stopped demanding `project` and
+                      `arc` his two controls vanished — his catch, 2026-11-10: *"I see those options
+                      went away."* A required name still refuses at the save, by name; an offerable
+                      one refuses nothing and says so in its own placeholder, because a text input
+                      cannot show the difference and the difference matters exactly when somebody is
+                      deciding whether to leave it empty.
+
+                      The field list and the empty-state sentence are `hookWith.js`'s — this
+                      component cannot be mounted in jest, so a rule written inline here is a rule
+                      nothing can check. */}
                   {hookJob && (
                     <div className="agent-profile__hookform-row agent-profile__hookform-row--top">
                       <label className="agent-profile__hookform-label">with</label>
                       <div className="agent-profile__hookform-with">
-                        {(hookJob.requires || []).length ? (
-                          (hookJob.requires || []).map((k) => (
-                            <label className="agent-profile__hookform-withrow" key={k}>
-                              <span className="agent-profile__hookform-withkey">{k}</span>
+                        {hookWithFields(hookJob).length ? (
+                          hookWithFields(hookJob).map((f) => (
+                            <label className="agent-profile__hookform-withrow" key={f.key}>
+                              <span
+                                className={`agent-profile__hookform-withkey${f.required ? "" : " agent-profile__hookform-withkey--opt"}`}
+                              >
+                                {f.key}
+                              </span>
                               <input
                                 className="agent-profile__hookform-input"
-                                value={(hookDraft.with || {})[k] || ""}
-                                placeholder={`the ${k} this hook runs it with`}
-                                onChange={(e) => setHd({ with: { ...(hookDraft.with || {}), [k]: e.target.value } })}
+                                value={(hookDraft.with || {})[f.key] || ""}
+                                placeholder={hookWithHint(f)}
+                                onChange={(e) => setHd({ with: { ...(hookDraft.with || {}), [f.key]: e.target.value } })}
                               />
                             </label>
                           ))
                         ) : (
-                          <span className="agent-profile__hookform-note">
-                            this job declares no inputs, so there is nothing to supply
-                          </span>
+                          <span className="agent-profile__hookform-note">{hookWithNote(hookJob)}</span>
                         )}
                       </div>
                     </div>
