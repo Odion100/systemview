@@ -12,7 +12,7 @@ import { FIELDS, RENDERABLE, SOURCE_CHOICES, UNITS, patchFor, summaryOf, toggleS
 // means the guard below is ONE-DIRECTIONAL: it catches a panel field naming a key the harness does
 // not store (an input wired to nothing), and it cannot catch the harness growing a key the panel
 // never offers. So when a setting is added over there, it is added here in the same motion.
-const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, subagentIdleMin: 10, sources: ["job:", "skill:", "correction:"], keepHours: 12, managers: [] };
+const S = { on: true, idleMin: 20, cooldownMin: 30, giveUpAfter: 3, ctxCeilingPct: 70, subagentIdleMin: 10, sources: ["job:", "skill:", "correction:"], keepHours: 12, managers: [], planStaleMin: 90, planAfterCompaction: false };
 
 describe("a patch is one changed field, or nothing at all", () => {
   it("sends only what actually changed", () => {
@@ -333,5 +333,44 @@ describe("managers — a set field, switched rather than picked", () => {
   it("toggleSource still works — its callers and its claims name it", () => {
     expect(toggleSource({ sources: ["job:"] }, "skill:")).toEqual(["job:", "skill:"]);
     expect(toggleSource({ sources: ["job:"] }, "job:")).toEqual([]);
+  });
+});
+
+// ─── THE DEFAULT LIST'S OWN CLOCK ──────────────────────────────────────────────────────────────
+//
+// Two knobs, and the test that matters is the one that caught `keepHours`: a field declaring a kind
+// nothing can render draws a label, a help line and NO INPUT, silently.
+describe("the default list's two knobs", () => {
+  const field = (key) => FIELDS.find((f) => f.key === key);
+
+  it("both are declared, and both declare a kind something can render", () => {
+    for (const key of ["planStaleMin", "planAfterCompaction"]) {
+      const f = field(key);
+      expect(f).toBeTruthy();
+      expect(RENDERABLE).toContain(f.kind);
+      expect(f.help).toBeTruthy();
+    }
+  });
+
+  // 0 IS A REAL VALUE — "never say it" — so the floor is 0, not 1. A floor of 1 would make the
+  // feature impossible to turn off without turning the whole nudge off with it.
+  it("the stale clock bottoms out at 0, because 0 is how he turns it off", () => {
+    expect(field("planStaleMin").min).toBe(0);
+    expect(patchFor({ planStaleMin: 90 }, "planStaleMin", 0)).toEqual({ planStaleMin: 0 });
+    expect(field("planStaleMin").help).toMatch(/0 never says it/);
+  });
+
+  // AND THE HELP CARRIES THE TWO THINGS THAT MAKE IT LEGIBLE, because the panel is where he decides
+  // the number and the semantics are not guessable from "default list still".
+  it("the help says complete is no exemption, and that idle holds it", () => {
+    const help = field("planStaleMin").help;
+    expect(help).toMatch(/complete is not an exemption/i);
+    expect(help).toMatch(/idle holds it/i);
+  });
+
+  it("the compaction switch is a toggle and writes a boolean", () => {
+    expect(field("planAfterCompaction").kind).toBe("toggle");
+    expect(patchFor({ planAfterCompaction: false }, "planAfterCompaction", true)).toEqual({ planAfterCompaction: true });
+    expect(patchFor({ planAfterCompaction: true }, "planAfterCompaction", true)).toBeNull();
   });
 });

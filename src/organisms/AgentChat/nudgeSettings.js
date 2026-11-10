@@ -132,6 +132,26 @@ export const FIELDS = [
     label: "managers",
     help: "the agents that may assign work to another — a correction, or an assignment. Any of them can assign either kind to anybody. None selected means nobody can",
   },
+  // ─── THE DEFAULT LIST'S OWN TWO, grouped because the whole point is that they are a different
+  // clock from everything above. Entries here rather than a tab of their own: a tab for two knobs
+  // is a tab he has to go find, and what he actually wants is to see both clocks near each other,
+  // since the reason this exists at all is that they measure different things. It earns a tab when
+  // the section grows enough to crowd the run knobs, and splitting later is free — these are data.
+  {
+    key: "planStaleMin",
+    kind: "minutes",
+    label: "default list still",
+    min: 0,
+    max: 1440,
+    // 0 IS A REAL SETTING and the help has to say so, like `giveUpAfter` above.
+    help: "how long your own top-level list may go UNCHANGED before it says what it is. Being complete is not an exemption — a finished list is not done, it is out of date. IDLE HOLDS IT rather than triggering it: an idle agent has no stale record, it has no record, so this only speaks while you are working and not using the list. 0 never says it",
+  },
+  {
+    key: "planAfterCompaction",
+    kind: "toggle",
+    label: "say it after a compaction",
+    help: "deliver the same thing on the far side of a compaction, with the list's current contents — the one moment a summary has replaced your reasoning and the list is the only record left. Off by default: it arrives as a turn nobody asked for, in the middle of whatever you were doing",
+  },
   {
     key: "keepHours",
     kind: "hours",
