@@ -1,6 +1,6 @@
 # RFC-077 — a document says which report it came out of
 
-::rfc{id=RFC-077}
+::rfc{id=RFC-077 retired=2026-11-10 retiredAs=cancelled}
 
 ## 1 · The problem, as what it costs now
 
@@ -153,7 +153,7 @@ produces invisible documents, per §2.4.
 
 ## 5 · The decision
 
-:::approval{ask="Approve RFC-077 — a document says which report it came out of?"}
+:::approval{ask="Approve RFC-077 — a document says which report it came out of?" verdict=rejected}
 Approving commits to:
 
 - **`from=<source id>` as a second declared relation on every registration kind** (§2.1, §2.2) —

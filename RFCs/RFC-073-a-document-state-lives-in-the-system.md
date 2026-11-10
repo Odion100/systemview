@@ -749,7 +749,7 @@ grep -rn "fs.watch(\|setInterval" ~/autobot/electron/markdown ~/autobot/electron
 The piece most worth rejecting is §1.1 with §1.4: identity never derived from content, and a derived `state` that is never read as truth.
 :::
 
-:::approval{ask="Approve the 2026-10-29 amendment — a document may carry several registration leaves, one row each?"}
+:::approval{ask="Approve the 2026-10-29 amendment — a document may carry several registration leaves, one row each?" verdict=approved by=you at=1794334603543 told=systemview-test}
 The amendment changes §4's register step: every leaf registers, each row's state derives by its own
 kind, teardown is per-leaf, and the first leaf stays the primary identity for fires and audiences.
 Built and tested the same day (autobot registry suite, 48 claims — one file, two rows, each state

@@ -1,4 +1,4 @@
-::arc{id=ARC-001 owner=systemview-test title="An RFC you can check, and an arc you can see"}
+::arc{id=ARC-001 owner=systemview-test title="An RFC you can check, and an arc you can see" retired=2026-11-10 retiredAs=shelf}
 
 ::members{who=systemview-test}
 
