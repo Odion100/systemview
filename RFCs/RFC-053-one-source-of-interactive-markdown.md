@@ -1,6 +1,13 @@
 # RFC-053 — One source of interactive markdown, two hosts
 
-::rfc{id=RFC-053}
+<!-- out of service 2026-11-10 — his ruling: an RFC with no claims, and no way back to
+spec'ing one, is history rather than a live design. The leaf is parked verbatim, so
+putting this line back at the start of a line re-registers the document unchanged:
+     ::rfc{id=RFC-053} -->
+
+**Out of service.** This document is no longer registered: it carries no claims, so
+nothing in it can be checked, and the moment to write them has passed. It is kept as the
+record of a decision that was made, not as a design anybody is building from.
 
 **Status: proposed 2026-08-31** · from his direction to collaborate with autobot on the browser's chat
 

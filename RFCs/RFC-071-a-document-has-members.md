@@ -1,6 +1,13 @@
 # RFC-071 — A document has members: the meeting is a document with people on it
 
-::rfc{id=RFC-071}
+<!-- out of service 2026-11-10 — his ruling: an RFC with no claims, and no way back to
+spec'ing one, is history rather than a live design. The leaf is parked verbatim, so
+putting this line back at the start of a line re-registers the document unchanged:
+     ::rfc{id=RFC-071} -->
+
+**Out of service.** This document is no longer registered: it carries no claims, so
+nothing in it can be checked, and the moment to write them has passed. It is kept as the
+record of a decision that was made, not as a design anybody is building from.
 
 **His direction, 2026-10-19:** *"Maybe I just need a document, use the threads in the document, have
 a conversation about the document. That's the meeting. Maybe I can add them on a document level for
