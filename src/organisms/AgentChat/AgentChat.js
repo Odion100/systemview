@@ -5587,13 +5587,21 @@ const countdown = (str, now = Date.now()) => {
       window.removeEventListener("resize", on);
     };
   }, [inScroller]);
-  // …and the bubbles ESCAPE their home: it clips (it scrolls) and sits under the page, so a peek
-  // or say positioned inside it is cut at its edge. Fixed, measured off the face, over everything
-  // (his rule: "that z-index should be above all this stuff on the page").
-  const bubbleFix = (dy = 0) => {
+  // …and the bubbles ESCAPE their home: it clips (it scrolls) and sits under the page, so anything
+  // positioned inside it is cut at its edge. Fixed, measured off the face, over everything (his
+  // rule: "that z-index should be above all this stuff on the page").
+  //
+  // AND IT KEEPS EACH BOX WHERE IT ALREADY SAT. A single placement would have been simpler and
+  // wrong: the peek and the say bubble hang BESIDE the face, the voice box hangs UNDER it ("docked
+  // it sits at the foot of the peek; hovering it is its own box underneath the bubble"). Escaping a
+  // clip must not become a redesign — the box that was below stays below.
+  const bubbleFix = (dy = 0, where = "beside") => {
     if (!inScroller || !rootRef.current) return undefined;
     const b = rootRef.current.getBoundingClientRect();
-    return { position: "fixed", left: b.right + 8, right: "auto", top: b.top + dy, transform: "none", zIndex: 9000 };
+    const base = { position: "fixed", right: "auto", transform: "none", zIndex: 9000 };
+    return where === "under"
+      ? { ...base, left: b.left, top: b.bottom + 6 }
+      : { ...base, left: b.right + 8, top: b.top + dy };
   };
   useEffect(() => {
     if (!navShowing || !slotEl) return undefined;
@@ -8663,8 +8671,13 @@ const countdown = (str, now = Date.now()) => {
       {/* NO `!animating` HERE (his rule, 2026-10-29): a live reading keeps its controls even —
           especially — while the bot is out on an errand. The fold moves everything else out of
           the way; the voice box answers only to "voice playing, chat closed". */}
+      {/* THE VOICE BOX WAS THE ONE THAT NEVER ESCAPED. It is absolute, `top: calc(100% + 6px)`
+          under the face, and it only draws when the chat is CLOSED and not in a card — which is
+          precisely the rail. So once the dock started scrolling it was cut at the column's edge
+          and a reading in progress read as "▶ re". Same escape as the peek, under rather than
+          beside, so the box he knows stays the box he knows. */}
       {!open && !inNav && nowLine && (
-        <div className={`${CLASSNAME}__nowbox`}>
+        <div className={`${CLASSNAME}__nowbox`} style={bubbleFix(0, "under")}>
           {nowLine}
         </div>
       )}
