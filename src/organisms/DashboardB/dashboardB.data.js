@@ -26,6 +26,9 @@ import arcRows, { arcLine } from "../AgentChat/arcRows";
 import gapRows, { gapLine } from "../AgentChat/gapRows";
 import rfcRows, { rfcLine } from "../AgentChat/rfcRows";
 import { isFixture, leafLine, owedFrom, skippedLine, docKey } from "../AgentChat/owed";
+// THE FIVE WORDS ALREADY IN USE, in the board's own order — the subtype chips are not a new
+// vocabulary and must not become a second one.
+import { REPORT_KINDS } from "../Board/boardFormat";
 
 // ─── THE KINDS ─────────────────────────────────────────────────────────────────────────────────
 // The hues are HowWeWork's, deliberately: that page teaches what a kind IS, and two surfaces in
@@ -229,6 +232,12 @@ export function trackFor(kind, beads = []) {
 // TRUE of reports: a report is a view with a lifecycle of days, they arrive in a pile, and the pile
 // drains. One stack per project, because "all the projects going on at the same time" is the other
 // half of the ask and a single global pile would bury the project that is actually producing.
+// THE TWO FACTS A STACK COUNTS AND THE FAN FILTERS BY, written once. The face's number and the
+// chip that narrows to it have to mean the same thing — a chip saying "3 about to go" that then
+// shows four cards is the page disagreeing with itself in the space of one press.
+const isUrgent = (c) => c.mark === "⧗";
+const isUnseen = (c) => !c.seen && c.station !== "retired";
+
 export function reportStacks(beads = []) {
   const mine = beads.filter((b) => b.kind === "report");
   const byProject = new Map();
@@ -239,10 +248,10 @@ export function reportStacks(beads = []) {
       n: cards.length,
       // URGENT IS THE ONLY THING THAT REORDERS A STACK. Waiting is the only thing on this page that
       // DESTROYS something, so the pile that is about to lose a report stands in front.
-      urgent: cards.filter((c) => c.mark === "⧗").length,
+      urgent: cards.filter(isUrgent).length,
       // UNSEEN, counted on the face, because a closed stack shows no cards at all — the fact would
       // otherwise be one he can only reach by opening every pile.
-      unseen: cards.filter((c) => !c.seen && c.station !== "retired").length,
+      unseen: cards.filter(isUnseen).length,
       cards: cards.sort(
         (a, b) =>
           (b.mark === "⧗") - (a.mark === "⧗") ||
@@ -253,6 +262,61 @@ export function reportStacks(beads = []) {
       ),
     }))
     .sort((a, b) => b.urgent - a.urgent || b.n - a.n || String(a.project).localeCompare(String(b.project)));
+}
+
+// ─── THE CHIPS ONE STACK EARNS ─────────────────────────────────────────────────────────────────
+//
+// His ask for the open stack: *"when you click it open it just grows more options and those options
+// become clickable options to filter the list right next to it."* So an opened pile grows a row of
+// chips and each one narrows its OWN fan — nothing outside the stack moves. A report is still not a
+// dimension (`filters.js` says so): there is nothing underneath a report for the rest of the page
+// to be narrowed to, which is a different question from "which of these twelve do I want to see".
+//
+// A CHIP IS ONLY DRAWN WHEN THE PILE HAS CARDS FOR IT. Five chips over a pile that can answer two
+// of them is five things to read and two that work, and the dead three teach him that a chip might
+// mean nothing. So the row is a true description of what is in this pile, which also makes it a
+// legend: `account · audit` says what the pile is made of before he presses anything.
+//
+// THE VOCABULARY IS NOT CLOSED. `REPORT_KINDS` is the five words in use and the board's own pill
+// list, so the known ones keep that order; a subtype nobody has drawn a pill for yet still gets a
+// chip, after them, because `as=` picks from a vocabulary and not from an enum (RFC-076 §2).
+export function reportChips(stack = {}) {
+  const cards = (stack && stack.cards) || [];
+  const earned = [];
+  const urgent = cards.filter(isUrgent).length;
+  if (urgent) earned.push({ chip: "urgent", label: "about to go", n: urgent });
+  const unseen = cards.filter(isUnseen).length;
+  if (unseen) earned.push({ chip: "unseen", label: "unopened", n: unseen });
+  const present = [...new Set(cards.map((c) => String(c.subtype || "")).filter(Boolean))];
+  const ordered = [
+    ...REPORT_KINDS.filter((k) => present.includes(k)),
+    ...present.filter((k) => !REPORT_KINDS.includes(k)).sort(),
+  ];
+  ordered.forEach((as) =>
+    earned.push({ chip: `as:${as}`, label: as, n: cards.filter((c) => c.subtype === as).length }),
+  );
+  // NOTHING TO NARROW BY MEANS NO ROW AT ALL — an `all` chip on its own is a button that does what
+  // the pile already does, and the open card is better off saying nothing than offering that.
+  if (!earned.length) return [];
+  return [{ chip: "all", label: "all", n: cards.length }, ...earned];
+}
+
+/**
+ * One chip applied to one pile's cards. SINGLE-SELECT, and `all` is how he lets go — stacking two
+ * chips makes an empty fan ambiguous between "this pile has no audits" and "it has no unopened
+ * audits", and an empty answer nobody can read is worse than a second press.
+ *
+ * A CHIP THIS FUNCTION DOES NOT KNOW RETURNS EVERYTHING. The alternative is an empty fan, which
+ * reads as "no reports" — the page accusing a pile of being empty because its own filter went
+ * stale is exactly the class of lie this floor is built not to tell.
+ */
+export function filterCards(cards = [], chip = "") {
+  const all = (cards || []).slice();
+  if (!chip || chip === "all") return all;
+  if (chip === "urgent") return all.filter(isUrgent);
+  if (chip === "unseen") return all.filter(isUnseen);
+  if (chip.startsWith("as:")) return all.filter((c) => c.subtype === chip.slice(3));
+  return all;
 }
 
 // ─── THE TIDE ──────────────────────────────────────────────────────────────────────────────────

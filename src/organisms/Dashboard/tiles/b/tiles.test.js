@@ -52,10 +52,12 @@ const ARC = doc(
   ].join("\n"),
 );
 
-const REPORT = (id, { project = "p", retain = "14d", openedAt } = {}) =>
+// A REAL REPORT DECLARES ITS SUBTYPE — `as=` picked the retention the clock runs on, and it is the
+// word an open stack draws a chip for.
+const REPORT = (id, { project = "p", retain = "14d", openedAt, as = "account" } = {}) =>
   doc(
-    { id, kind: "report", project, path: `.systemview/report.${project}.${id}.md`, openedAt, state: { retain } },
-    `::report{id=${id} retain=${retain}}\n\n# ${id}\n`,
+    { id, kind: "report", project, path: `.systemview/report.${project}.${id}.md`, openedAt, state: { retain, subtype: as } },
+    `::report{id=${id} as=${as} retain=${retain}}\n\n# ${id}\n`,
   );
 
 const ALL = [WAITING, ARC, REPORT("r-one"), REPORT("r-two", { project: "q" })];
@@ -341,9 +343,11 @@ describe("the report stacks", () => {
   });
 
   // HIS RULING, 2026-11-07: *"What the fuck could a report filter? What is a report sitting on top
-  // of?"* A selection needs something underneath it, and a report holds nothing — so the card is
-  // reading and the arrow is the only door on it. The fill it briefly wore belongs to the projects.
-  it("a report card presses nothing — the arrow is the only door, and there is no selection to publish", () => {
+  // of?"* A DASHBOARD selection needs something underneath it, and a report holds nothing — so no
+  // press in here publishes one, the card is reading, and the arrow is the only door on it. The
+  // chips an open stack grows are a different thing entirely: they narrow this stack's OWN fan,
+  // which is not the question he ruled on, and they still publish nothing.
+  it("nothing here publishes a dashboard selection — not the card, not the chips", () => {
     const set = jest.fn();
     const data = mk();
     const { container } = render(<ReportsTile data={data} filter={{ above: {}, mine: {}, set }} />);
@@ -355,6 +359,101 @@ describe("the report stacks", () => {
     expect(card).not.toHaveAttribute("aria-pressed");
     fireEvent.click(card.querySelector(".dbb-rcard__go"));
     expect(data.open).toHaveBeenCalledWith(expect.objectContaining({ path: expect.stringContaining("report") }));
+    fireEvent.click(container.querySelector(".dbb-stack__face"));
+    fireEvent.click(container.querySelector(".dbb-chip.is-on ~ .dbb-chip"));
+    expect(set).not.toHaveBeenCalled();
+  });
+});
+
+// ─── THE CHIPS AN OPEN STACK GROWS ─────────────────────────────────────────────────────────────
+//
+// His ask, verbatim: *"when it's a card it should look the same way that it is right now when it's
+// closed. When you click it open it just grows more options and those options become clickable
+// options to filter the list right next to it."* Both halves are claims: the closed card is
+// untouched, and the open one's options reach the fan beside them and nothing else.
+
+describe("the chips an open stack grows", () => {
+  // Four reports in `p` — three accounts (one of them never opened) and an audit — and one brief in
+  // `q`, so the pile that grows chips is not the only pile on the row. The floor reads the clocks at
+  // the real now and the fixture's `NOW` is long past, so every report here that has been OPENED is
+  // over its window and carries ⧗; the one never opened has no clock running at all.
+  const PILE = [
+    WAITING,
+    REPORT("r-acct", { openedAt: NOW - DAY }),
+    REPORT("r-again", { openedAt: NOW - 2 * DAY }),
+    REPORT("r-audit", { as: "audit", openedAt: NOW - DAY }),
+    REPORT("r-new"),
+    REPORT("r-other", { project: "q", as: "brief", openedAt: NOW - DAY }),
+  ];
+  const draw = () => {
+    const { container } = render(<ReportsTile data={mk({ docs: PILE, allDocs: PILE })} />);
+    const stacks = [...container.querySelectorAll(".dbb-stack")];
+    return { container, mine: stacks[0], other: stacks[1] };
+  };
+  const said = (el) => [...el.querySelectorAll(".dbb-chip")].map((c) => c.textContent);
+  const cards = (el) => [...el.querySelectorAll(".dbb-rcard")].map((c) => c.querySelector(".dbb-rcard__id").textContent);
+
+  // HIS FIRST HALF, AS A CLAIM: *"when it's a card it should look the same way that it is right now
+  // when it's closed."* A closed pile grows nothing at all.
+  it("a closed card grows nothing", () => {
+    const { container } = draw();
+    expect(container.querySelectorAll(".dbb-chip")).toHaveLength(0);
+  });
+
+  it("an open card grows one option per thing the pile can answer, with its count", () => {
+    const { mine, other } = draw();
+    fireEvent.click(mine.querySelector(".dbb-stack__face"));
+    expect(said(mine)).toEqual(["all4", "about to go3", "unopened1", "account3", "audit1"]);
+    // ONE PILE AT A TIME, so the pile he did not press has grown nothing either.
+    expect(said(other)).toEqual([]);
+    // `all` holds until he chooses otherwise — a page that starts narrowed is a page lying about
+    // how much there is.
+    expect(mine.querySelector(".dbb-chip.is-on").textContent).toBe("all4");
+  });
+
+  it("pressing an option narrows the fan beside it, and only that fan", () => {
+    const { mine, other } = draw();
+    fireEvent.click(mine.querySelector(".dbb-stack__face"));
+    expect(cards(mine)).toHaveLength(4);
+    fireEvent.click(within(mine).getByTitle("show only the 1 audit report in p"));
+    expect(cards(mine)).toEqual(["r-audit"]);
+    expect(mine.querySelector(".dbb-chip.is-on").textContent).toBe("audit1");
+    // THE OTHER PILE IS UNTOUCHED — the chips are this stack's own and reach nothing outside it.
+    expect(cards(other)).toEqual(["r-other"]);
+  });
+
+  // SINGLE-SELECT, AND `all` IS HOW HE LETS GO. Two chips at once makes an empty fan ambiguous
+  // between "this pile has no audits" and "it has no unopened audits".
+  it("one option holds at a time, and all gives the pile back", () => {
+    const { mine } = draw();
+    fireEvent.click(mine.querySelector(".dbb-stack__face"));
+    fireEvent.click(within(mine).getByTitle("show only the 1 unopened report in p"));
+    expect(cards(mine)).toEqual(["r-new"]);
+    fireEvent.click(within(mine).getByTitle("show only the 3 about to go reports in p"));
+    expect(mine.querySelectorAll(".dbb-chip.is-on")).toHaveLength(1);
+    expect(cards(mine).sort()).toEqual(["r-acct", "r-again", "r-audit"]);
+    fireEvent.click(within(mine).getByTitle("show only the 3 account reports in p"));
+    expect(mine.querySelectorAll(".dbb-chip.is-on")).toHaveLength(1);
+    expect(cards(mine).sort()).toEqual(["r-acct", "r-again", "r-new"]);
+    fireEvent.click(within(mine).getByTitle("every report in p — 4"));
+    expect(cards(mine)).toHaveLength(4);
+  });
+
+  // THE CHOICE DIES WITH THE PILE. It is one selection for the whole row, so a filter surviving the
+  // close would come back on whichever project he opened next — holding `audit` over a pile that
+  // has none, which draws an empty fan and reads as "no reports".
+  it("the choice does not survive the close, and does not follow him to another project", () => {
+    const { mine, other } = draw();
+    const face = (el) => el.querySelector(".dbb-stack__face");
+    fireEvent.click(face(mine));
+    fireEvent.click(within(mine).getByTitle("show only the 1 audit report in p"));
+    fireEvent.click(face(mine));
+    fireEvent.click(face(mine));
+    expect(cards(mine)).toHaveLength(4);
+    expect(mine.querySelector(".dbb-chip.is-on").textContent).toBe("all4");
+    fireEvent.click(face(other));
+    expect(cards(other)).toEqual(["r-other"]);
+    expect(other.querySelector(".dbb-chip.is-on").textContent).toBe("all1");
   });
 });
 

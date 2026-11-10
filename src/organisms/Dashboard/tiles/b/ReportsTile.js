@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { filterCards, reportChips } from "../../../DashboardB/dashboardB.data";
 import Ring from "./Ring";
 import { Ctx, HUES, Reading, floorOf, openBead } from "./floor";
 
@@ -16,12 +17,27 @@ import { Ctx, HUES, Reading, floorOf, openBead } from "./floor";
 // report filter? What is a report sitting on top of?"* The fill he asked for belongs to the
 // projects, where a press means every tile below is that project. Travel is the arrow, because
 // *"nothing should actually be clicked to travel, except an explicit symbol."*
+//
+// THE CHIPS ARE THE OTHER THING, AND THEY ARE NOT A SELECTION EITHER. His ask: *"when it's a card
+// it should look the same way that it is right now when it's closed. When you click it open it just
+// grows more options and those options become clickable options to filter the list right next to
+// it."* So the closed pile is untouched, and an open one grows a row of chips that narrows ITS OWN
+// fan and nothing else on the surface. That is why this tile still takes no `filter` prop: a report
+// is not a dimension, and choosing which of twelve reports to look at was never that question.
+//
+// THE CHOICE DIES WITH THE PRESS THAT CLOSES THE PILE, and it is per project — one pile is open at
+// a time, so a filter surviving the close would come back on a different project's cards.
 export default function ReportsTile({ data }) {
   const [fanned, setFanned] = useState("");
+  const [chip, setChip] = useState("all");
   const floor = floorOf(data);
   if (!floor) return <Reading />;
   const { stacks } = floor;
   const open = (card) => openBead(card, data && data.open);
+  const fan = (project) => {
+    setFanned(project);
+    setChip("all");
+  };
   return (
     <Ctx>
       <section className="dbb-stacks">
@@ -36,35 +52,67 @@ export default function ReportsTile({ data }) {
           <div className="dbb-stacks__row">
             {stacks.map((s) => {
               const isOpen = fanned === s.project;
+              const chips = isOpen ? reportChips(s) : [];
+              const shown = isOpen ? filterCards(s.cards, chip) : s.cards;
               return (
                 <div key={s.project} className={`dbb-stack${isOpen ? " is-open" : ""}${s.urgent ? " is-urgent" : ""}`}>
-                  <button
-                    type="button"
-                    className="dbb-stack__face"
-                    onClick={() => setFanned(isOpen ? "" : s.project)}
-                    aria-expanded={isOpen}
-                  >
-                    <span className="dbb-stack__n">{s.n}</span>
-                    <span className="dbb-stack__proj">{s.project}</span>
-                    <span className="dbb-stack__urgent">
-                      {s.urgent ? `${s.urgent} about to go` : isOpen ? "press to close" : "press to open out"}
-                    </span>
-                    {/* UNSEEN, ON THE FACE. A closed stack shows no cards, so without this the one
-                        fact he asked for is behind a press on every pile. */}
-                    {s.unseen ? (
-                      <span className="dbb-stack__unseen" title={`${s.unseen} not opened yet — their clocks have not started`}>
-                        {s.unseen} unopened
+                  {/* THE CARD IS THE FACE AND WHAT THE FACE GROWS. Closed, this column is the face
+                      and nothing else, at the same 164px the pile behind it is drawn to — which is
+                      what keeps the closed stack exactly the pile he already has. */}
+                  <div className="dbb-stack__card">
+                    <button
+                      type="button"
+                      className="dbb-stack__face"
+                      onClick={() => fan(isOpen ? "" : s.project)}
+                      aria-expanded={isOpen}
+                    >
+                      <span className="dbb-stack__n">{s.n}</span>
+                      <span className="dbb-stack__proj">{s.project}</span>
+                      <span className="dbb-stack__urgent">
+                        {s.urgent ? `${s.urgent} about to go` : isOpen ? "press to close" : "press to open out"}
                       </span>
+                      {/* UNSEEN, ON THE FACE. A closed stack shows no cards, so without this the one
+                          fact he asked for is behind a press on every pile. */}
+                      {s.unseen ? (
+                        <span className="dbb-stack__unseen" title={`${s.unseen} not opened yet — their clocks have not started`}>
+                          {s.unseen} unopened
+                        </span>
+                      ) : null}
+                    </button>
+                    {/* THE OPTIONS THE OPEN CARD GREW. A radio group and not a row of toggles,
+                        because that is what single-select IS — one chip holds at a time and `all`
+                        is how he lets go. Only drawn when the pile earned at least one. */}
+                    {chips.length ? (
+                      <div className="dbb-stack__chips" role="radiogroup" aria-label={`narrow ${s.project}'s reports`}>
+                        {chips.map((k) => (
+                          <button
+                            key={k.chip}
+                            type="button"
+                            role="radio"
+                            aria-checked={chip === k.chip}
+                            className={`dbb-chip${chip === k.chip ? " is-on" : ""}`}
+                            onClick={() => setChip(k.chip)}
+                            title={
+                              k.chip === "all"
+                                ? `every report in ${s.project} — ${k.n}`
+                                : `show only the ${k.n} ${k.label} ${k.n === 1 ? "report" : "reports"} in ${s.project}`
+                            }
+                          >
+                            {k.label}
+                            <i>{k.n}</i>
+                          </button>
+                        ))}
+                      </div>
                     ) : null}
-                  </button>
+                  </div>
                   <div className="dbb-fan">
-                    {s.cards.map((c, i) => (
+                    {shown.map((c, i) => (
                       // A PLAIN DIV: nothing here is pressed but the arrow. It carried a role and a
                       // press while the press published a filter, and the filter was the mistake.
                       <div
                         key={c.key}
                         className={`dbb-rcard${c.mark === "⧗" ? " is-urgent" : ""}`}
-                        style={{ "--i": i, zIndex: s.cards.length - i }}
+                        style={{ "--i": i, zIndex: shown.length - i }}
                         title={`${c.id}${c.title ? ` — ${c.title}` : ""}\n${c.says}`}
                       >
                         <span className="dbb-rcard__top">

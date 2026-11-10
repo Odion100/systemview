@@ -3,10 +3,12 @@ import {
   TRACK_KINDS,
   beadFor,
   emptyWords,
+  filterCards,
   floorFrom,
   headOf,
   progressFor,
   projectLines,
+  reportChips,
   reportStacks,
   stationsFor,
   tideOf,
@@ -60,10 +62,12 @@ const ARC = doc(
 const GAP_PROOF = doc({ id: "G-1", kind: "gap", path: "gaps/G-1-x.md", state: { hasProof: true } }, "::gap{id=G-1}\n");
 const GAP_OPEN = doc({ id: "G-2", kind: "gap", path: "gaps/G-2-y.md", state: {} }, "::gap{id=G-2}\n");
 
-const REPORT = (id, { retain = "14d", openedAt, project = "p" } = {}) =>
+// A REAL REPORT DECLARES ITS SUBTYPE — `as=` is what picked the retention the clock then runs on,
+// and it is the word the open stack draws a chip for.
+const REPORT = (id, { retain = "14d", openedAt, project = "p", as = "account" } = {}) =>
   doc(
-    { id, kind: "report", project, path: `.systemview/report.${project}.${id}.md`, openedAt, state: { retain } },
-    `::report{id=${id} retain=${retain}}\n\n# ${id}\n`,
+    { id, kind: "report", project, path: `.systemview/report.${project}.${id}.md`, openedAt, state: { retain, subtype: as } },
+    `::report{id=${id} as=${as} retain=${retain}}\n\n# ${id}\n`,
   );
 
 // ─── PROGRESS MEANS SOMETHING DIFFERENT PER KIND, AND IT IS NEVER RE-DERIVED ────────────────────
@@ -210,6 +214,88 @@ describe("the report stacks", () => {
 
   it("holds only reports — the other kinds are on their tracks", () => {
     expect(reportStacks([beadFor(ARC, {}, NOW), beadFor(RFC("RFC-010"), {}, NOW)])).toEqual([]);
+  });
+});
+
+// ─── THE CHIPS AN OPEN STACK EARNS ─────────────────────────────────────────────────────────────
+//
+// His ask: *"when you click it open it just grows more options and those options become clickable
+// options to filter the list right next to it."* The chips are the options, and they are the
+// stack's own — the fan beside them narrows and nothing else on the surface moves.
+
+describe("the chips an open stack earns", () => {
+  // THE URGENT MARK COMES FROM THE OWED MAP, the way the real page gets it — a clock running out is
+  // a PRESS keyed `clock`, and ⧗ is what the bead carries for it.
+  const expiring = (id, project = "p") => ({
+    [docKey({ project, id })]: [{ group: "press", why: "clock", says: "retires in an hour", line: 1, id, project }],
+  });
+
+  const stack = () =>
+    reportStacks([
+      beadFor(REPORT("r-gone", { as: "brief", openedAt: NOW - 13.9 * DAY }), expiring("r-gone"), NOW),
+      beadFor(REPORT("r-acct", { as: "account", openedAt: NOW - DAY }), {}, NOW),
+      beadFor(REPORT("r-again", { as: "account", openedAt: NOW - 2 * DAY }), {}, NOW),
+      beadFor(REPORT("r-audit", { as: "audit", openedAt: NOW - DAY }), {}, NOW),
+      beadFor(REPORT("r-new", { as: "account" }), {}, NOW),
+      // A WORD NOBODY HAS DRAWN A PILL FOR. `as=` picks from a vocabulary and not from an enum, so
+      // a subtype outside the five still has to be reachable — it just does not jump the queue.
+      beadFor(REPORT("r-odd", { as: "postmortem", openedAt: NOW - DAY }), {}, NOW),
+    ])[0];
+
+  it("offers all, the two states the face already counts, and one chip per subtype present", () => {
+    expect(reportChips(stack()).map((k) => [k.chip, k.label, k.n])).toEqual([
+      ["all", "all", 6],
+      ["urgent", "about to go", 1],
+      ["unseen", "unopened", 1],
+      ["as:account", "account", 3],
+      ["as:audit", "audit", 1],
+      ["as:brief", "brief", 1],
+      ["as:postmortem", "postmortem", 1],
+    ]);
+  });
+
+  // THE CHIP AND THE FACE CANNOT DISAGREE. The face says "1 about to go" and "1 unopened"; a chip
+  // promising a different number and then showing a different pile is the page contradicting itself
+  // inside one press, which is why both read the same two predicates.
+  it("counts exactly what the face counts", () => {
+    const s = stack();
+    const chips = reportChips(s);
+    const n = (chip) => chips.find((k) => k.chip === chip).n;
+    expect(n("urgent")).toBe(s.urgent);
+    expect(n("unseen")).toBe(s.unseen);
+    expect(n("all")).toBe(s.n);
+  });
+
+  // A DEAD CHIP TEACHES HIM THAT A CHIP MIGHT MEAN NOTHING, so a pile only offers what it can
+  // answer — and a pile with nothing to narrow by offers no row at all rather than a lone `all`.
+  it("draws nothing for a pile with nothing to narrow by", () => {
+    const one = reportStacks([beadFor(REPORT("r-seen", { as: "", openedAt: NOW - DAY }), {}, NOW)])[0];
+    expect(one.n).toBe(1);
+    expect(reportChips(one)).toEqual([]);
+    expect(reportChips({})).toEqual([]);
+  });
+
+  it("each chip shows exactly the cards it promised", () => {
+    const s = stack();
+    const ids = (chip) => filterCards(s.cards, chip).map((c) => c.id).sort();
+    expect(ids("all")).toEqual(["r-acct", "r-again", "r-audit", "r-gone", "r-new", "r-odd"]);
+    expect(ids("urgent")).toEqual(["r-gone"]);
+    expect(ids("unseen")).toEqual(["r-new"]);
+    expect(ids("as:account")).toEqual(["r-acct", "r-again", "r-new"]);
+    expect(ids("as:postmortem")).toEqual(["r-odd"]);
+    // THE ORDER THE STACK PUT THEM IN SURVIVES THE FILTER — narrowing is not re-sorting, and the
+    // soonest to go still leads.
+    expect(filterCards(s.cards, "all").map((c) => c.id)).toEqual(s.cards.map((c) => c.id));
+  });
+
+  // AN EMPTY FAN READS AS "NO REPORTS", which would be the page accusing a pile of being empty
+  // because its own filter went stale. A chip this function does not know shows everything.
+  it("shows the whole pile for no chip at all, and for one it does not know", () => {
+    const s = stack();
+    expect(filterCards(s.cards, "").map((c) => c.id)).toEqual(s.cards.map((c) => c.id));
+    expect(filterCards(s.cards, "as:nothing-is-this")).toEqual([]);
+    expect(filterCards(s.cards, "whatever").map((c) => c.id)).toEqual(s.cards.map((c) => c.id));
+    expect(filterCards()).toEqual([]);
   });
 });
 
