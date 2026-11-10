@@ -18,11 +18,16 @@ import { reportChips, filterCards } from "../../../DashboardB/dashboardB.data";
 // projects, where a press means every tile below is that project. Travel is the arrow, because
 // *"nothing should actually be clicked to travel, except an explicit symbol."*
 export default function ReportsTile({ data }) {
-  const [fanned, setFanned] = useState("");
-  // WHICH WORD IS HOLDING THE FAN. "" is the open card exactly as it has always been — every card
-  // spread out — because opening already shows everything and there is nothing to add a control
-  // for. Pressing the word that is holding lets go of it.
-  const [only, setOnly] = useState("");
+  // WHICH PILES ARE OPEN — SEVERAL, not one. It toggled: opening a pile closed the last one, which
+  // read as a good idea and stopped being one the moment he used it. His correction, 2026-11-10:
+  // *"I actually thought that was a good idea but now as I use it I realize, damn, you actually can
+  // have multiple stacks open showing their galleries."* Comparing two projects' reports is the
+  // whole reason to open a pile, and a toggle makes that the one thing the surface cannot do.
+  const [fanned, setFanned] = useState({});
+  // AND THE HELD WORD IS PER PILE, which stops being a detail the moment two can be open: one
+  // selection shared across them would narrow a fan he never pressed, and `audit` held over a pile
+  // with no audits draws an empty fan that reads as "no reports".
+  const [only, setOnly] = useState({});
   const floor = floorOf(data);
   if (!floor) return <Reading />;
   const { stacks } = floor;
@@ -40,27 +45,32 @@ export default function ReportsTile({ data }) {
         {stacks.length ? (
           <div className="dbb-stacks__row">
             {stacks.map((s) => {
-              const isOpen = fanned === s.project;
+              const isOpen = !!fanned[s.project];
               // THE WORDS THE CARD CAN OFFER, and the two that are already on it are the first two:
               // "about to go" and "unopened" are not labels beside a control, they ARE the control
               // (his anchor: *"do you see how it says about to go, do you see how it says unopened —
               // when it opens up and shows the gallery those could become filters, and more could
               // become under it"*). So the subtypes are drawn UNDER them, in the same words.
               const ways = isOpen ? reportChips(s) : [];
-              const held = (k) => (only === k ? " is-on" : "");
+              const mine = only[s.project] || "";
+              const held = (k) => (mine === k ? " is-on" : "");
               const press = (k) => (e) => {
                 e.stopPropagation();
-                setOnly(only === k ? "" : k);
+                setOnly((prev) => ({ ...prev, [s.project]: (prev[s.project] || "") === k ? "" : k }));
               };
-              const shown = isOpen ? filterCards(s.cards, only) : s.cards;
+              const shown = isOpen ? filterCards(s.cards, mine) : s.cards;
               return (
                 <div key={s.project} className={`dbb-stack${isOpen ? " is-open" : ""}${s.urgent ? " is-urgent" : ""}`}>
                   <button
                     type="button"
                     className="dbb-stack__face"
                     onClick={() => {
-                      setFanned(isOpen ? "" : s.project);
-                      setOnly("");
+                      // EACH PILE ANSWERS FOR ITSELF — opening one no longer shuts another.
+                      setFanned((prev) => ({ ...prev, [s.project]: !prev[s.project] }));
+                      // AND CLOSING ONE DROPS ITS OWN SELECTION, nobody else's: a word left holding
+                      // would narrow this fan the next time he opened it, which reads as the pile
+                      // having fewer reports than it does.
+                      setOnly((prev) => ({ ...prev, [s.project]: "" }));
                     }}
                     aria-expanded={isOpen}
                   >

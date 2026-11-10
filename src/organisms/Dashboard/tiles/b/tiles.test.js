@@ -432,8 +432,53 @@ describe("the ways an open stack offers to read itself", () => {
     const { mine, other } = draw();
     fireEvent.click(mine.querySelector(".dbb-stack__face"));
     expect(said(mine)).toEqual(["3 about to go", "1 unopened", "3 account", "1 audit"]);
-    // ONE PILE AT A TIME, so the pile he did not press has grown nothing either.
+    // A PILE HE DID NOT PRESS HAS GROWN NOTHING — because it is closed, not because only one may be.
     expect(said(other)).toEqual([]);
+  });
+
+  // SEVERAL PILES OPEN AT ONCE. It toggled, and that read as a good idea until he used it: comparing
+  // two projects' reports is the whole reason to open a pile, and a toggle made that the one thing
+  // the surface could not do. *"You actually can have multiple stacks open showing their galleries."*
+  it("opening a pile does not shut another — both stay open, each with its own fan", () => {
+    const { mine, other } = draw();
+    fireEvent.click(mine.querySelector(".dbb-stack__face"));
+    fireEvent.click(other.querySelector(".dbb-stack__face"));
+    expect(mine).toHaveClass("is-open");
+    expect(other).toHaveClass("is-open");
+    expect(cards(mine)).toHaveLength(4);
+    expect(cards(other)).toEqual(["r-other"]);
+    // and both grew their own words
+    expect(said(mine).length).toBeGreaterThan(0);
+  });
+
+  // THE HELD WORD IS PER PILE, which only starts mattering once two can be open. One selection
+  // shared between them would narrow a fan he never pressed — and `audit` held over a pile with no
+  // audits draws an empty fan, which reads as "no reports".
+  it("a word held in one pile does not narrow another", () => {
+    const { mine, other } = draw();
+    fireEvent.click(mine.querySelector(".dbb-stack__face"));
+    fireEvent.click(other.querySelector(".dbb-stack__face"));
+    fireEvent.click(within(mine).getByTitle("show only the 1 audit report"));
+    expect(cards(mine)).toEqual(["r-audit"]);
+    expect(mine.querySelector(".dbb-stack__pick.is-on").textContent).toBe("1 audit");
+    // the other pile is untouched: full fan, nothing holding
+    expect(cards(other)).toEqual(["r-other"]);
+    expect(other.querySelectorAll(".dbb-stack__pick.is-on")).toHaveLength(0);
+  });
+
+  // AND CLOSING ONE DROPS ITS OWN SELECTION AND NOBODY ELSE'S.
+  it("closing a pile clears its word, and leaves the other pile's alone", () => {
+    const { mine, other } = draw();
+    const face = (el) => el.querySelector(".dbb-stack__face");
+    fireEvent.click(face(mine));
+    fireEvent.click(face(other));
+    fireEvent.click(within(mine).getByTitle("show only the 1 audit report"));
+    fireEvent.click(within(other).getByTitle("show only the 1 brief report"));
+    expect(other.querySelector(".dbb-stack__pick.is-on").textContent).toBe("1 brief");
+    fireEvent.click(face(mine));
+    fireEvent.click(face(mine));
+    expect(mine.querySelectorAll(".dbb-stack__pick.is-on")).toHaveLength(0);
+    expect(other.querySelector(".dbb-stack__pick.is-on").textContent).toBe("1 brief");
   });
 
   // THERE IS NO `all`, AND NOTHING HOLDS WHEN IT OPENS — his point: *"naturally there would be no
