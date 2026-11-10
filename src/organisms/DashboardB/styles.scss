@@ -629,23 +629,6 @@
     flex: 1 1 100%;
   }
 
-  // THE CARD IS THE FACE AND WHAT THE FACE GROWS — one column, the face's own width, so a closed
-  // stack is still a 164px sheet with a number on it and the pile's geometry below is untouched.
-  // Open, it is the face with the chip row under it: the card he pressed grew the options, and the
-  // fan lays out beside it rather than under them.
-  &__card {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 auto;
-    width: 164px;
-    min-width: 0;
-  }
-  // CLOSED, THE CARD IS THE FACE AND NOTHING ELSE — so the face takes the whole column, which is
-  // what makes the top sheet exactly as tall as the sheets behind it however tall the pile runs.
-  // Open, it keeps its own height instead and the chips sit right under it.
-  &:not(.is-open) &__face {
-    flex: 1 1 auto;
-  }
   &__face {
     position: relative;
     z-index: 50;
@@ -695,6 +678,18 @@
     font-size: 10px;
     color: var(--dbb-report);
   }
+  // A WORD THAT NARROWS THE FAN. It is already drawn — this adds a cursor and says which one is
+  // holding, and nothing else. No border, no capitals, no size of its own: the lines he pointed at
+  // are the control, so a control that looked like anything would be a change he did not ask for.
+  &__pick {
+    cursor: pointer;
+    &:hover {
+      color: var(--sv-text-strong);
+    }
+    &.is-on {
+      color: var(--dbb-report);
+    }
+  }
   &.is-urgent &__urgent {
     color: var(--dbb-press);
   }
@@ -741,50 +736,6 @@
   &.is-open .dbb-fan {
     flex-wrap: wrap;
     gap: 8px;
-  }
-  // THE OPTIONS THE CARD GREW. Under the face, in the face's width, so the card reads as one thing
-  // that got taller — the chips are part of the card he pressed, not a toolbar over the section.
-  // It only exists while the pile is open, so the closed card cannot inherit a gap from it.
-  &__chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
-    position: relative;
-    z-index: 50;
-  }
-}
-// A CHIP IS A CHOICE AMONG CARDS IN ONE PILE and it is drawn to look like less than a selection,
-// because it is: nothing outside this stack changes. The held one fills, which is the same rule
-// the project cards follow — a narrowed list that does not say what narrowed it reads as the world.
-.dbb-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  border: 1px solid var(--sv-border);
-  border-radius: 10px;
-  background: var(--sv-surface);
-  font-size: 9.5px;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  color: var(--sv-text-muted);
-  white-space: nowrap;
-  &:hover {
-    border-color: var(--dbb-report);
-  }
-  > i {
-    font-style: normal;
-    font-variant-numeric: tabular-nums;
-    color: var(--sv-text-faint);
-  }
-  &.is-on {
-    border-color: var(--dbb-report);
-    background: var(--dbb-report);
-    color: var(--sv-surface);
-    > i {
-      color: var(--sv-surface);
-    }
   }
 }
 .dbb-rcard {

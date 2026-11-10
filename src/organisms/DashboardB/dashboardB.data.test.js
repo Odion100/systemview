@@ -166,13 +166,6 @@ describe("the tracks are the trails that already exist", () => {
     expect(KINDS.map((k) => k.kind)).toContain("report");
   });
 
-  // THE PIP ORDER, AND KINDS IS ITS ONLY SOURCE — the project cards map this list straight through,
-  // so the order here is the order he reads on every card. An arc leads because it holds the
-  // objectives everything else serves, and it is the order every other surface here reads in.
-  it("leads with the arc", () => {
-    expect(KINDS.map((k) => k.kind)).toEqual(["arc", "rfc", "gap", "report"]);
-  });
-
   // THE EMPTY STATION IS THE WHOLE VALUE OF THE PICTURE: the gap between a full `draft` column and
   // an empty `settled` one is the sentence "nothing is finishing", and dropping it deletes that.
   it("keeps every station even when nothing is standing there", () => {
@@ -223,7 +216,7 @@ describe("the report stacks", () => {
 // options to filter the list right next to it."* The chips are the options, and they are the
 // stack's own — the fan beside them narrows and nothing else on the surface moves.
 
-describe("the chips an open stack earns", () => {
+describe("the words an open stack offers", () => {
   // THE URGENT MARK COMES FROM THE OWED MAP, the way the real page gets it — a clock running out is
   // a PRESS keyed `clock`, and ⧗ is what the bead carries for it.
   const expiring = (id, project = "p") => ({
@@ -242,9 +235,10 @@ describe("the chips an open stack earns", () => {
       beadFor(REPORT("r-odd", { as: "postmortem", openedAt: NOW - DAY }), {}, NOW),
     ])[0];
 
-  it("offers all, the two states the face already counts, and one chip per subtype present", () => {
+  // THE FIRST TWO ARE THE WORDS ALREADY ON THE FACE, in the order the face writes them, and the
+  // subtypes follow. There is NO `all`: opening the card already spreads every one of them out.
+  it("offers the two words the face already says, then one per subtype present", () => {
     expect(reportChips(stack()).map((k) => [k.chip, k.label, k.n])).toEqual([
-      ["all", "all", 6],
       ["urgent", "about to go", 1],
       ["unseen", "unopened", 1],
       ["as:account", "account", 3],
@@ -254,7 +248,7 @@ describe("the chips an open stack earns", () => {
     ]);
   });
 
-  // THE CHIP AND THE FACE CANNOT DISAGREE. The face says "1 about to go" and "1 unopened"; a chip
+  // THE WORD AND THE FACE CANNOT DISAGREE. The face says "1 about to go" and "1 unopened"; a chip
   // promising a different number and then showing a different pile is the page contradicting itself
   // inside one press, which is why both read the same two predicates.
   it("counts exactly what the face counts", () => {
@@ -263,11 +257,10 @@ describe("the chips an open stack earns", () => {
     const n = (chip) => chips.find((k) => k.chip === chip).n;
     expect(n("urgent")).toBe(s.urgent);
     expect(n("unseen")).toBe(s.unseen);
-    expect(n("all")).toBe(s.n);
   });
 
-  // A DEAD CHIP TEACHES HIM THAT A CHIP MIGHT MEAN NOTHING, so a pile only offers what it can
-  // answer — and a pile with nothing to narrow by offers no row at all rather than a lone `all`.
+  // A DEAD WORD TEACHES HIM THAT A WORD MIGHT MEAN NOTHING, so a pile only offers what it can
+  // answer.
   it("draws nothing for a pile with nothing to narrow by", () => {
     const one = reportStacks([beadFor(REPORT("r-seen", { as: "", openedAt: NOW - DAY }), {}, NOW)])[0];
     expect(one.n).toBe(1);

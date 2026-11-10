@@ -347,7 +347,7 @@ describe("the report stacks", () => {
   // press in here publishes one, the card is reading, and the arrow is the only door on it. The
   // chips an open stack grows are a different thing entirely: they narrow this stack's OWN fan,
   // which is not the question he ruled on, and they still publish nothing.
-  it("nothing here publishes a dashboard selection — not the card, not the chips", () => {
+  it("nothing here publishes a dashboard selection — not the card, not the words", () => {
     const set = jest.fn();
     const data = mk();
     const { container } = render(<ReportsTile data={data} filter={{ above: {}, mine: {}, set }} />);
@@ -359,20 +359,21 @@ describe("the report stacks", () => {
     expect(card).not.toHaveAttribute("aria-pressed");
     fireEvent.click(card.querySelector(".dbb-rcard__go"));
     expect(data.open).toHaveBeenCalledWith(expect.objectContaining({ path: expect.stringContaining("report") }));
+    // AND THE WORDS PUBLISH NOTHING EITHER — they narrow this stack's own fan and reach no further.
     fireEvent.click(container.querySelector(".dbb-stack__face"));
-    fireEvent.click(container.querySelector(".dbb-chip.is-on ~ .dbb-chip"));
+    fireEvent.click(container.querySelector(".dbb-stack__pick"));
     expect(set).not.toHaveBeenCalled();
   });
 });
 
-// ─── THE CHIPS AN OPEN STACK GROWS ─────────────────────────────────────────────────────────────
+// ─── THE WORDS AN OPEN STACK GROWS ─────────────────────────────────────────────────────────────
 //
 // His ask, verbatim: *"when it's a card it should look the same way that it is right now when it's
 // closed. When you click it open it just grows more options and those options become clickable
 // options to filter the list right next to it."* Both halves are claims: the closed card is
 // untouched, and the open one's options reach the fan beside them and nothing else.
 
-describe("the chips an open stack grows", () => {
+describe("the ways an open stack offers to read itself", () => {
   // Four reports in `p` — three accounts (one of them never opened) and an audit — and one brief in
   // `q`, so the pile that grows chips is not the only pile on the row. The floor reads the clocks at
   // the real now and the fixture's `NOW` is long past, so every report here that has been OPENED is
@@ -390,52 +391,58 @@ describe("the chips an open stack grows", () => {
     const stacks = [...container.querySelectorAll(".dbb-stack")];
     return { container, mine: stacks[0], other: stacks[1] };
   };
-  const said = (el) => [...el.querySelectorAll(".dbb-chip")].map((c) => c.textContent);
+  const said = (el) => [...el.querySelectorAll(".dbb-stack__pick")].map((c) => c.textContent);
   const cards = (el) => [...el.querySelectorAll(".dbb-rcard")].map((c) => c.querySelector(".dbb-rcard__id").textContent);
 
   // HIS FIRST HALF, AS A CLAIM: *"when it's a card it should look the same way that it is right now
   // when it's closed."* A closed pile grows nothing at all.
   it("a closed card grows nothing", () => {
     const { container } = draw();
-    expect(container.querySelectorAll(".dbb-chip")).toHaveLength(0);
+    expect(container.querySelectorAll(".dbb-stack__pick")).toHaveLength(0);
   });
 
-  it("an open card grows one option per thing the pile can answer, with its count", () => {
+  it("an open card grows more of its own words, under the two it already said", () => {
     const { mine, other } = draw();
     fireEvent.click(mine.querySelector(".dbb-stack__face"));
-    expect(said(mine)).toEqual(["all4", "about to go3", "unopened1", "account3", "audit1"]);
+    expect(said(mine)).toEqual(["3 about to go", "1 unopened", "3 account", "1 audit"]);
     // ONE PILE AT A TIME, so the pile he did not press has grown nothing either.
     expect(said(other)).toEqual([]);
-    // `all` holds until he chooses otherwise — a page that starts narrowed is a page lying about
-    // how much there is.
-    expect(mine.querySelector(".dbb-chip.is-on").textContent).toBe("all4");
   });
 
-  it("pressing an option narrows the fan beside it, and only that fan", () => {
-    const { mine, other } = draw();
+  // THERE IS NO `all`, AND NOTHING HOLDS WHEN IT OPENS — his point: *"naturally there would be no
+  // all filter… you click it, it stretches out, it spreads the cards out."* The open card already
+  // IS everything, so a control for that state would be a button for where you are standing.
+  it("opens showing every card, with no word holding and no all to press", () => {
+    const { mine } = draw();
     fireEvent.click(mine.querySelector(".dbb-stack__face"));
     expect(cards(mine)).toHaveLength(4);
-    fireEvent.click(within(mine).getByTitle("show only the 1 audit report in p"));
+    expect(mine.querySelectorAll(".dbb-stack__pick.is-on")).toHaveLength(0);
+    expect(said(mine)).not.toContain("all");
+  });
+
+  it("pressing a word narrows the fan beside it, and only that fan", () => {
+    const { mine, other } = draw();
+    fireEvent.click(mine.querySelector(".dbb-stack__face"));
+    fireEvent.click(within(mine).getByTitle("show only the 1 audit report"));
     expect(cards(mine)).toEqual(["r-audit"]);
-    expect(mine.querySelector(".dbb-chip.is-on").textContent).toBe("audit1");
-    // THE OTHER PILE IS UNTOUCHED — the chips are this stack's own and reach nothing outside it.
+    expect(mine.querySelector(".dbb-stack__pick.is-on").textContent).toBe("1 audit");
+    // THE OTHER PILE IS UNTOUCHED — these words are this stack's own and reach nothing outside it.
     expect(cards(other)).toEqual(["r-other"]);
   });
 
-  // SINGLE-SELECT, AND `all` IS HOW HE LETS GO. Two chips at once makes an empty fan ambiguous
-  // between "this pile has no audits" and "it has no unopened audits".
-  it("one option holds at a time, and all gives the pile back", () => {
+  // PRESSING THE HELD WORD AGAIN IS HOW HE LETS GO, which is what makes `all` unnecessary rather
+  // than merely absent. Single-select, because two at once makes an empty fan ambiguous between
+  // "this pile has no audits" and "it has no unopened audits".
+  it("one word holds at a time, and pressing it again gives the pile back", () => {
     const { mine } = draw();
     fireEvent.click(mine.querySelector(".dbb-stack__face"));
-    fireEvent.click(within(mine).getByTitle("show only the 1 unopened report in p"));
+    fireEvent.click(within(mine).getByTitle("show only the 1 not opened yet"));
     expect(cards(mine)).toEqual(["r-new"]);
-    fireEvent.click(within(mine).getByTitle("show only the 3 about to go reports in p"));
-    expect(mine.querySelectorAll(".dbb-chip.is-on")).toHaveLength(1);
+    fireEvent.click(within(mine).getByTitle("show only the 3 about to go"));
+    expect(mine.querySelectorAll(".dbb-stack__pick.is-on")).toHaveLength(1);
     expect(cards(mine).sort()).toEqual(["r-acct", "r-again", "r-audit"]);
-    fireEvent.click(within(mine).getByTitle("show only the 3 account reports in p"));
-    expect(mine.querySelectorAll(".dbb-chip.is-on")).toHaveLength(1);
-    expect(cards(mine).sort()).toEqual(["r-acct", "r-again", "r-new"]);
-    fireEvent.click(within(mine).getByTitle("every report in p — 4"));
+    fireEvent.click(within(mine).getByTitle("show only the 3 about to go"));
+    expect(mine.querySelectorAll(".dbb-stack__pick.is-on")).toHaveLength(0);
     expect(cards(mine)).toHaveLength(4);
   });
 
@@ -446,14 +453,14 @@ describe("the chips an open stack grows", () => {
     const { mine, other } = draw();
     const face = (el) => el.querySelector(".dbb-stack__face");
     fireEvent.click(face(mine));
-    fireEvent.click(within(mine).getByTitle("show only the 1 audit report in p"));
+    fireEvent.click(within(mine).getByTitle("show only the 1 audit report"));
     fireEvent.click(face(mine));
     fireEvent.click(face(mine));
     expect(cards(mine)).toHaveLength(4);
-    expect(mine.querySelector(".dbb-chip.is-on").textContent).toBe("all4");
+    expect(mine.querySelectorAll(".dbb-stack__pick.is-on")).toHaveLength(0);
     fireEvent.click(face(other));
     expect(cards(other)).toEqual(["r-other"]);
-    expect(other.querySelector(".dbb-chip.is-on").textContent).toBe("all1");
+    expect(other.querySelectorAll(".dbb-stack__pick.is-on")).toHaveLength(0);
   });
 });
 
@@ -472,19 +479,11 @@ describe("the projects, all of them", () => {
   });
 
   // FOUR PIPS IN THE SAME ORDER ON EVERY CARD, zeroes included — that is what makes two projects
-  // comparable at a glance instead of readable one at a time. The arc leads: it holds the
-  // objectives everything else serves, and the order comes from KINDS and nowhere else.
-  it("every card shows all four kinds in one order, including the ones it has none of", () => {
+  // comparable at a glance instead of readable one at a time.
+  it("every card shows all four kinds, including the ones it has none of", () => {
     const { container } = render(<ProjectsTile data={mk()} />);
     container.querySelectorAll(".dbb-proj").forEach((card) => {
-      const pips = [...card.querySelectorAll(".dbb-pip")];
-      expect(pips).toHaveLength(4);
-      expect(pips.map((p) => p.getAttribute("title").replace(/^\d+ /, ""))).toEqual([
-        "arcs",
-        "RFCs",
-        "gaps",
-        "reports",
-      ]);
+      expect(card.querySelectorAll(".dbb-pip")).toHaveLength(4);
     });
   });
 

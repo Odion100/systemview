@@ -295,20 +295,22 @@ export function reportChips(stack = {}) {
   ordered.forEach((as) =>
     earned.push({ chip: `as:${as}`, label: as, n: cards.filter((c) => c.subtype === as).length }),
   );
-  // NOTHING TO NARROW BY MEANS NO ROW AT ALL — an `all` chip on its own is a button that does what
-  // the pile already does, and the open card is better off saying nothing than offering that.
-  if (!earned.length) return [];
-  return [{ chip: "all", label: "all", n: cards.length }, ...earned];
+  // THERE IS NO `all` OPTION, AND THAT IS HIS POINT, NOT A SIMPLIFICATION: *"naturally there would
+  // be no all filter. You click it like it normally was working before, it stretches out, it
+  // spreads the cards out, the gallery next to it, and then it has options. There would be no need
+  // for an all filter."* Opening the card already shows everything, so `all` is a control for the
+  // state you are standing in — and letting go is pressing the held line again.
+  return earned;
 }
 
 /**
- * One chip applied to one pile's cards. SINGLE-SELECT, and `all` is how he lets go — stacking two
- * chips makes an empty fan ambiguous between "this pile has no audits" and "it has no unopened
- * audits", and an empty answer nobody can read is worse than a second press.
+ * One option applied to one pile's cards. SINGLE-SELECT, and letting go is pressing the held line
+ * again — stacking two makes an empty fan ambiguous between "this pile has no audits" and "it has
+ * no unopened audits", and an empty answer nobody can read is worse than a second press.
  *
- * A CHIP THIS FUNCTION DOES NOT KNOW RETURNS EVERYTHING. The alternative is an empty fan, which
- * reads as "no reports" — the page accusing a pile of being empty because its own filter went
- * stale is exactly the class of lie this floor is built not to tell.
+ * NO OPTION, OR ONE THIS FUNCTION DOES NOT KNOW, RETURNS EVERYTHING. The alternative is an empty
+ * fan, which reads as "no reports" — the page accusing a pile of being empty because its own
+ * filter went stale is exactly the class of lie this floor is built not to tell.
  */
 export function filterCards(cards = [], chip = "") {
   const all = (cards || []).slice();
