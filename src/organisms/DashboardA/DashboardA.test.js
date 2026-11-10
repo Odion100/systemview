@@ -8,7 +8,7 @@
 //   2. It opens documents and presses nothing. The only event it is allowed to emit is the one
 //      opener every file address in this window already rides.
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import ServiceContext from "../../ServiceContext";
 import DashboardA from "./DashboardA";
 
@@ -59,10 +59,16 @@ it("says the registry could not be READ, which is not the same sentence as empty
   expect(screen.getAllByText("not measured").length).toBe(2);
 });
 
-it("draws a lane for a project with nothing registered and says WHY it is empty", async () => {
+it("folds a project with nothing registered behind a count, and still says WHY it is empty when opened", async () => {
   mount([], { gamma: "/repos/gamma" });
-  expect(await screen.findByText("gamma")).toBeInTheDocument();
-  expect(screen.getByText(/nothing registered/i)).toBeInTheDocument();
+  // FOLDED, NOT DROPPED. The count is the statement — he reads it without opening anything.
+  const fold = await screen.findByRole("button", { name: /1 project with nothing in them/i });
+  expect(fold).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByText("gamma")).not.toBeInTheDocument();
+  // and the sentence is still in there, in the words it always had
+  fireEvent.click(fold);
+  expect(screen.getByText("gamma")).toBeInTheDocument();
+  expect(screen.getByText(/no document in this project carries a leaf/i)).toBeInTheDocument();
 });
 
 it("puts what needs him at the top, in owed.js's own words, and opens the document on a press", async () => {
@@ -176,4 +182,190 @@ it("folds one document's obligations into one row that opens into them", async (
   // `openAddress` carries a RANGE, not a line — the one door every file address in this
   // window rides. O2 opens at its own block, which is line 8 of the fixture.
   expect(opened[0]).toMatchObject({ projectCode: "alpha", path: "RFCs/arcs/ARC-001-the-body.md", lines: [8, 8] });
+});
+
+// ─── THE LEGEND IS ALSO THE FILTER ─────────────────────────────────────────────────────────────
+//
+// His ask: *"you should be able to click that and filter everything below, which is multiple
+// projects."* So these are about the WIRE — the pure fold is held to its answers next door; what
+// only a mount can show is that a press reaches every lane at once and that the page says what it
+// is holding instead of quietly showing him less.
+const twoProjects = () => {
+  mockFiles["RFCs/RFC-080-moving.md"] = "# RFC-080 — the one being built\n\n::rfc{id=RFC-080}\n";
+  mockFiles["gaps/g-20.md"] = "# G-20 — a thing beta lacks\n\n::gap{id=G-20}\n";
+  return mount(
+    [
+      { id: "RFC-080", kind: "rfc", path: "RFCs/RFC-080-moving.md", project: "alpha", at: NOW, state: { verdict: "approved", built: true, parsed: NOW } },
+      { id: "G-20", kind: "gap", path: "gaps/g-20.md", project: "beta", at: NOW, state: { parsed: NOW } },
+    ],
+    { alpha: "/repos/alpha", beta: "/repos/beta" },
+  );
+};
+
+it("holds a column from the axis and narrows every lane at once, more than one at a time", async () => {
+  twoProjects();
+  expect(await screen.findByText("alpha")).toBeInTheDocument();
+  expect(screen.getByText("beta")).toBeInTheDocument();
+
+  // HOLD `moving` — alpha's RFC is moving, beta's gap is proposed, so beta's lane goes
+  const moving = screen.getByRole("button", { name: /moving/ });
+  fireEvent.click(moving);
+  expect(moving).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByText("alpha")).toBeInTheDocument();
+  expect(screen.queryByText("beta")).not.toBeInTheDocument();
+  // and the page says what it is holding rather than quietly showing him less
+  expect(screen.getByText(/holding moving/)).toBeInTheDocument();
+
+  // HOLD `proposed` AS WELL — both lanes are back, which is the whole reason it is not a radio
+  fireEvent.click(screen.getByRole("button", { name: /proposed/ }));
+  expect(screen.getByText("alpha")).toBeInTheDocument();
+  expect(screen.getByText("beta")).toBeInTheDocument();
+  expect(screen.getByText(/holding moving \+ proposed/)).toBeInTheDocument();
+
+  // AND PRESSING IT AGAIN LETS GO. There is no `all` to find: nothing held is everything.
+  fireEvent.click(moving);
+  fireEvent.click(screen.getByRole("button", { name: /proposed/ }));
+  expect(screen.queryByText(/holding/)).not.toBeInTheDocument();
+  expect(screen.getByText("alpha")).toBeInTheDocument();
+  expect(screen.getByText("beta")).toBeInTheDocument();
+});
+
+it("says a filter matched nothing in the filter's own words, never as a claim about the machine", async () => {
+  twoProjects();
+  await screen.findByText("alpha");
+  fireEvent.click(screen.getByRole("button", { name: /set down/ }));
+  expect(screen.getByText(/nothing is setdown in any project right now/i)).toBeInTheDocument();
+  // the registry was read and is not empty — the page may not say otherwise
+  expect(screen.queryByText(/registry is empty/i)).not.toBeInTheDocument();
+  expect(screen.queryByText(/no projects/i)).not.toBeInTheDocument();
+});
+
+// ─── THE KINDS IN A LANE ARE ITS FILTERS ───────────────────────────────────────────────────────
+//
+// *"Instead of hide the numbers and show the numbers, there should be filters for that separate
+// section of the type of documents that are there."* So the show-hide is gone, and what opens the
+// list is a word that also says which kind it opens.
+it("opens the numbers filtered to the kind pressed, and closes when the last one is let go", async () => {
+  mockFiles["RFCs/RFC-081-a.md"] = "# RFC-081 — a design\n\n::rfc{id=RFC-081}\n";
+  mockFiles["gaps/g-21.md"] = "# G-21 — a thing missing\n\n::gap{id=G-21}\n";
+  mount(
+    [
+      { id: "RFC-081", kind: "rfc", path: "RFCs/RFC-081-a.md", project: "alpha", at: NOW, state: { verdict: "approved", built: true, parsed: NOW } },
+      { id: "G-21", kind: "gap", path: "gaps/g-21.md", project: "alpha", at: NOW, state: { parsed: NOW } },
+    ],
+    { alpha: "/repos/alpha" },
+  );
+  await screen.findByText("alpha");
+  // THE SHOW-HIDE IS GONE, in both of its words
+  expect(screen.queryByText("the numbers")).not.toBeInTheDocument();
+  expect(screen.queryByText("hide the numbers")).not.toBeInTheDocument();
+
+  const lane = screen.getByText("alpha").closest(".dba-lane");
+  const picks = lane.querySelector(".dba-lane__picks");
+  const rfc = within(picks).getByRole("button", { name: /1 RFC/ });
+  const gap = within(picks).getByRole("button", { name: /1 gap/ });
+
+  // nothing held — no list at all
+  expect(lane.querySelector(".dba-list")).toBeNull();
+
+  fireEvent.click(rfc);
+  expect(rfc).toHaveAttribute("aria-pressed", "true");
+  const list = () => lane.querySelector(".dba-list");
+  expect(within(list()).getByText("RFC-081")).toBeInTheDocument();
+  expect(within(list()).queryByText("G-21")).not.toBeInTheDocument();
+
+  // MORE THAN ONE AT A TIME
+  fireEvent.click(gap);
+  expect(within(list()).getByText("RFC-081")).toBeInTheDocument();
+  expect(within(list()).getByText("G-21")).toBeInTheDocument();
+
+  // and letting go of the last one closes it — the words are the show-hide
+  fireEvent.click(rfc);
+  fireEvent.click(gap);
+  expect(lane.querySelector(".dba-list")).toBeNull();
+});
+
+it("keeps each lane's kinds its own — holding alpha's gaps does not open beta's", async () => {
+  mockFiles["gaps/g-30.md"] = "# G-30 — alpha's\n\n::gap{id=G-30}\n";
+  mockFiles["gaps/g-31.md"] = "# G-31 — beta's\n\n::gap{id=G-31}\n";
+  mount(
+    [
+      { id: "G-30", kind: "gap", path: "gaps/g-30.md", project: "alpha", at: NOW, state: { parsed: NOW } },
+      { id: "G-31", kind: "gap", path: "gaps/g-31.md", project: "beta", at: NOW, state: { parsed: NOW } },
+    ],
+    { alpha: "/repos/alpha", beta: "/repos/beta" },
+  );
+  await screen.findByText("alpha");
+  const alpha = screen.getByText("alpha").closest(".dba-lane");
+  const beta = screen.getByText("beta").closest(".dba-lane");
+  fireEvent.click(within(alpha.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ }));
+  expect(alpha.querySelector(".dba-list")).not.toBeNull();
+  expect(beta.querySelector(".dba-list")).toBeNull();
+});
+
+// ─── A MARK IS A FILTER, NOT A DOOR ────────────────────────────────────────────────────────────
+//
+// *"Clicking them shouldn't take you to the document. I don't like that. I like clicking them kind
+// of filtering the list below to only show that one that is referring to."* So the one event this
+// page was allowed to emit is now emitted by the ROWS, and a mark emits nothing at all.
+it("narrows the lane to one document when its mark is pressed, and opens nothing", async () => {
+  mockFiles["RFCs/RFC-090-one.md"] = "# RFC-090 — the first\n\n::rfc{id=RFC-090}\n";
+  mockFiles["RFCs/RFC-091-two.md"] = "# RFC-091 — the second\n\n::rfc{id=RFC-091}\n";
+  mount(
+    [
+      { id: "RFC-090", kind: "rfc", path: "RFCs/RFC-090-one.md", project: "alpha", at: NOW, state: { verdict: "approved", built: true, parsed: NOW } },
+      { id: "RFC-091", kind: "rfc", path: "RFCs/RFC-091-two.md", project: "alpha", at: NOW, state: { verdict: "approved", built: true, parsed: NOW } },
+    ],
+    { alpha: "/repos/alpha" },
+  );
+  await screen.findByText("alpha");
+  const opened = [];
+  const listen = (e) => opened.push(e.detail);
+  window.addEventListener("sv:openFileInNav", listen);
+
+  const lane = screen.getByText("alpha").closest(".dba-lane");
+  const mark = within(lane).getByRole("button", { name: /^RFC-090 —/ });
+  fireEvent.click(mark);
+
+  // IT OPENED NOTHING — that is the whole of the complaint
+  expect(opened).toHaveLength(0);
+  expect(mark).toHaveAttribute("aria-pressed", "true");
+  // and the list below is narrowed to that one document, not to its kind
+  const list = () => lane.querySelector(".dba-list");
+  expect(within(list()).getByText("RFC-090")).toBeInTheDocument();
+  expect(within(list()).queryByText("RFC-091")).not.toBeInTheDocument();
+
+  // THE ROW IS STILL THE DOOR. The mark narrows; the row it reveals opens.
+  within(list()).getByText("RFC-090").closest("button").click();
+  expect(opened).toHaveLength(1);
+  expect(opened[0]).toMatchObject({ projectCode: "alpha", path: "RFCs/RFC-090-one.md" });
+  window.removeEventListener("sv:openFileInNav", listen);
+
+  // pressing the same mark again lets go
+  fireEvent.click(mark);
+  expect(mark).toHaveAttribute("aria-pressed", "false");
+  expect(lane.querySelector(".dba-list")).toBeNull();
+});
+
+it("lets a kind word take over from a pinned mark rather than intersecting with it", async () => {
+  mockFiles["RFCs/RFC-092.md"] = "# RFC-092 — a design\n\n::rfc{id=RFC-092}\n";
+  mockFiles["gaps/g-40.md"] = "# G-40 — a thing missing\n\n::gap{id=G-40}\n";
+  mount(
+    [
+      { id: "RFC-092", kind: "rfc", path: "RFCs/RFC-092.md", project: "alpha", at: NOW, state: { verdict: "approved", built: true, parsed: NOW } },
+      { id: "G-40", kind: "gap", path: "gaps/g-40.md", project: "alpha", at: NOW, state: { parsed: NOW } },
+    ],
+    { alpha: "/repos/alpha" },
+  );
+  await screen.findByText("alpha");
+  const lane = screen.getByText("alpha").closest(".dba-lane");
+  fireEvent.click(within(lane).getByRole("button", { name: /^RFC-092 —/ }));
+  const list = () => lane.querySelector(".dba-list");
+  expect(within(list()).getByText("RFC-092")).toBeInTheDocument();
+
+  // ASK FOR THE GAPS and the pin lets go — an intersection could only answer with nothing
+  fireEvent.click(within(lane.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ }));
+  expect(within(list()).getByText("G-40")).toBeInTheDocument();
+  expect(within(list()).queryByText("RFC-092")).not.toBeInTheDocument();
+  expect(within(lane).getByRole("button", { name: /^RFC-092 —/ })).toHaveAttribute("aria-pressed", "false");
 });

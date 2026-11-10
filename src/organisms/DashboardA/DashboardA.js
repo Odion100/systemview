@@ -6,7 +6,7 @@ import { fillStyle } from "../../atoms/meterWidth";
 import { openAddress } from "../../atoms/Markdown/openRef";
 import { tickFor } from "../../atoms/Markdown/blocks/retention";
 import { skippedLine, groupOwed } from "../AgentChat/owed";
-import dashboard, { PHASES, readingLine } from "./dashboardA.data";
+import dashboard, { PHASES, readingLine, foldLanes, holdLanes, kindsIn } from "./dashboardA.data";
 
 // ─── THE DASHBOARD — EVERY PROJECT, EVERY KIND, AND WHAT NEEDS HIM ─────────────────────────────
 //
@@ -143,12 +143,16 @@ const Chip = ({ kind, children }) => (
  *             an arc — with the HONEST MIDDLE drawn in the dimmed hue: marked-but-unproved claims
  *             and blocked objectives are neither done nor untouched, and a ring that folded them
  *             into either neighbour would be the lie the derivations were written to stop.
- *   THE PULSE it owes him something. The pulse is a POINTER, not a press: clicking opens the file.
+ *   THE PULSE it owes him something. The pulse is a POINTER, not a press.
+ *
+ * PRESSING ONE FILTERS THE LANE BELOW IT TO THAT ONE DOCUMENT — it does not open the file. His
+ * call: *"clicking them shouldn't take you to the document. I don't like that."* The card already
+ * says what the mark is, so the press is for narrowing, and the row it reveals is the door.
  *
  * A mark whose file has drifted past the last parse gets a motion trail, because on a page about
  * movement the one honest signal of movement is the registry's own lag (§1.4).
  */
-const Mark = ({ m }) => {
+const Mark = ({ m, onPress, pressed }) => {
   const total = m.bar ? m.bar.total : 0;
   const done = total ? Math.round((m.bar.done / total) * 100) : 0;
   const extra = total ? Math.round(((m.bar.done + m.bar.extra) / total) * 100) : 0;
@@ -168,7 +172,8 @@ const Mark = ({ m }) => {
       type="button"
       className={cls}
       style={{ "--done": done, "--extra": extra }}
-      onClick={() => open({ project: m.project, path: m.path, line: (m.owes[0] && m.owes[0].line) || 1 })}
+      onClick={onPress}
+      aria-pressed={!!pressed}
       aria-label={`${m.id} — ${m.title}`}
     >
       <span className="dba-mark__dot" />
@@ -317,8 +322,21 @@ const OwedGroup = ({ g, open: shown, onToggle }) => {
   );
 };
 
-/** One project: who it is, what it owes, the track, the stack, and the numbers on request. */
-const Lane = ({ p, fanned, onFan, shown, onShow }) => (
+/** One project: who it is, what it owes, the track, the stack, and the numbers it is asked for. */
+const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny }) => {
+  // THE LANE'S OWN FILTER WORDS, and the rows they open. Derived from the marks in front of him,
+  // so a word never offers a count that opens an empty list.
+  const kinds = kindsIn(p.marks);
+  const held = kinds.filter((k) => picks[k.kind]).map((k) => k.kind);
+  // A PINNED MARK IS THE NARROWEST FILTER THERE IS, so it wins over the kind words rather than
+  // intersecting with them — pressing a mark means "just that one", and an intersection could
+  // only ever answer with the same row or with nothing.
+  const rows = only
+    ? p.marks.filter((m) => m.key === only)
+    : held.length
+      ? p.marks.filter((m) => held.includes(m.kind))
+      : [];
+  return (
   <article className={`dba-lane${p.registered ? "" : " is-quiet"}`}>
     <header className="dba-lane__head">
       <h3 className="dba-lane__code">{p.code}</h3>
@@ -348,23 +366,38 @@ const Lane = ({ p, fanned, onFan, shown, onShow }) => (
               {p.marks
                 .filter((m) => m.phase === ph.id)
                 .map((m) => (
-                  <Mark key={m.key} m={m} />
+                  <Mark key={m.key} m={m} pressed={only === m.key} onPress={() => onOnly(m.key)} />
                 ))}
             </div>
           ))}
           <div className="dba-track__stack">
-            <StackPile reports={p.reports} open={fanned} onToggle={onFan} />
+            {p.reports.length || !heldAny ? <StackPile reports={p.reports} open={fanned} onToggle={onFan} /> : null}
           </div>
         </div>
         <StackFan reports={p.reports} open={fanned} />
-        {p.marks.length ? (
-          <button type="button" className="dba-lane__more" onClick={onShow} aria-expanded={shown}>
-            {shown ? "hide the numbers" : "the numbers"}
-          </button>
+        {/* THE KINDS IN THE LANE ARE THE CONTROL — there is no show-hide button left, because a
+            show-hide answers one question ("is there more?") and the words answer the one he
+            actually has ("where are the gaps?"). Pressing a word opens the numbers filtered to
+            that kind; more than one at a time; pressing the last one shut closes the list. */}
+        {kinds.length ? (
+          <div className="dba-lane__picks">
+            {kinds.map((k) => (
+              <button
+                key={k.kind}
+                type="button"
+                className={`dba-pick dba-pick--${k.kind}${picks[k.kind] ? " is-on" : ""}`}
+                aria-pressed={!!picks[k.kind]}
+                onClick={() => onPick(k.kind)}
+              >
+                {k.n} {KIND_WORD[k.kind]}
+                {k.n === 1 || k.kind === "rfc" ? "" : "s"}
+              </button>
+            ))}
+          </div>
         ) : null}
-        {shown ? (
+        {rows.length ? (
           <ul className="dba-list">
-            {p.marks.map((m) => (
+            {rows.map((m) => (
               <li key={m.key}>
                 <button type="button" className="dba-row" onClick={() => open({ project: m.project, path: m.path, line: (m.owes[0] && m.owes[0].line) || 1 })}>
                   <Chip kind={m.kind} />
@@ -395,14 +428,16 @@ const Lane = ({ p, fanned, onFan, shown, onShow }) => (
       // A PROJECT IS DRAWN EVEN WITH NOTHING IN IT, and it says WHY it is empty. A lane missing
       // from the page reads as "no work here"; a lane that says "nothing has ever been parsed"
       // reads as what it is. Those are not the same sentence and only one of them is ever true of
-      // a folder nobody has looked at.
+      // a folder nobody has looked at. This lane lives behind the fold now — folded, not dropped,
+      // so the sentence is still there to open.
       <p className="dba-lane__none">
         nothing registered — no document in this project carries a leaf anything has parsed
         {p.root ? <code>{p.root}</code> : null}
       </p>
     )}
   </article>
-);
+  );
+};
 
 // ─── THE PAGE ──────────────────────────────────────────────────────────────────────────────────
 
@@ -411,7 +446,23 @@ const DashboardA = () => {
   const { read, docs, roots, error } = useRegistry(SystemViewService);
   const [fixtures, setFixtures] = useState(false);
   const [fanned, setFanned] = useState("");
-  const [shown, setShown] = useState({});
+  // WHICH AXIS COLUMNS ARE HELD — phase ids, plus "reports". Empty means everything, so there is
+  // no `all` to press. More than one at a time: "moving + landed" is a real question.
+  const [held, setHeld] = useState([]);
+  const hold = (k) => setHeld((h) => (h.includes(k) ? h.filter((x) => x !== k) : [...h, k]));
+  // WHICH KINDS ARE HELD INSIDE EACH LANE, keyed by project code — alpha's gaps are not beta's.
+  const [picks, setPicks] = useState({});
+  // WHICH SINGLE DOCUMENT A LANE IS PINNED TO, keyed by project code. Set by pressing its mark.
+  const [only, setOnly] = useState({});
+  const pick = (code, kind) => {
+    // PRESSING A KIND WORD LETS GO OF THE PINNED MARK. One list, one question at a time: he asked
+    // for the kind, so the one document he pinned a moment ago is not the answer any more.
+    setOnly((o) => ({ ...o, [code]: "" }));
+    setPicks((o) => ({ ...o, [code]: { ...(o[code] || {}), [kind]: !((o[code] || {})[kind]) } }));
+  };
+  const pin = (code, key) => setOnly((o) => ({ ...o, [code]: o[code] === key ? "" : key }));
+  // THE FOOTNOTE LANES, OPENED ON REQUEST — folded by default, never dropped.
+  const [quietOpen, setQuietOpen] = useState(false);
   // WHICH DOCUMENTS ARE FANNED OPEN in the owed lists. Keyed by `groupOwed`'s key, which carries
   // the project — so opening alpha's RFC-001 does not open beta's.
   const [openOwed, setOpenOwed] = useState({});
@@ -437,6 +488,13 @@ const DashboardA = () => {
 
   const { totals, head, owed } = d;
   const skipped = skippedLine(owed.skipped);
+  // THE FOLD FIRST, THEN THE FILTER, and they stay separate on purpose: a lane with nothing in it
+  // is a fact about the project, and a lane the filter excluded is a fact about what he is
+  // holding. One fold would make those read as the same thing.
+  const { live: drawn, quiet } = foldLanes(d.projects);
+  const lanes = holdLanes(drawn, held);
+  const showing = lanes.reduce((n, p) => n + p.marks.length, 0);
+  const showingReports = lanes.reduce((n, p) => n + p.reports.length, 0);
 
   // THE AXIS STICKS BELOW THE MASTHEAD, so it has to know how tall the masthead actually is.
   // It was a hardcoded 86px — true on the day it was written, false the moment the gauge wrapped
@@ -523,46 +581,107 @@ const DashboardA = () => {
       <section className="dba__flow">
         <h2 className="dba__h2">
           Every project, and where its work is standing
+          {/* THE NUMBERS ARE WHAT IS ON SCREEN, not what the registry holds — a subhead that said
+              "22 travelling documents" over a filtered page would be describing a page he is not
+              looking at. With nothing held they are the same number. */}
           <span>
-            {totals.marks} travelling {totals.marks === 1 ? "document" : "documents"} · {totals.reports} reports · across{" "}
-            {totals.live} of {totals.projects} projects
+            {showing} travelling {showing === 1 ? "document" : "documents"} · {showingReports} reports · across{" "}
+            {lanes.length} of {totals.projects} projects
+            {held.length ? ` · holding ${held.join(" + ")}` : ""}
           </span>
         </h2>
         {/* THE LEGEND IS THE HEADER, ONCE, and the lanes are a grid under it so a column means the
             same thing all the way down — that alignment is what makes the mass readable. The
             columns are named for what is true of the WORK, not for any one kind's vocabulary:
             `built` means something only to an RFC and a column headed with it would be a lie about
-            the other three. */}
+            the other three.
+
+            AND THE LEGEND IS ALSO THE FILTER. Hold a column and every lane below narrows to it,
+            across every project at once — more than one at a time, and `reports` is a column like
+            any other. Nothing held means everything, which is why there is nothing here that
+            means "all": the page is already in that state before anybody presses. */}
         <div className="dba-axis">
           {PHASES.map((ph) => (
-            <div key={ph.id} className={`dba-axis__col dba-axis__col--${ph.id}`}>
+            <button
+              key={ph.id}
+              type="button"
+              className={`dba-axis__col dba-axis__col--${ph.id}${held.includes(ph.id) ? " is-on" : ""}`}
+              aria-pressed={held.includes(ph.id)}
+              onClick={() => hold(ph.id)}
+            >
               <b>{ph.label}</b>
               <i>{ph.hint}</i>
               <span className="dba-axis__n">{totals.phases[ph.id] || 0}</span>
-            </div>
+            </button>
           ))}
-          <div className="dba-axis__col dba-axis__col--stack">
+          <button
+            type="button"
+            className={`dba-axis__col dba-axis__col--stack${held.includes("reports") ? " is-on" : ""}`}
+            aria-pressed={held.includes("reports")}
+            onClick={() => hold("reports")}
+          >
             <b>reports</b>
             <i>they do not travel — they expire. press a stack to fan it out</i>
             <span className="dba-axis__n">{totals.reports}</span>
-          </div>
+          </button>
         </div>
-        {d.projects.map((p) => (
+        {lanes.map((p) => (
           <Lane
             key={p.code}
             p={p}
             fanned={fanned === p.code}
             onFan={() => setFanned((f) => (f === p.code ? "" : p.code))}
-            shown={!!shown[p.code]}
-            onShow={() => setShown((s) => ({ ...s, [p.code]: !s[p.code] }))}
+            picks={picks[p.code] || {}}
+            onPick={(kind) => pick(p.code, kind)}
+            only={only[p.code] || ""}
+            onOnly={(key) => pin(p.code, key)}
+            heldAny={!!held.length}
           />
         ))}
+        {/* A FILTER THAT MATCHES NOTHING SAYS SO IN THE FILTER'S OWN WORDS. "no projects" here
+            would be a claim about the machine; this is a claim about what he is holding. */}
+        {!lanes.length && drawn.length ? (
+          <p className="dba-lane__none">nothing is {held.join(" or ")} in any project right now</p>
+        ) : null}
         {!d.projects.length ? (
           <p className="dba-lane__none">
             {read
               ? "no projects — neither the registry nor the shell's folder list has anything in it"
               : "waiting on the hub"}
           </p>
+        ) : null}
+        {/* THE FOOTNOTE, FOLDED. The count IS the statement — he can read "4 with nothing in them"
+            and never open it, which is the whole ask; and the lanes are still in there, each one
+            still saying why it is empty, so nothing has been hidden from him. */}
+        {quiet.length ? (
+          <div className={`dba-quiet${quietOpen ? " is-open" : ""}`}>
+            <button
+              type="button"
+              className="dba-quiet__more"
+              aria-expanded={quietOpen}
+              onClick={() => setQuietOpen((q) => !q)}
+            >
+              {quietOpen ? "⌃" : "⌄"} {quiet.length} {quiet.length === 1 ? "project" : "projects"} with nothing in them
+              {quiet.filter((p) => !p.registered).length === quiet.length
+                ? " — nothing registered"
+                : " — nothing registered, or everything in them has gone"}
+            </button>
+            {quietOpen
+              ? quiet.map((p) => (
+                  <Lane
+                    key={p.code}
+                    p={p}
+                    fanned={fanned === p.code}
+                    onFan={() => setFanned((f) => (f === p.code ? "" : p.code))}
+                    picks={picks[p.code] || {}}
+                    onPick={(kind) => pick(p.code, kind)}
+                    only={only[p.code] || ""}
+                    onOnly={(key) => pin(p.code, key)}
+                    heldAny={!!held.length}
+                  />
+                ))
+              : null}
+          </div>
         ) : null}
       </section>
 
@@ -581,8 +700,9 @@ const DashboardA = () => {
         </span>
         <span className="dba-legend dba-legend--rule">
           a filled ring is progress and the dim part of it is the honest middle — claims marked but
-          unproved, objectives declared blocked. A pulsing mark owes you something. Everything here
-          opens its document; nothing here presses it.
+          unproved, objectives declared blocked. A pulsing mark owes you something. Pressing a mark
+          narrows the lane below it to that one document; every row and every sheet opens its
+          document, and nothing here presses it.
         </span>
       </footer>
     </div>

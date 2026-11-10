@@ -212,16 +212,26 @@ describe("the standing tile", () => {
     expect(document.querySelectorAll(".dba-track .dba-mark")).toHaveLength(2);
   });
 
-  it("draws a project with nothing registered and says WHY it is empty", () => {
+  it("folds a project with nothing registered behind a count, and says WHY it is empty when opened", () => {
     render(<StandingTileA data={data([], { roots: { gamma: "/repos/gamma" } })} />);
+    expect(screen.queryByText("gamma")).not.toBeInTheDocument();
+    const fold = screen.getByRole("button", { name: /1 project with nothing in them/i });
+    fold.click();
     expect(screen.getByText("gamma")).toBeInTheDocument();
-    expect(screen.getByText(/nothing registered/)).toBeInTheDocument();
+    expect(screen.getByText(/no document in this project carries a leaf/)).toBeInTheDocument();
   });
 
-  it("opens a mark's document through the surface's opener", () => {
+  // A MARK IS A FILTER, NOT A DOOR — *"clicking them shouldn't take you to the document."* The
+  // tile's opener is the SURFACE's, so what matters here is that the mark never reaches it and the
+  // row it reveals still does.
+  it("narrows the lane on a mark's press and opens nothing; the row it reveals is the door", () => {
     const d = data([APPROVAL]);
     render(<StandingTileA data={d} />);
     document.querySelector(".dba-track .dba-mark").click();
+    expect(d.open).not.toHaveBeenCalled();
+    const row = document.querySelector(".dba-list .dba-row");
+    expect(row).not.toBeNull();
+    row.click();
     expect(d.open).toHaveBeenCalledWith(expect.objectContaining({ project: "alpha", path: "RFCs/RFC-071.md" }));
   });
 });

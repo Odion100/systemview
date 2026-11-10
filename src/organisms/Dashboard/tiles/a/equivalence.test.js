@@ -140,6 +140,10 @@ const mountTile = (Tile) => render(<Tile data={data()} />).container;
 describe("the fixture itself is worth comparing over", () => {
   it("draws every shape the page has — otherwise the equality below proves the easy half", async () => {
     const page = await mountPage();
+    // THE EMPTY LANE IS BEHIND THE FOLD NOW, so the fixture's own shape check opens it — a count
+    // of lanes taken with the fold shut would be counting the page's footnote out of the fixture.
+    expect(page.querySelector(".dba-quiet")).toBeInTheDocument();
+    page.querySelector(".dba-quiet__more").click();
     expect(page.querySelectorAll(".dba-lane").length).toBeGreaterThan(2);
     expect(page.querySelectorAll(".dba-track .dba-mark").length).toBeGreaterThan(3);
     expect(page.querySelectorAll(".dba-owed").length).toBeGreaterThan(2);

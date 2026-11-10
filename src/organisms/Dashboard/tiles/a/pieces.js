@@ -1,5 +1,5 @@
 import React from "react";
-import { PHASES } from "../../../DashboardA/dashboardA.data";
+import { PHASES, kindsIn } from "../../../DashboardA/dashboardA.data";
 import { fillStyle } from "../../../../atoms/meterWidth";
 
 // ─── A'S PIECES — THE PARTS MORE THAN ONE OF A'S TILES DRAWS ───────────────────────────────────
@@ -29,12 +29,16 @@ export const Chip = ({ kind, children }) => (
  *             an arc — with the HONEST MIDDLE drawn in the dimmed hue: marked-but-unproved claims
  *             and blocked objectives are neither done nor untouched, and a ring that folded them
  *             into either neighbour would be the lie the derivations were written to stop.
- *   THE PULSE it owes him something. The pulse is a POINTER, not a press: clicking opens the file.
+ *   THE PULSE it owes him something. The pulse is a POINTER, not a press.
+ *
+ * PRESSING ONE FILTERS THE LANE BELOW IT TO THAT ONE DOCUMENT — it does not open the file. His
+ * call: *"clicking them shouldn't take you to the document. I don't like that."* The card already
+ * says what the mark is, so the press is for narrowing, and the row it reveals is the door.
  *
  * A mark whose file has drifted past the last parse gets a motion trail, because on a page about
  * movement the one honest signal of movement is the registry's own lag (§1.4).
  */
-export const Mark = ({ m, open }) => {
+export const Mark = ({ m, onPress, pressed }) => {
   const total = m.bar ? m.bar.total : 0;
   const done = total ? Math.round((m.bar.done / total) * 100) : 0;
   const extra = total ? Math.round(((m.bar.done + m.bar.extra) / total) * 100) : 0;
@@ -54,7 +58,8 @@ export const Mark = ({ m, open }) => {
       type="button"
       className={cls}
       style={{ "--done": done, "--extra": extra }}
-      onClick={() => open({ project: m.project, path: m.path, line: (m.owes[0] && m.owes[0].line) || 1 })}
+      onClick={onPress}
+      aria-pressed={!!pressed}
       aria-label={`${m.id} — ${m.title}`}
     >
       <span className="dba-mark__dot" />
@@ -202,8 +207,21 @@ export const OwedGroup = ({ g, open: shown, onToggle, onOpen }) => {
   );
 };
 
-/** One project: who it is, what it owes, the track, the stack, and the numbers on request. */
-export const Lane = ({ p, fanned, onFan, shown, onShow, open }) => (
+/** One project: who it is, what it owes, the track, the stack, and the numbers it is asked for. */
+export const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny, open }) => {
+  // THE LANE'S OWN FILTER WORDS, and the rows they open. Derived from the marks in front of him,
+  // so a word never offers a count that opens an empty list.
+  const kinds = kindsIn(p.marks);
+  const held = kinds.filter((k) => picks[k.kind]).map((k) => k.kind);
+  // A PINNED MARK IS THE NARROWEST FILTER THERE IS, so it wins over the kind words rather than
+  // intersecting with them — pressing a mark means "just that one", and an intersection could
+  // only ever answer with the same row or with nothing.
+  const rows = only
+    ? p.marks.filter((m) => m.key === only)
+    : held.length
+      ? p.marks.filter((m) => held.includes(m.kind))
+      : [];
+  return (
   <article className={`dba-lane${p.registered ? "" : " is-quiet"}`}>
     <header className="dba-lane__head">
       <h3 className="dba-lane__code">{p.code}</h3>
@@ -233,23 +251,38 @@ export const Lane = ({ p, fanned, onFan, shown, onShow, open }) => (
               {p.marks
                 .filter((m) => m.phase === ph.id)
                 .map((m) => (
-                  <Mark key={m.key} m={m} open={open} />
+                  <Mark key={m.key} m={m} pressed={only === m.key} onPress={() => onOnly(m.key)} />
                 ))}
             </div>
           ))}
           <div className="dba-track__stack">
-            <StackPile reports={p.reports} open={fanned} onToggle={onFan} />
+            {p.reports.length || !heldAny ? <StackPile reports={p.reports} open={fanned} onToggle={onFan} /> : null}
           </div>
         </div>
         <StackFan reports={p.reports} open={fanned} onOpen={open} />
-        {p.marks.length ? (
-          <button type="button" className="dba-lane__more" onClick={onShow} aria-expanded={shown}>
-            {shown ? "hide the numbers" : "the numbers"}
-          </button>
+        {/* THE KINDS IN THE LANE ARE THE CONTROL — there is no show-hide button left, because a
+            show-hide answers one question ("is there more?") and the words answer the one he
+            actually has ("where are the gaps?"). Pressing a word opens the numbers filtered to
+            that kind; more than one at a time; pressing the last one shut closes the list. */}
+        {kinds.length ? (
+          <div className="dba-lane__picks">
+            {kinds.map((k) => (
+              <button
+                key={k.kind}
+                type="button"
+                className={`dba-pick dba-pick--${k.kind}${picks[k.kind] ? " is-on" : ""}`}
+                aria-pressed={!!picks[k.kind]}
+                onClick={() => onPick(k.kind)}
+              >
+                {k.n} {KIND_WORD[k.kind]}
+                {k.n === 1 || k.kind === "rfc" ? "" : "s"}
+              </button>
+            ))}
+          </div>
         ) : null}
-        {shown ? (
+        {rows.length ? (
           <ul className="dba-list">
-            {p.marks.map((m) => (
+            {rows.map((m) => (
               <li key={m.key}>
                 <button type="button" className="dba-row" onClick={() => open({ project: m.project, path: m.path, line: (m.owes[0] && m.owes[0].line) || 1 })}>
                   <Chip kind={m.kind} />
@@ -280,11 +313,13 @@ export const Lane = ({ p, fanned, onFan, shown, onShow, open }) => (
       // A PROJECT IS DRAWN EVEN WITH NOTHING IN IT, and it says WHY it is empty. A lane missing
       // from the page reads as "no work here"; a lane that says "nothing has ever been parsed"
       // reads as what it is. Those are not the same sentence and only one of them is ever true of
-      // a folder nobody has looked at.
+      // a folder nobody has looked at. This lane lives behind the fold now — folded, not dropped,
+      // so the sentence is still there to open.
       <p className="dba-lane__none">
         nothing registered — no document in this project carries a leaf anything has parsed
         {p.root ? <code>{p.root}</code> : null}
       </p>
     )}
   </article>
-);
+  );
+};

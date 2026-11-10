@@ -11,6 +11,9 @@ import dashboard, {
   phaseOf,
   readingLine,
   reportCard,
+  foldLanes,
+  holdLanes,
+  kindsIn,
 } from "./dashboardA.data";
 import { TRAILS } from "../../atoms/Markdown/blocks/lifecycleState";
 
@@ -314,5 +317,91 @@ describe("nothing is omitted silently", () => {
     expect(() => dashboard()).not.toThrow();
     expect(dashboard().projects).toEqual([]);
     expect(dashboard({ docs: [null, {}, { row: {} }] }).marks).toEqual([]);
+  });
+});
+
+// ─── THE PAGE IS FILTERABLE, AND THE OMISSIONS STAY DIFFERENT ──────────────────────────────────
+//
+// Three asks, one surface, and the thing they all turn on is that NOTHING IS DROPPED SILENTLY: a
+// lane with nothing in it is folded behind its own count, a lane the filter excludes is a fact
+// about what he is holding, and a filter word never offers a number that opens an empty list.
+describe("the fold and the filter", () => {
+  const lanes = () => dashboard({ docs: DOCS(), roots: ROOTS, now: NOW }).projects;
+
+  it("folds the lanes with nothing to draw, and folds nothing else", () => {
+    const { live, quiet } = foldLanes(lanes());
+    expect(quiet.map((p) => p.code)).toEqual(["gamma"]);
+    expect(live.map((p) => p.code).sort()).toEqual(["alpha", "beta"]);
+    // the folded lane is the WHOLE lane, still carrying why it is empty
+    expect(quiet[0].registered).toBe(0);
+  });
+
+  it("folds a lane whose every document has gone, not just one nobody ever parsed", () => {
+    const projects = [
+      { code: "alpha", registered: 4, marks: [{ phase: "moving", kind: "rfc" }], reports: [] },
+      { code: "beta", registered: 7, marks: [], reports: [] },
+    ];
+    const { live, quiet } = foldLanes(projects);
+    expect(live.map((p) => p.code)).toEqual(["alpha"]);
+    // REGISTERED AND STILL EMPTY — it draws exactly as blank a lane, and it is the blankness he
+    // asked to have folded away
+    expect(quiet.map((p) => p.code)).toEqual(["beta"]);
+  });
+
+  it("holds nothing by default, which is why there is no `all` to press", () => {
+    const all = lanes();
+    expect(holdLanes(all, [])).toBe(all);
+    expect(holdLanes(all)).toBe(all);
+  });
+
+  it("narrows every lane to the held column, across projects at once", () => {
+    const held = holdLanes(foldLanes(lanes()).live, ["moving"]);
+    expect(held.flatMap((p) => p.marks.map((m) => m.id))).toEqual(["RFC-071"]);
+    // and a lane with nothing moving is not drawn at all
+    expect(held.map((p) => p.code)).toEqual(["alpha"]);
+  });
+
+  it("holds more than one at a time", () => {
+    const held = holdLanes(foldLanes(lanes()).live, ["moving", "landed"]);
+    const ids = held.flatMap((p) => p.marks.map((m) => m.id)).sort();
+    expect(ids).toEqual(["RFC-071", "RFC-073"]);
+    // beta's gap is PROPOSED, so holding moving + landed leaves it out — the filter is the
+    // columns he is holding and nothing else
+    expect(ids).not.toContain("G-9");
+    expect(held.map((p) => p.code).sort()).toEqual(["alpha", "beta"]);
+  });
+
+  it("treats reports as a column like any other — held, they are the only thing left", () => {
+    const only = holdLanes(foldLanes(lanes()).live, ["reports"]);
+    expect(only.map((p) => p.code)).toEqual(["alpha"]);
+    expect(only[0].marks).toEqual([]);
+    expect(only[0].reports.length).toBe(4);
+    // and a phase held WITHOUT reports leaves the stack out rather than emptying it quietly
+    expect(holdLanes(foldLanes(lanes()).live, ["moving"])[0].reports).toEqual([]);
+  });
+
+  it("never mutates the lanes it narrows", () => {
+    const all = foldLanes(lanes()).live;
+    const before = all.map((p) => p.marks.length);
+    holdLanes(all, ["landed"]);
+    expect(all.map((p) => p.marks.length)).toEqual(before);
+  });
+
+  it("offers a lane only the kinds actually in front of him, with their counts", () => {
+    const alpha = foldLanes(lanes()).live.find((p) => p.code === "alpha");
+    expect(kindsIn(alpha.marks)).toEqual([{ kind: "rfc", n: 3 }, { kind: "arc", n: 1 }]);
+    // A WORD THAT WOULD OPEN AN EMPTY LIST IS NOT THERE: alpha has no gap, and under a held
+    // column it has no arc either.
+    expect(kindsIn(alpha.marks).map((k) => k.kind)).not.toContain("gap");
+    const moving = holdLanes([alpha], ["moving"])[0];
+    expect(kindsIn(moving.marks)).toEqual([{ kind: "rfc", n: 1 }]);
+    expect(kindsIn([])).toEqual([]);
+    expect(kindsIn()).toEqual([]);
+  });
+
+  it("never offers `report` as one of a lane's kinds — reports are not in the list those words open", () => {
+    const alpha = foldLanes(lanes()).live.find((p) => p.code === "alpha");
+    expect(alpha.reports.length).toBeGreaterThan(0);
+    expect(kindsIn(alpha.marks).map((k) => k.kind)).not.toContain("report");
   });
 });

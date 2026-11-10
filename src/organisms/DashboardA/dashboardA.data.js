@@ -399,4 +399,56 @@ export function readingLine(totals = {}) {
   return parts.join(" · ");
 }
 
+/**
+ * THE FOOTNOTE LANES, FOLDED AWAY — the ones with nothing to draw.
+ *
+ * A project nobody has ever parsed still has to be sayable: a lane missing from the page reads as
+ * "no work here", and only "nothing registered" is ever true of a folder nobody has looked at. So
+ * they are not dropped — they are FOLDED, behind a count that says how many there are. The number
+ * is the statement; the lanes are still there to open.
+ *
+ * NOTHING TO DRAW, not `!registered` — a project whose every document is retired or a fixture
+ * draws exactly as empty a lane as one nobody parsed, and it is the emptiness he is folding away.
+ */
+export function foldLanes(projects = []) {
+  const draws = (p) => !!((p.marks || []).length || (p.reports || []).length);
+  return { live: projects.filter(draws), quiet: projects.filter((p) => !draws(p)) };
+}
+
+/**
+ * THE AXIS IS A FILTER — hold a column and everything below it narrows to that column, across
+ * every project at once. More than one at a time, and `reports` is a column like any other.
+ *
+ * NOTHING HELD MEANS EVERYTHING, which is why there is no `all`: the page already shows everything
+ * before anybody presses, so a control for that state would be a control for the default.
+ *
+ * A LANE WITH NOTHING LEFT UNDER THE FILTER IS NOT DRAWN — and it does not join `foldLanes`'s
+ * quiet set either, because "excluded by the filter you are holding" and "nothing was ever parsed
+ * here" are different sentences and only one of them is about the project.
+ */
+export function holdLanes(projects = [], held = []) {
+  const keys = [...(held || [])].filter(Boolean);
+  if (!keys.length) return projects;
+  const phases = keys.filter((k) => k !== "reports");
+  const wantReports = keys.includes("reports");
+  return projects
+    .map((p) => ({
+      ...p,
+      marks: (p.marks || []).filter((m) => phases.includes(m.phase)),
+      reports: wantReports ? p.reports || [] : [],
+    }))
+    .filter((p) => p.marks.length || p.reports.length);
+}
+
+/**
+ * A LANE'S OWN FILTER WORDS — the kinds actually in front of him, with their counts.
+ *
+ * Derived from the marks AS FILTERED, never from the project's totals: a word offering `2 gaps`
+ * that opens an empty list is worse than no word, and the phase filter above can empty a kind out
+ * from under it. A report is never one of them — reports do not travel, so they are not in the
+ * list these words open.
+ */
+export const kindsIn = (marks = []) =>
+  MOVING_KINDS.map((kind) => ({ kind, n: (marks || []).filter((m) => m.kind === kind).length })).filter((x) => x.n);
+
 export default dashboard;

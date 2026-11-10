@@ -403,14 +403,25 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
   border-bottom: 1px solid var(--sv-border);
 }
 :root.sv-dark .dba-axis { background: var(--sv-bg); }
+// A COLUMN IS A BUTTON NOW, and it has to keep looking like a label: the reset is the whole of
+// what makes a pressable legend indistinguishable from the legend it was.
 .dba-axis__col {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding-left: 9px;
+  padding: 0 0 0 9px;
   border-left: 2px solid var(--sv-border-soft);
   b { font-size: 11.5px; color: var(--sv-text-strong); letter-spacing: 0.2px; }
   i { font-size: 10px; font-style: normal; color: var(--sv-text-faint); line-height: 1.35; }
+  &:hover b { text-decoration: underline; text-decoration-color: var(--sv-border); text-underline-offset: 3px; }
 }
 .dba-axis__n { font-size: 10px; color: var(--sv-text-muted); }
 // THE DIRECTION OF TRAVEL, SHOWN. The left border warms up left to right, so the axis reads as a
@@ -422,6 +433,14 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
 .dba-axis__col--landed { border-left-color: var(--dba-report); }
 .dba-axis__col--setdown { border-left-color: var(--sv-border-soft); }
 .dba-axis__col--stack { border-left-color: var(--dba-report-dim); }
+
+// HELD. An underline, because it is the one mark that reads as "this word is doing something" on a
+// word whose colour already means its phase — his call on the report filters, kept here.
+.dba-axis__col.is-on {
+  b { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  i { color: var(--sv-text-muted); }
+  .dba-axis__n { color: var(--sv-text-strong); font-weight: 600; }
+}
 
 // ─── ONE LANE ──────────────────────────────────────────────────────────────────────────────────
 .dba-lane {
@@ -489,16 +508,63 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
   color: var(--sv-text-faint);
   code { margin-left: 8px; font-size: 10px; }
 }
-.dba-lane__more {
+// THE LANE'S FILTER WORDS — the same words the head counts in, because they are the same fact:
+// a kind and how much of it is here. Nothing about them says "button" until you are over one.
+.dba-lane__picks {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-top: 8px;
-  padding: 2px 8px;
-  border: 1px solid var(--sv-border);
-  border-radius: 4px;
+}
+.dba-pick {
+  appearance: none;
+  -webkit-appearance: none;
   background: transparent;
+  border: 0;
+  font: inherit;
   font-size: 10.5px;
   color: var(--sv-text-muted);
   cursor: pointer;
-  &:hover { background: var(--sv-hover); color: var(--sv-text-strong); }
+  padding: 0 0 0 9px;
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.45em;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+  }
+  &:hover { color: var(--sv-text-strong); }
+}
+.dba-pick--rfc::before { background: var(--dba-rfc); }
+.dba-pick--arc::before { background: var(--dba-arc); }
+.dba-pick--gap::before { background: var(--dba-gap); }
+// DECLARED LAST so the colour rules above cannot out-specify the one state he reads.
+.dba-pick.is-on {
+  color: var(--sv-text-strong);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+// THE FOOTNOTE LANES. The count is the statement, so the control is a line of text and not a
+// panel: he reads it and moves on, or he opens it.
+.dba-quiet {
+  margin-top: 10px;
+}
+.dba-quiet__more {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--sv-text-faint);
+  cursor: pointer;
+  &:hover { color: var(--sv-text-muted); }
 }
 
 .dba-track {
@@ -609,6 +675,7 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
   pointer-events: none;
 }
 :root.sv-dark .dba-card { background: var(--sv-pane-header); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+
 .dba-mark:hover .dba-card,
 .dba-mark:focus-visible .dba-card { display: flex; }
 .dba-card__id { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--sv-text-strong); }
