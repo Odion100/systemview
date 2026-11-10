@@ -110,7 +110,7 @@ export default function ReportsTile({ data }) {
                       .map((k) => (
                         <span
                           key={k.chip}
-                          className={`dbb-stack__urgent dbb-stack__pick${held(k.chip)}`}
+                          className={`dbb-stack__more dbb-stack__pick${held(k.chip)}`}
                           role="button"
                           tabIndex={0}
                           onClick={press(k.chip)}

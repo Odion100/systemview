@@ -401,6 +401,33 @@ describe("the ways an open stack offers to read itself", () => {
     expect(container.querySelectorAll(".dbb-stack__pick")).toHaveLength(0);
   });
 
+  // THE ADDED WORDS ARE NOT THE DEADLINE LINE, and that has to be asserted rather than looked at:
+  // they borrowed `__urgent` for its type, and `.is-urgent .dbb-stack__urgent` then painted every
+  // one of them red on any urgent pile — the whole list one colour, saying nothing. This pile IS
+  // urgent, so the class check here is the regression.
+  it("the words it adds are its own, not the deadline line wearing their text", () => {
+    const { mine } = draw();
+    fireEvent.click(mine.querySelector(".dbb-stack__face"));
+    expect(mine).toHaveClass("is-urgent");
+    const added = [...mine.querySelectorAll(".dbb-stack__more")];
+    expect(added.map((e) => e.textContent)).toEqual(["3 account", "1 audit"]);
+    added.forEach((e) => expect(e).not.toHaveClass("dbb-stack__urgent"));
+  });
+
+  // AND THE HELD WORD SAYS SO. Colour alone could not: the held one might be the red deadline line
+  // or the report-hue unopened line, so the mark has to read the same on any of the three.
+  it("the word that is holding is marked, whichever line it is", () => {
+    const { mine } = draw();
+    fireEvent.click(mine.querySelector(".dbb-stack__face"));
+    expect(mine.querySelectorAll(".dbb-stack__pick.is-on")).toHaveLength(0);
+    fireEvent.click(within(mine).getByTitle("show only the 3 about to go"));
+    expect(mine.querySelector(".dbb-stack__pick.is-on").textContent).toBe("3 about to go");
+    fireEvent.click(within(mine).getByTitle("show only the 1 audit report"));
+    const on = [...mine.querySelectorAll(".dbb-stack__pick.is-on")];
+    expect(on).toHaveLength(1);
+    expect(on[0].textContent).toBe("1 audit");
+  });
+
   it("an open card grows more of its own words, under the two it already said", () => {
     const { mine, other } = draw();
     fireEvent.click(mine.querySelector(".dbb-stack__face"));

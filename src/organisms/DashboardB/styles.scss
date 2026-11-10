@@ -681,17 +681,42 @@
   // A WORD THAT NARROWS THE FAN. It is already drawn — this adds a cursor and says which one is
   // holding, and nothing else. No border, no capitals, no size of its own: the lines he pointed at
   // are the control, so a control that looked like anything would be a change he did not ask for.
+  // A WORD THAT NARROWS THE FAN — behaviour only. The line is already drawn and keeps whatever
+  // colour it had: "about to go" stays the deadline's red on an urgent pile, "unopened" stays the
+  // report hue. A control that recoloured the words would be the look changing.
   &__pick {
     cursor: pointer;
-    &:hover {
-      color: var(--sv-text-strong);
-    }
-    &.is-on {
-      color: var(--dbb-report);
-    }
+  }
+  // THE WORDS ADDED UNDER THEM — their own class, and that is load-bearing rather than tidiness.
+  // They were drawn as `__urgent` to borrow its type, and `.is-urgent &__urgent` below then painted
+  // EVERY one of them the deadline red: on an urgent pile the whole list went red and said nothing.
+  // Same values, no inheritance of a meaning they do not carry.
+  &__more {
+    margin-top: 2px;
+    font-size: 10.5px;
+    color: var(--sv-text-faint);
   }
   &.is-urgent &__urgent {
     color: var(--dbb-press);
+  }
+  // WHICH WORD IS HOLDING: BOLD, WITH AN ARROW POINTING AT IT. His call, and it is the right one —
+  // colour alone could never carry this, because the held word might be the red deadline line or
+  // the report-hue unopened line, and a third colour over those reads as decoration rather than as
+  // a state. Weight and a glyph read the same on all three.
+  //
+  // IT SITS AFTER THE COLOUR RULES ABOVE so nothing out-specifies it. That is not style: the first
+  // attempt at this indicator was a colour declared BEFORE `.is-urgent &__urgent`, so on an urgent
+  // pile the selection was painted over and the card had no way to say what it was showing.
+  //
+  // The arrow is `::before` rather than text so the word's own content stays exactly the words —
+  // the line is still "1 audit", which is what the fan is filtered by and what a reader quotes.
+  &__pick.is-on {
+    color: var(--sv-text-strong);
+    font-weight: 600;
+    &::before {
+      content: "→ ";
+      font-weight: 400;
+    }
   }
   &.is-urgent &__face {
     border-color: var(--dbb-press);
