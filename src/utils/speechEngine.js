@@ -13,16 +13,22 @@
 import { spokenChunks } from "./spokenForm";
 
 let CTX = null;
+// GETTING THE CONTEXT IS NOT A PRESS, and conflating the two was a bug he reported twice.
+//
+// This used to resume a suspended context every time anybody asked for it — put there because a
+// context built before a gesture starts suspended, so the first press after a cold load was
+// silent. True, and the wrong place for the cure: `playSamples` asks for the context on EVERY
+// chunk, so a run that had been deliberately suspended by `pause()` resumed itself the moment the
+// next chunk finished generating. *"If you press pause too quickly it will still play, because the
+// chunk wouldn't really start playing yet."* The pause was real and then a getter undid it.
+//
+// So asking is asking. Waking it up is `resumeContext()`, called where a PRESS actually is.
 const context = () => {
   if (!CTX) {
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return null;
     CTX = new C();
   }
-  // A CONTEXT CREATED BEFORE A GESTURE STARTS SUSPENDED and plays nothing, silently. The press is
-  // the gesture, so resuming here — every time, it is a no-op when already running — is what makes
-  // the first press after a cold load audible.
-  if (CTX.state === "suspended" && CTX.resume) CTX.resume();
   return CTX;
 };
 
@@ -197,6 +203,17 @@ export function makeSpeechEngine({ name, generate, voices, available, ready, loa
 
     let index = 0;
     let paused = false;
+    // THE GATE THE LOOP WAITS AT. Suspending the context freezes a chunk that is already SOUNDING;
+    // it does nothing about a chunk that has not started, and between chunks that is every chunk.
+    // So the loop asks whether it is still allowed to be heard, right before it is heard — *"if you
+    // press pause, it should read the state and not play regardless."*
+    let gate = null;
+    const openGate = () => {
+      const g = gate;
+      gate = null;
+      if (g) g();
+    };
+    const heldHere = () => (paused ? new Promise((res) => { gate = res; }) : null);
     // BUMPED ON EVERY SEEK. An in-flight play or generation belongs to the position it was started
     // from; after a jump it must abandon rather than advance the index it no longer describes.
     let pass = 0;
@@ -211,6 +228,10 @@ export function makeSpeechEngine({ name, generate, voices, available, ready, loa
         if (done) return;
         cancelled = true;
         pass += 1;
+        // LET THE LOOP OUT. A run cancelled while the loop is waiting at the gate would otherwise
+        // never return from it — and never reach `finish()`, so `onend` never fires and the
+        // control that was reading stays lit over silence.
+        openGate();
         silence();
         resumeContext();
         cache.clear();
@@ -232,6 +253,7 @@ export function makeSpeechEngine({ name, generate, voices, available, ready, loa
         if (done || !paused) return;
         paused = false;
         resumeContext();
+        openGate();
         report();
       },
       seek(to) {
@@ -243,6 +265,7 @@ export function makeSpeechEngine({ name, generate, voices, available, ready, loa
         if (paused) {
           paused = false;
           resumeContext();
+          openGate();
         }
         report();
         loop();
@@ -267,6 +290,15 @@ export function makeSpeechEngine({ name, generate, voices, available, ready, loa
           const at = index;
           const sound = await madeAt(at);
           if (cancelled || pass !== mine || index !== at) return;
+          // HELD BEFORE IT IS HEARD. Generating a chunk takes real time, and a pause pressed
+          // during it has to be READ here — the alternative is the thing he kept catching: the
+          // press registered, the button said paused, and the chunk spoke anyway because it had
+          // not started when he pressed.
+          const wait = heldHere();
+          if (wait) {
+            await wait;
+            if (cancelled || pass !== mine || index !== at) return;
+          }
           // QUEUED, NOT AWAITED — the model works on the next sentence for the whole duration of
           // this one, so the gap between sentences is hidden rather than merely short. A failure
           // here is not fatal: the sentence is generated again when the loop reaches it.
@@ -288,6 +320,9 @@ export function makeSpeechEngine({ name, generate, voices, available, ready, loa
       }
     }
 
+    // THE PRESS IS THE GESTURE, so this is where a suspended context is woken — synchronously,
+    // inside the call the user's press made, which is also what the browser's autoplay rule wants.
+    resumeContext();
     (async () => {
       // READY BEFORE THE FIRST SENTENCE. For the in-page engine this is the 86MB model load; for
       // the harness it is a handshake that costs nothing. Either way a failure here is the whole
