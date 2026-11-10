@@ -38,7 +38,7 @@ too short, because prose stops being interesting long before it stops being evid
 forever is still another kind of document wearing a report's leaf — evidence has a finite useful
 life, and a trace nobody maintains is not a commitment. Findings still have to leave for gaps and
 cards, conclusions still have to land in an arc or a plan. What stays behind is the account, and it
-expires harmlessly a month later rather than a day later.
+expires harmlessly inside the week.
 
 **The clock still measures his attention, not wall time.** It does not start until he first opens the
 report, so an unread one has spent none of its window and a job that finishes at 3am is still waiting
@@ -65,7 +65,7 @@ sitting's account on the drawer for three months.
 | when you are writing one | `as=` | what it carries beyond the basics | `retain=` |
 |---|---|---|---|
 | a design conversation, before there is a plan | `planning` | the argument, the choice made, what is most worth rejecting | `7d` |
-| an unattended job's sitting | `account` | what landed, what it could not verify, and a `::commit` record per commit | `30d` |
+| an unattended job's sitting | `account` | what landed, what it could not verify, and a `::commit` record per commit | `1d`–`7d` |
 | a run that was **abandoned** | `account` | why it stopped, and what the next person picks up from | `6–12h` |
 | a code or architecture audit | `audit` | the count, the method, the tree state it counted against | `7d` |
 | work handed to another agent | `brief` | the problem, the constraints, the measured facts — no sketch | `7d` |
@@ -117,29 +117,39 @@ DIVERT is what handles the case where the deciding is taking longer than a week.
 is a planning report sitting for a month because nobody looked at it: the decision is the work, and
 a window that never pressures it never gets one.
 
-### Why a sitting's account is 30d
+### Why a sitting's account is 1d–7d — nothing in it keeps answering
 
-**It is the only record of WHY, and `30d` is how long a landing can still be the suspect.** The
-account's facts are not already elsewhere, which is the thing that looks true and is not: the
-objective carries its state, each commit carries `Serves:` and its diff — and none of them carries
-what else was tried, what was ruled out, or what the run could not verify. When something goes bad
-three weeks later, that is exactly what you need, and the walk is report → commit → report.
+**A LONG WINDOW IS EARNED BY A SPEC, NOT BY THE KIND OF WORK THAT PRODUCED THE DOCUMENT.** That is
+the rule the numbers in this table come from, and it is the one worth carrying out of this chapter:
+a document carrying living proofs stays useful because its evidence RE-RUNS — it answers again next
+month, and goes red on its own when the ground moves. Prose does not. An account only gets older, so
+it has no business holding a month.
 
-So the arbitration this settles: a nightly job's account is NOT the same category as a chat summary.
-`30d` rather than `24h` because a day is shorter than the time it takes for a bad landing to show
-itself, and NOT `permanent` because after a month the code has moved and the account is describing a
-tree that no longer exists. If the folder growing worries you, that is the janitor's job and not the
-window's.
+An account is what an agent leaves after DOING WORK — a job's sitting, a run that landed something.
+It is the only record of what else was tried, what was ruled out, and what the run could not verify,
+and none of that is in the objective's state or the commit's diff. That is why it is written at all.
+It is not why it should persist.
+
+**Because the durable half is supposed to LEAVE.** This chapter already says it above: anything
+durable inside a report is written somewhere durable before the window closes. A long window on an
+account works against that — it keeps the account alive INSTEAD of moving its findings to a gap, its
+lesson to a note, its link to a `::commit` record on the document the work served. A wide window does
+not preserve the durable part; it postpones having to move it, and then the clock takes it anyway.
+
+So: `1d` for a sitting whose whole value was today — a blocker, a small landing already visible in
+the tree. `7d` where a landing could still be the suspect inside the week. Past that, what you
+actually needed was never the account: it was the commit record and the spec, and both of those
+outlive every report by construction.
 
 ### Why an abandoned run's account is SHORTER, not longer
 
-This reads backwards until you ask what the account is FOR. `6–12h`, against the sitting's `30d`:
+This reads backwards until you ask what the account is FOR. `6–12h`, against the sitting's `1d`–`7d`:
 it is a live blocker, urgent today and worthless by Friday, because by then somebody picked the work
 up or the ground moved under it. A week-old *"stopped, waiting on his press"* is noise on a surface
 whose whole value is that everything on it is outstanding.
 
 **And the evidence argument does not reach it**, which is what keeps `6–12h` honest next to a
-sitting's `30d`: an abandoned run landed nothing, so there is no commit anybody will ever
+sitting's week: an abandoned run landed nothing, so there is no commit anybody will ever
 investigate and nothing to walk back from. It is a request, not a trace. The moment it DID land
 something, it is a sitting's account and takes that window instead.
 
@@ -306,7 +316,7 @@ moves, in this order:
 1. **CHOOSE the kind, from here.** `context("which report kind should I file, and why is its window
    that length")` — one phrasing, everywhere, chosen by measuring: it returns the choosing section at
    0.78 where phrasings that read just as well return the table, or the pointer that points here. A
-   producer may carry the decision it has already made inline (*"it is an `account` at `30d`"*) so the
+   producer may carry the decision it has already made inline (*"it is an `account` at `7d`"*) so the
    agent acts correctly without looking anything up.
 2. **Then WRITE it** — the report-writing skill, which owns the order and the irreversible bits
    (attach before the write that closes the run) and branches on the kind you just chose.
