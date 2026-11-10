@@ -18,7 +18,7 @@ import {
   hostProjectEntry,
 } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
-import { tabOrder, used as rankUsed, ran as rankRan, prune, dropAt, readRanks, writeRanks } from "./tabOrder";
+import { tabOrder, used as rankUsed, ran as rankRan, prune, dropAt, readRanks, writeRanks } from "../AgentChat/tabOrder";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useDockOrder, orderProjects, isNavDocked, pinId, setNavDocked, placeInDock } from "../AgentChat/navDock";
 import { liveSessions } from "../../utils/hostAgents";

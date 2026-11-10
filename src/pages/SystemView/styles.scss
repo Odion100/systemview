@@ -296,9 +296,13 @@ body.panel-resizing--bottom .panel-divider--h {
   }
   &__rail {
     align-self: stretch;
-    // AS LONG AS ITS AGENTS, not the page (his: "just like the tabs, it has its length — the
-    // number of agents tells you how long it needs to be"). Empty, it takes no room at all.
-    flex: 0 0 auto;
+    // AS LONG AS ITS AGENTS, UNTIL THERE ARE MORE AGENTS THAN SCREEN (his: "just like the tabs, it
+    // has its length — the number of agents tells you how long it needs to be", and then, at
+    // thirteen of them: "the dock needs to become scrollable because there's more agents on it
+    // pushing it out of the screen"). Both are the same rule: as long as its agents, capped by the
+    // window. `1 1 auto` lets it shrink inside the fixed column; `0 0 auto` could only grow.
+    // Empty, it still takes no room at all.
+    flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -322,6 +326,25 @@ body.panel-resizing--bottom .panel-divider--h {
       box-shadow: 0 1px 3px rgba(20, 30, 80, 0.12); // a lift, not a border (his catch)
       border-radius: 0 8px 8px 0;
       margin-top: 6px;
+      // SCROLLS WHEN THERE ARE MORE AGENTS THAN ROOM, and not before — the dock is still exactly
+      // as long as its spots until they run past the bottom of the window.
+      //
+      // AND THE CLIP THIS INTRODUCES IS THE WHOLE DIFFICULTY. A scroll container clips BOTH axes
+      // (`overflow-x: visible` beside `auto` computes to `auto`), and the things a rail bot draws
+      // when it is open — its panel, and the mini icons at left: 70–150px — live outside this
+      // 40px column on purpose. So an open bot is lifted OUT of the scroller and pinned to the
+      // window instead (`.agent-chat--rail-fixed`), which is the one case that needs to escape.
+      overflow-y: auto;
+      overflow-x: hidden;
+      // the page must not scroll because the dock ran out of dock
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      &::-webkit-scrollbar { width: 5px; }
+      &::-webkit-scrollbar-thumb {
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--sv-text-faint) 45%, transparent);
+      }
+      &::-webkit-scrollbar-track { background: transparent; }
     }
     // A SPOT: room for a face, a name and the mic. Empty, it shows a faint ring — a place an agent
     // can be dropped, and a place one has left.

@@ -1,4 +1,11 @@
-// ─── THE STRIP IS ORDERED BY WHAT HE HAS BEEN USING ────────────────────────────────────────────
+import { useEffect, useState } from "react";
+
+// ─── THE AGENTS ARE ORDERED BY WHAT HE HAS BEEN USING ──────────────────────────────────────────
+//
+// THIS LIVES BESIDE `navDock` BECAUSE IT IS NO LONGER THE STRIP'S ALONE. *"The order of the agents
+// on the dock, when the panel is closed and the dock is there, should be tied to the order of the
+// agents in the tabs."* Two surfaces showing the same agents in two different orders is two
+// mental models of one thing, so there is one answer and both of them read it.
 //
 // *"Don't you understand there's no this order? It's ordered by what I've been using. It's common
 // sense!"*
@@ -64,6 +71,25 @@ export const writeRanks = (r) => {
   try {
     localStorage.setItem(KEY, JSON.stringify(r));
   } catch {}
+  // ANNOUNCED, because the strip is not the only reader any more — the dock draws the same agents
+  // in the same order, and a surface that had to be re-opened to see the current one would be the
+  // second mental model this file exists to prevent.
+  try {
+    window.dispatchEvent(new CustomEvent("sv:tabRanks"));
+  } catch {
+    /* an environment with no CustomEvent still gets the stored ranks */
+  }
+};
+
+/** The ranks, kept fresh — for any surface that draws the agents and did not write them. */
+export const useTabRanks = () => {
+  const [ranks, setRanks] = useState(readRanks);
+  useEffect(() => {
+    const read = () => setRanks(readRanks());
+    window.addEventListener("sv:tabRanks", read);
+    return () => window.removeEventListener("sv:tabRanks", read);
+  }, []);
+  return ranks;
 };
 
 /**

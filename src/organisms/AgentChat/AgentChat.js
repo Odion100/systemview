@@ -26,6 +26,7 @@ import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } fro
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { pointTargetOf } from "./pointTarget";
 import { slotId, pinId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects, carrying, carried } from "./navDock";
+import { tabOrder, useTabRanks } from "./tabOrder";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
 import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
@@ -2039,17 +2040,28 @@ export default function AgentChats() {
     .map((pc, i) => <BotBubble key={pc} projectCode={pc} index={i} />);
 }
 
-// THE DOCK'S SPOTS, one per agent, in his order. Rendered by the page inside the rail;
-// each docked bot portals into its own spot, an undocked one leaves its spot visibly empty.
+// THE DOCK'S SPOTS, one per agent — IN THE SAME ORDER THE TABS ARE IN.
+//
+// *"The order of the agents on the dock, when the panel is closed and the dock is there, should be
+// tied to the order of the agents in the tabs."* The dock and the strip draw the same agents, and
+// before this they drew them in two different orders: the strip by what he had been using, the
+// dock by the raw dock order underneath it. Two orders for one set of agents is two mental models
+// of one thing, and the one he has been building is the strip's.
+//
+// SO IT IS THE SAME FUNCTION, OVER THE SAME RANKS, and the dock order is still what everything
+// falls back to — `tabOrder` is a layer on it, so an agent nothing has touched sits exactly where
+// his own arrangement put it. Rendered by the page inside the rail; each docked bot portals into
+// its own spot, and an undocked one leaves its spot visibly empty.
 export function DockSpots() {
   const { connectedServices } = useContext(ServiceContext);
   const order = useDockOrder();
+  const ranks = useTabRanks();
   const harnessPcs = useHarnessAgentProjects();
   const projects = useMemo(
     () => [...new Set([...(connectedServices || []).map((s) => s.projectCode), ...harnessPcs])].filter((pc) => !isParked(pc)),
     [connectedServices, harnessPcs],
   );
-  const ordered = orderProjects(order, projects);
+  const ordered = tabOrder({ order: orderProjects(order, projects), ranks });
   return ordered.map((pc) => <div key={pc} id={spotId(pc)} data-spot={pc} className="nav-panel__spot" title={pc} />);
 }
 
@@ -5430,6 +5442,31 @@ const countdown = (str, now = Date.now()) => {
   // beside the rail.
   const inRail = navDocked && !!slotEl && slotEl.id === spotId(projectCode);
   const inNav = navDocked && !!slotEl && !inRail;
+  // THE DOCK SCROLLS NOW, and a scroll container clips both axes — so a rail bot with anything
+  // open, whose panel and icon row are deliberately drawn outside the 40px column, has to leave
+  // the scroller. It is pinned to the WINDOW at the place its own spot occupies, and it keeps
+  // following that spot: the spot is still in the scroller, so a pinned bot that stopped tracking
+  // it would float away from its own slot the first time he scrolled the dock.
+  const railOpen = inRail && (open || tvOpen || linksOpen || boardOpen || cbOpen || cmdsOpen);
+  const [railSeat, setRailSeat] = useState(null);
+  useEffect(() => {
+    if (!railOpen || !slotEl) {
+      setRailSeat(null);
+      return undefined;
+    }
+    const sit = () => {
+      const r = slotEl.getBoundingClientRect();
+      setRailSeat({ top: Math.round(r.top), left: Math.round(r.left) });
+    };
+    sit();
+    const scroller = slotEl.parentElement;
+    if (scroller) scroller.addEventListener("scroll", sit, { passive: true });
+    window.addEventListener("resize", sit);
+    return () => {
+      if (scroller) scroller.removeEventListener("scroll", sit);
+      window.removeEventListener("resize", sit);
+    };
+  }, [railOpen, slotEl, open, tvOpen, linksOpen, boardOpen, cbOpen, cmdsOpen]);
   // ON SCREEN = floating (bubble visible, open or not), docked in the tab that is up — OR IN THE
   // RAIL. The rail counted as "elsewhere" until his live test overruled it (2026-10-26: "you're on
   // the dock… you can already see the preview and you're talking — there was no reason for you to
@@ -6367,8 +6404,16 @@ const countdown = (str, now = Date.now()) => {
   const body = (
     <div
       ref={rootRef}
-      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip && !inRail ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${speakingNow ? ` ${CLASSNAME}--speaking` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}${inNav ? ` ${CLASSNAME}--innav` : ""}${inRail ? ` ${CLASSNAME}--rail` : ""}${inRail && (open || tvOpen || linksOpen || boardOpen || cbOpen || cmdsOpen) ? ` ${CLASSNAME}--rail-open` : ""}${overDock ? ` ${CLASSNAME}--overdock` : ""}`}
-      style={inNav ? undefined : inRail ? { zIndex: z } : style}
+      className={`${CLASSNAME} ${topHalf ? `${CLASSNAME}--top` : ""} ${leftHalf ? `${CLASSNAME}--left` : ""} ${flip && !inRail ? `${CLASSNAME}--flipx` : ""} ${docked ? `${CLASSNAME}--docked` : ""}${saying ? ` ${CLASSNAME}--errand` : ""}${speakingNow ? ` ${CLASSNAME}--speaking` : ""}${iconsLeft ? ` ${CLASSNAME}--iconsleft` : ""}${inNav ? ` ${CLASSNAME}--innav` : ""}${inRail ? ` ${CLASSNAME}--rail` : ""}${railOpen ? ` ${CLASSNAME}--rail-open` : ""}${railSeat ? ` ${CLASSNAME}--rail-fixed` : ""}${overDock ? ` ${CLASSNAME}--overdock` : ""}`}
+      style={
+        inNav
+          ? undefined
+          : inRail
+            ? railSeat
+              ? { zIndex: z, position: "fixed", top: railSeat.top, left: railSeat.left }
+              : { zIndex: z }
+            : style
+      }
       // Touch any part of a bot — its bubble, panel, or TV — and it comes to the FRONT (his
       // ask: "if I click on it, I'm trying to be in that chat").
       onPointerDownCapture={bringToFront}

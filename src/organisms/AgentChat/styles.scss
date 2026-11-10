@@ -4339,6 +4339,16 @@ $sv-board-states: (
 }
 // OPEN FROM THE DOCK (his third ask): the chat drops a little so the name's row has room,
 // and the rest of the icons come out in a row beside the name; the mic stays where it is.
+// LIFTED OUT OF THE SCROLLING DOCK. The dock scrolls once there are more agents than screen, and
+// a scroll container clips both axes — so the one thing that draws outside the column, an OPEN
+// rail bot, is pinned to the window at the place its spot occupies instead. `top`/`left` come from
+// the component, measured off the spot and re-measured as the dock scrolls; everything else about
+// how it looks is the rail's, unchanged.
+.agent-chat--rail-fixed {
+  // over the rail's own lift, so a panel opening out of the dock is not under the next spot
+  z-index: 8600;
+}
+
 .agent-chat--rail-open {
   .agent-chat__bot > .agent-chat__miniboard,
   .agent-chat__bot > .agent-chat__minichat,
