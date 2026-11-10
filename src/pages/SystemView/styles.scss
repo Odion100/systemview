@@ -302,7 +302,12 @@ body.panel-resizing--bottom .panel-divider--h {
     // pushing it out of the screen"). Both are the same rule: as long as its agents, capped by the
     // window. `1 1 auto` lets it shrink inside the fixed column; `0 0 auto` could only grow.
     // Empty, it still takes no room at all.
-    flex: 1 1 auto;
+    //
+    // `0 1 auto`, NOT `1 1 auto` — SHRINK, NEVER GROW. With grow on, the dock stretched to fill the
+    // whole column whenever there were few enough agents to fit, which is the exact opposite of
+    // "the number of agents tells you how long it needs to be". Shrink is what the scroll needs;
+    // grow was never asked for and quietly undid the rule above.
+    flex: 0 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
@@ -384,6 +389,12 @@ body.panel-resizing--bottom .panel-divider--h {
     }
   }
   &__toggle {
+    // THE EDGE TAB IS NOT THE DOCK'S TO SQUASH. *"The nav is being stretched because of the rail
+    // pushing against it, because it has so much in it."* They are flex siblings in a column the
+    // height of the window, so when the dock's agents outgrow it SOMETHING has to give — and with
+    // the tab shrinkable and the dock not, it was the tab: "Navigator" lost its letters and read
+    // "Nav". The dock is the thing that scrolls, so the dock is the thing that gives.
+    flex: 0 0 auto;
     border: 1px solid #b0bed8;
     background: var(--sv-hover);
     color: var(--sv-blue);
