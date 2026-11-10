@@ -745,7 +745,7 @@ one kind and an open vocabulary on another. `why=` for the reason costs one word
 cleverness.
 :::
 
-:::approval{ask="Approve the 2026-10-29 amendment — a report declares its subtype AND its ending, and the countdown lives at the leaf?" verdict=approved by=you at=1794333170621}
+:::approval{ask="Approve the 2026-10-29 amendment — a report declares its subtype AND its ending, and the countdown lives at the leaf?" verdict=approved by=you at=1794333170621 told=systemview-test}
 The amendment (argued in chat, 2026-10-29, over a drawer of six unlabelled "reports") commits to:
 
 - **§2** — `as=` is required and the ending is explicit: every report leaf carries `retain=<window>`
@@ -846,7 +846,7 @@ whole document, stored nowhere, so the bar cannot disagree with the blocks where
 > modules that already have tests beside them. A second blind pass (2026-10-29) reviewed the
 > retention walk's marks; what it changed is written on the claims themselves.
 
-:::approval{ask="Is this the complete list of claims for RFC-076?" verdict=approved by=you at=1794333170621}
+:::approval{ask="Is this the complete list of claims for RFC-076?" verdict=approved by=you at=1794333170621 told=systemview-test}
 Pressing this makes the list the contract. A behaviour missing from it is one we agreed not to
 check — so the thing to read for is what is NOT here.
 
