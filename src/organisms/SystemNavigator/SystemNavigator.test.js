@@ -157,3 +157,103 @@ describe("the strip is ordered by what he has been using", () => {
     expect(names()).toEqual(["alpha", "gamma", "beta"]);
   });
 });
+
+// ─── CARRYING AN AGENT BACK INTO THE STRIP ─────────────────────────────────────────────────────
+//
+// *"If I pull it out, I should be able to move it and drop it back into the tabs."* And then, when
+// the first build docked it but left the order alone: *"it's not changing the order. I need to be
+// able to pick exactly where I drop it."*
+//
+// jsdom HAS NO LAYOUT, so every rect is zero and a drop index measured off them would be
+// meaningless — the rects are stubbed per tab, which is the only way an index test here says
+// anything at all.
+describe("carrying an agent back into the strip", () => {
+  const names = () => [...document.querySelectorAll(".system-nav__agenttab-name")].map((n) => n.textContent);
+  const line = () => document.querySelector(".system-nav__agenttab-line");
+  const carryTo = (pc, x) =>
+    act(() => {
+      window.dispatchEvent(new CustomEvent("sv:carry", { detail: { projectCode: pc, x, y: 10 } }));
+    });
+  const dropAtX = (pc, x) =>
+    act(() => {
+      window.dispatchEvent(new CustomEvent("sv:carried", { detail: { projectCode: pc, x, y: 10 } }));
+    });
+
+  // THE STRIP SPANS 0–300 AND EACH TAB IS 100 WIDE, so the midpoints are 50, 150 and 250 — the
+  // boundaries a drop is measured against.
+  const stubRects = () => {
+    const strip = document.querySelector(".system-nav__agenttabs");
+    strip.getBoundingClientRect = () => ({ left: 0, right: 300, top: 0, bottom: 20, width: 300, height: 20 });
+    [...strip.querySelectorAll(".system-nav__agenttab")].forEach((t, i) => {
+      t.getBoundingClientRect = () => ({ left: i * 100, right: i * 100 + 100, top: 0, bottom: 20, width: 100, height: 20 });
+    });
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem("sv.navView", "tabs");
+    localStorage.setItem("sv.navTabPc", "alpha");
+    localStorage.setItem("sv.husks", JSON.stringify(["alpha", "beta", "gamma"].map((projectCode) => ({ projectCode }))));
+    localStorage.setItem("sv.dockOrder", JSON.stringify(["alpha", "beta", "gamma"]));
+  });
+  afterEach(() => localStorage.clear());
+
+  it("draws a line where the drop would land, and no line when the pointer is off the strip", async () => {
+    render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab").length).toBe(3));
+    stubRects();
+    expect(line()).toBeNull();
+
+    // over the first half of the first tab — it would land at the very front
+    carryTo("gamma", 10);
+    expect(line()).not.toBeNull();
+    expect(line().nextElementSibling.textContent).toContain("alpha");
+
+    // past the middle of the second tab — it would land after beta
+    carryTo("gamma", 180);
+    expect(line().nextElementSibling.textContent).toContain("gamma");
+
+    // OFF THE STRIP, NO LINE. A drop out there is not this strip's business.
+    carryTo("gamma", 900);
+    expect(line()).toBeNull();
+  });
+
+  it("lands the agent exactly where the line was, and docks it", async () => {
+    render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab").length).toBe(3));
+    stubRects();
+    expect(names()).toEqual(["alpha", "beta", "gamma"]);
+
+    // carried to the front and let go there
+    carryTo("gamma", 10);
+    dropAtX("gamma", 10);
+    expect(names()).toEqual(["gamma", "alpha", "beta"]);
+    expect(line()).toBeNull();
+    // and it is home — docked, so its tab wears the agent again
+    expect(document.querySelector(".system-nav__agenttab").textContent).toContain("🤖");
+  });
+
+  it("leaves the order alone when the agent is dropped anywhere else", async () => {
+    render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab").length).toBe(3));
+    stubRects();
+    carryTo("gamma", 10);
+    dropAtX("gamma", 900); // let go out over the page
+    expect(names()).toEqual(["alpha", "beta", "gamma"]);
+    expect(line()).toBeNull();
+  });
+
+  it("a drop STICKS — the next agent to start working cannot take its place", async () => {
+    render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab").length).toBe(3));
+    stubRects();
+    carryTo("gamma", 10);
+    dropAtX("gamma", 10);
+    expect(names()).toEqual(["gamma", "alpha", "beta"]);
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent("sv:agentState", { detail: { projectCode: "beta", state: "working" } }));
+    });
+    expect(names()).toEqual(["gamma", "alpha", "beta"]);
+  });
+});

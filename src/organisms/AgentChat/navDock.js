@@ -91,6 +91,26 @@ export const moveInDock = (pc, before, projects) => {
   cur.splice(i, 0, pc);
   setDockOrder(cur);
 };
+// ─── A CARRY IN PROGRESS, ANNOUNCED ────────────────────────────────────────────────────────────
+//
+// The bot owns its own position and the strip owns its own order, and neither can see the other —
+// so a drag that means to end up IN the strip has to say where the pointer is while it is still
+// happening. That is the whole of this: two events, no shared state.
+//
+// WHY IT IS AN EVENT AND NOT A PROP: the drag lives in the bot's pointer handlers, the line lives
+// in the navigator's header, and there is no component above both of them that is re-rendered by
+// either. A context for a value that changes on every pointermove would re-render the whole page
+// sixty times a second; a window event reaches exactly the one listener that cares.
+export const carrying = (projectCode, x, y) => {
+  if (!projectCode) return;
+  window.dispatchEvent(new CustomEvent("sv:carry", { detail: { projectCode, x, y } }));
+};
+
+export const carried = (projectCode, x, y) => {
+  if (!projectCode) return;
+  window.dispatchEvent(new CustomEvent("sv:carried", { detail: { projectCode, x, y } }));
+};
+
 export const useDockOrder = () => {
   const [order, setOrder] = useState(dockOrder);
   useEffect(() => {

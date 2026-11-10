@@ -18,9 +18,9 @@ import {
   hostProjectEntry,
 } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
-import { tabOrder, used as rankUsed, ran as rankRan, prune, readRanks, writeRanks } from "./tabOrder";
+import { tabOrder, used as rankUsed, ran as rankRan, prune, dropAt, readRanks, writeRanks } from "./tabOrder";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
-import { useDockOrder, orderProjects, isNavDocked, pinId } from "../AgentChat/navDock";
+import { useDockOrder, orderProjects, isNavDocked, pinId, setNavDocked, placeInDock } from "../AgentChat/navDock";
 import { liveSessions } from "../../utils/hostAgents";
 import { useAppDark } from "../../atoms/appTheme";
 
@@ -72,6 +72,27 @@ const SystemNav = ({
     } catch {}
   }, []);
   const [tabPc, setTabPc] = useState(() => localStorage.getItem("sv.navTabPc") || "");
+  // WHERE A DROP AT THIS POINTER WOULD LAND — measured off the real tab rects, never computed from
+  // a width: the tabs are text, so they are all different widths, and the midpoint of each one is
+  // the only honest boundary between "before it" and "after it".
+  const stripRef = useRef(null);
+  const dropIndexAt = (x, y) => {
+    const strip = stripRef.current;
+    if (!strip) return null;
+    const box = strip.getBoundingClientRect();
+    if (x == null || y == null) return null;
+    if (x < box.left || x > box.right || y < box.top || y > box.bottom) return null;
+    const tabs = [...strip.querySelectorAll(".system-nav__agenttab")];
+    let at = tabs.length;
+    for (let i = 0; i < tabs.length; i += 1) {
+      const r = tabs[i].getBoundingClientRect();
+      if (x < r.left + r.width / 2) {
+        at = i;
+        break;
+      }
+    }
+    return at;
+  };
   const pickTab = (pc) => {
     // USING IT IS THE STRONGEST CLAIM THERE IS — *"it's ordered by what I've been using."* So his
     // own pick ranks above any agent's announcement about itself, and a bot starting up lands
@@ -130,6 +151,13 @@ const SystemNav = ({
   // FROZEN WHILE HE IS ON THE STRIP — hovering the tabs means he is about to press one, and a tab
   // that moves out from under a click is worse than a tab he had to look for.
   const [onStrip, setOnStrip] = useState(false);
+  // ─── AN AGENT BEING CARRIED BACK IN ──────────────────────────────────────────────────────────
+  //
+  // *"If I pull it out, I should be able to move it and drop it back into the tabs"* — one gesture,
+  // no letting go in between. The bot announces where the pointer is while it is still down
+  // (`sv:carry`); the strip answers with a LINE at the place that drop would take, and that line is
+  // the promise: *"I need to be able to pick exactly where I drop it."*
+  const [carry, setCarry] = useState(null); // { pc, at } — `at` is the index the drop would take
   const dockOrderList = useDockOrder();
   // THE TAB WEARS THE AGENT ONLY WHILE IT'S HOME (his indicator): pulled out, the face leaves the
   // tab and only the project name remains — you can see at a glance which agents are out floating.
@@ -501,6 +529,93 @@ const SystemNav = ({
     bump((cur) => (cur.used[activeTabPc] == null ? rankUsed(cur, activeTabPc) : cur));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTabPc]);
+  // THE CARRY, WATCHED. While the pointer is down the strip only DRAWS; the placement happens on
+  // release, and only if the pointer let go over the strip. A drop anywhere else is not this
+  // strip's business and leaves its order alone.
+  useEffect(() => {
+    const onCarry = (e) => {
+      const d = (e && e.detail) || {};
+      if (!d.projectCode) return;
+      const at = dropIndexAt(d.x, d.y);
+      setCarry((cur) => {
+        if (at == null) return cur && cur.pc === d.projectCode ? null : cur;
+        if (cur && cur.pc === d.projectCode && cur.at === at) return cur;
+        return { pc: d.projectCode, at };
+      });
+    };
+    const onCarried = (e) => {
+      const d = (e && e.detail) || {};
+      setCarry(null);
+      if (!d.projectCode) return;
+      const at = dropIndexAt(d.x, d.y);
+      if (at == null) return;
+      // DROPPED ON THE STRIP: it comes home, and it comes home WHERE HE PUT IT. The docking is
+      // the bot's own (it already docks on a drop over the open navigator); the PLACE is ours.
+      setNavDocked(d.projectCode, true);
+      bump((cur) => {
+        const next = dropAt(cur, tabPcs, d.projectCode, at);
+        // DOWN AMONG THE TABS NOTHING HAS TOUCHED there is no rank to sit between, so `dropAt`
+        // asks for the dock order to be rearranged instead — the one currency that positions a
+        // tab with no rank of its own.
+        if (next.dock) placeInDock(next.dock.pc, Math.max(0, dockPcs.indexOf(next.dock.after) + 1));
+        return next;
+      });
+    };
+    window.addEventListener("sv:carry", onCarry);
+    window.addEventListener("sv:carried", onCarried);
+    return () => {
+      window.removeEventListener("sv:carry", onCarry);
+      window.removeEventListener("sv:carried", onCarried);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabPcs.join("|"), dockPcs.join("|")]);
+  // ONE TAB, lifted out of the strip's map so the drop LINE can be its sibling. Not a component:
+  // it closes over everything the strip already has, and making it one would re-mount every tab on
+  // each carry frame — which is exactly when nothing may flicker.
+  const renderTab = (pc) => (
+    <button
+      type="button"
+      ref={pc === activeTabPc ? activeTabRef : undefined}
+      className={`system-nav__agenttab${pc === activeTabPc ? " system-nav__agenttab--active" : ""}`}
+      title={`${pc} — click to open, drag to pull the agent out`}
+      onClick={(e) => {
+        if (e.currentTarget.dataset.pulled === "1") return;
+        pickTab(pc);
+      }}
+      onPointerDown={(e) => {
+        // DRAG THE TAB = PULL THE AGENT OUT (his ask: no need to enter the tab
+        // first). Past a small threshold the bot undocks and lands under the
+        // pointer; the click that would have switched tabs is swallowed.
+        const btn = e.currentTarget;
+        btn.dataset.pulled = "";
+        const sx = e.clientX, sy = e.clientY;
+        const move = (ev) => {
+          if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 10) return;
+          btn.dataset.pulled = "1";
+          window.dispatchEvent(new CustomEvent("sv:pullOut", {
+            detail: { projectCode: pc, x: ev.clientX - 23, y: ev.clientY - 23, grab: true },
+          }));
+          up();
+        };
+        const up = () => {
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+          setTimeout(() => { btn.dataset.pulled = ""; }, 100);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+      }}
+    >
+      {isNavDocked(pc) && <span className="system-nav__agenttab-face">🤖</span>}
+      <span className="system-nav__agenttab-name">{pc}</span>
+      {livePcs.has(pc) && (
+        <span
+          className={`system-nav__agenttab-dot${cookingPcs.has(pc) ? " system-nav__agenttab-dot--cooking" : ""}`}
+          title={cookingPcs.has(pc) ? "working right now" : "a session is live"}
+        />
+      )}
+    </button>
+  );
   // AND THE STORE DOES NOT GROW FOREVER — a rank for a project that no longer exists is dropped.
   // `prune` hands back the same object when nothing changed, so this is not a write per render.
   useEffect(() => {
@@ -521,55 +636,24 @@ const SystemNav = ({
           <div className="system-nav__bar">
                 {view === "tabs" ? (
                   <div
-                    className="system-nav__agenttabs"
+                    ref={stripRef}
+                    className={`system-nav__agenttabs${carry ? " system-nav__agenttabs--landing" : ""}`}
                     onPointerEnter={() => setOnStrip(true)}
                     onPointerLeave={() => setOnStrip(false)}
                   >
-                    {tabPcs.map((pc) => (
-                      <button
-                        key={pc}
-                        type="button"
-                        ref={pc === activeTabPc ? activeTabRef : undefined}
-                        className={`system-nav__agenttab${pc === activeTabPc ? " system-nav__agenttab--active" : ""}`}
-                        title={`${pc} — click to open, drag to pull the agent out`}
-                        onClick={(e) => {
-                          if (e.currentTarget.dataset.pulled === "1") return;
-                          pickTab(pc);
-                        }}
-                        onPointerDown={(e) => {
-                          // DRAG THE TAB = PULL THE AGENT OUT (his ask: no need to enter the tab
-                          // first). Past a small threshold the bot undocks and lands under the
-                          // pointer; the click that would have switched tabs is swallowed.
-                          const btn = e.currentTarget;
-                          btn.dataset.pulled = "";
-                          const sx = e.clientX, sy = e.clientY;
-                          const move = (ev) => {
-                            if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 10) return;
-                            btn.dataset.pulled = "1";
-                            window.dispatchEvent(new CustomEvent("sv:pullOut", {
-                              detail: { projectCode: pc, x: ev.clientX - 23, y: ev.clientY - 23, grab: true },
-                            }));
-                            up();
-                          };
-                          const up = () => {
-                            window.removeEventListener("pointermove", move);
-                            window.removeEventListener("pointerup", up);
-                            setTimeout(() => { btn.dataset.pulled = ""; }, 100);
-                          };
-                          window.addEventListener("pointermove", move);
-                          window.addEventListener("pointerup", up);
-                        }}
-                      >
-                        {isNavDocked(pc) && <span className="system-nav__agenttab-face">🤖</span>}
-                        <span className="system-nav__agenttab-name">{pc}</span>
-                        {livePcs.has(pc) && (
-                          <span
-                            className={`system-nav__agenttab-dot${cookingPcs.has(pc) ? " system-nav__agenttab-dot--cooking" : ""}`}
-                            title={cookingPcs.has(pc) ? "working right now" : "a session is live"}
-                          />
-                        )}
-                      </button>
+                    {tabPcs.map((pc, i) => (
+                      <React.Fragment key={`seat-${pc}`}>
+                        {/* THE LINE IS WHERE IT WILL GO. Drawn between the tabs rather than on one
+                            of them, because the question a drop answers is "between which two?" —
+                            a highlighted tab would say "onto this one", which is not a thing the
+                            strip can do. */}
+                        {carry && carry.at === i ? <span className="system-nav__agenttab-line" aria-hidden="true" /> : null}
+                        {renderTab(pc)}
+                      </React.Fragment>
                     ))}
+                    {carry && carry.at >= tabPcs.length ? (
+                      <span className="system-nav__agenttab-line" aria-hidden="true" />
+                    ) : null}
                   </div>
                 ) : null}
                 {/* THE + LIVES IN THE STRIP, right before the collapse chevron (his ask) — the

@@ -93,6 +93,69 @@ export function ran(ranks, pc) {
   return { used: ranks.used, ran: { ...ranks.ran, [pc]: seq }, seq };
 }
 
+/** Which tier a tab is in: his own ("u"), come-forward-on-its-own ("r"), or neither ("n"). */
+export const tierOf = (ranks, pc) =>
+  ranks.used[pc] != null ? "u" : ranks.ran[pc] != null ? "r" : "n";
+
+/**
+ * HE DROPPED IT EXACTLY HERE — *"I need to be able to pick exactly where I drop it."*
+ *
+ * A drop is the only event that names a POSITION rather than just "forward", so it is the only one
+ * that cannot be expressed by bumping a counter. It lands the tab between the two it was dropped
+ * between, in whichever tier those neighbours are in — which is what makes a drop stick instead of
+ * being re-sorted out from under him on the next thing that happens.
+ *
+ * THE RANKS ARE FRACTIONAL FOR EXACTLY THIS. Inserting between two neighbours is a midpoint, so a
+ * drop never has to renumber anything — and renumbering is what would move the OTHER tabs, which
+ * is the thing this whole file is trying not to do.
+ *
+ * `index` is where it should sit in the order WITHOUT it, which is what a drop line draws.
+ */
+export function dropAt(ranks, order, pc, index) {
+  if (!pc) return ranks;
+  const rest = (order || []).filter(Boolean).filter((x) => x !== pc);
+  const at = Math.max(0, Math.min(Number(index) || 0, rest.length));
+  const left = rest[at - 1];
+  const right = rest[at];
+  const u = ranks.used;
+  const r = ranks.ran;
+  const seq = (ranks.seq || 0) + 1;
+  const asUsed = (v) => {
+    const ran2 = { ...r };
+    delete ran2[pc];
+    return { used: { ...u, [pc]: v }, ran: ran2, seq };
+  };
+  const asRan = (v) => {
+    const used2 = { ...u };
+    delete used2[pc];
+    return { used: used2, ran: { ...r, [pc]: v }, seq };
+  };
+  // THE VERY FRONT — the same place opening it would put it.
+  if (left === undefined) return asUsed(seq);
+  const lt = tierOf(ranks, left);
+  if (lt === "u") {
+    // tier one sorts DESCENDING, so "after left" means a smaller number than left's
+    const hi = u[left];
+    const lo = tierOf(ranks, right) === "u" ? u[right] : 0;
+    return asUsed((hi + lo) / 2);
+  }
+  if (lt === "r") {
+    // tier two sorts ASCENDING — earliest forward first — so "after left" means a bigger number
+    const lo = r[left];
+    const hi = tierOf(ranks, right) === "r" ? r[right] : lo + 1;
+    return asRan((lo + hi) / 2);
+  }
+  // DROPPED AMONG THE TABS NOTHING HAS TOUCHED. There is no rank to sit between down here: the
+  // dock order IS the position, so the caller rearranges that instead and this tab keeps no rank
+  // of its own. Reported rather than done here — `dockOrder` is four surfaces' order, not this
+  // module's to write.
+  const used2 = { ...u };
+  const ran2 = { ...r };
+  delete used2[pc];
+  delete ran2[pc];
+  return { used: used2, ran: ran2, seq: ranks.seq, dock: { pc, after: left } };
+}
+
 /** Drop ranks for projects that no longer exist, so the store cannot grow forever. */
 export function prune(ranks, pcs = []) {
   const keep = new Set(pcs);

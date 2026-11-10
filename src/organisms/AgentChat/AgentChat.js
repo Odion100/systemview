@@ -25,7 +25,7 @@ import Markdown from "../../atoms/Markdown/Markdown";
 import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } from "../../spotlight";
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { pointTargetOf } from "./pointTarget";
-import { slotId, pinId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects } from "./navDock";
+import { slotId, pinId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects, carrying, carried } from "./navDock";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
 import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
@@ -3063,10 +3063,15 @@ function BotBubble({ projectCode, index }) {
             x: Math.max(DOCK_EDGE, Math.min(ev.clientX - 23, window.innerWidth - 96 - DOCK_EDGE)),
             y: Math.max(DOCK_EDGE, Math.min(ev.clientY - 23, window.innerHeight - 72 - DOCK_EDGE)),
           });
+          // AND THE STRIP IS TOLD, so it can draw the line where this would land. One gesture:
+          // pulled out of its tab, moved, and dropped back in without ever letting go — *"if I
+          // pull it out, I should be able to move it and drop it back into the tabs."*
+          carrying(projectCode, ev.clientX, ev.clientY);
         };
-        const drop = () => {
+        const drop = (ev) => {
           window.removeEventListener("pointermove", move);
           window.removeEventListener("pointerup", drop);
+          carried(projectCode, ev && ev.clientX, ev && ev.clientY);
         };
         window.addEventListener("pointermove", move);
         window.addEventListener("pointerup", drop);
@@ -3850,6 +3855,9 @@ function BotBubble({ projectCode, index }) {
       // …and over the dock, the preview: shrink, and ring the spot it would take.
       // The agent-panel CARD is a dock target too (his ask: "I can drag it out of the card, I
       // should drag it into the card") — its own card only.
+      // THE STRIP IS A DROP TARGET FOR THIS DRAG TOO, not only for a freshly pulled tab: an agent
+      // that has been floating for an hour drops back into a chosen place the same way.
+      carrying(projectCode, ev.clientX, ev.clientY);
       const hit = dockTargetOf(ev.clientX, ev.clientY);
       const cardHit = panelCardAt(ev.clientX, ev.clientY);
       setOverDock(!!hit || !!cardHit || !!openNavAt(ev.clientX, ev.clientY));
@@ -3874,6 +3882,7 @@ function BotBubble({ projectCode, index }) {
       window.removeEventListener("pointerup", up);
       const d = dragRef.current;
       dragRef.current = null;
+      carried(projectCode, ev && ev.clientX, ev && ev.clientY);
       setDragging(false);
       setOverDock(false);
       markDockTarget(null);

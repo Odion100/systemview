@@ -6,7 +6,7 @@
 //
 // So: a tab he is in is never jumped over, and NOTHING EVER FALLS BACK. Most of the assertions
 // below are about a tab that must not move.
-import { tabOrder, used, ran, prune, emptyRanks } from "./tabOrder";
+import { tabOrder, used, ran, prune, dropAt, tierOf, emptyRanks } from "./tabOrder";
 
 const ORDER = ["alpha", "beta", "gamma", "delta"];
 
@@ -127,5 +127,92 @@ describe("the strip is ordered by what he has been using", () => {
     expect(used(emptyRanks(), "")).toEqual(emptyRanks());
     expect(ran(emptyRanks(), null)).toEqual(emptyRanks());
     expect(tabOrder({ order: ORDER, ranks: { seq: 3 } })).toEqual(ORDER);
+  });
+});
+
+// ─── A DROP NAMES A POSITION, WHICH NOTHING ELSE DOES ──────────────────────────────────────────
+//
+// *"And it's not changing the order. I need to be able to pick exactly where I drop it."* Every
+// other event means "forward"; a drop means HERE. So these are about the tab landing exactly where
+// the line was — and about the other tabs not moving when it does.
+describe("dropping a tab exactly where he let go", () => {
+  const seat = (ranks, order, pc, i) => tabOrder({ order, ranks: dropAt(ranks, tabOrder({ order, ranks }), pc, i) });
+
+  it("drops it at the front", () => {
+    const r = used(emptyRanks(), "alpha");
+    expect(seat(r, ORDER, "delta", 0)).toEqual(["delta", "alpha", "beta", "gamma"]);
+  });
+
+  it("drops it between two tabs he has opened, and moves neither of them", () => {
+    let r = used(emptyRanks(), "gamma");
+    r = used(r, "beta");
+    r = used(r, "alpha"); // order: alpha, beta, gamma, delta
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["alpha", "beta", "gamma", "delta"]);
+    // between beta and gamma
+    expect(seat(r, ORDER, "delta", 2)).toEqual(["alpha", "beta", "delta", "gamma"]);
+    // between alpha and beta
+    expect(seat(r, ORDER, "delta", 1)).toEqual(["alpha", "delta", "beta", "gamma"]);
+  });
+
+  it("drops it at the far end of the tabs he has opened", () => {
+    let r = used(emptyRanks(), "beta");
+    r = used(r, "alpha"); // alpha, beta, then the unranked
+    expect(seat(r, ORDER, "delta", 2)).toEqual(["alpha", "beta", "delta", "gamma"]);
+  });
+
+  it("drops it inside the come-forward tier without disturbing its order", () => {
+    let r = used(emptyRanks(), "alpha");
+    r = ran(r, "gamma");
+    r = ran(r, "delta"); // alpha | gamma, delta | beta
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["alpha", "gamma", "delta", "beta"]);
+    const after = dropAt(r, tabOrder({ order: ORDER, ranks: r }), "beta", 2);
+    expect(tabOrder({ order: ORDER, ranks: after })).toEqual(["alpha", "gamma", "beta", "delta"]);
+    expect(tierOf(after, "beta")).toBe("r");
+  });
+
+  it("a dropped tab STAYS dropped — later activity does not re-sort it out from under him", () => {
+    let r = used(emptyRanks(), "alpha");
+    // index 1 is AFTER alpha, which is where the line would have been drawn
+    r = dropAt(r, tabOrder({ order: ORDER, ranks: r }), "delta", 1);
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["alpha", "delta", "beta", "gamma"]);
+    // beta starts working — it comes forward, and it cannot climb over where he PUT delta
+    r = ran(r, "beta");
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["alpha", "delta", "beta", "gamma"]);
+    // and delta announcing itself changes nothing either: it already has its place
+    r = ran(r, "delta");
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["alpha", "delta", "beta", "gamma"]);
+  });
+
+  it("never renumbers — the ranks the other tabs had are the ranks they keep", () => {
+    let r = used(emptyRanks(), "gamma");
+    r = used(r, "alpha");
+    const before = { ...r.used };
+    const after = dropAt(r, tabOrder({ order: ORDER, ranks: r }), "delta", 1);
+    expect(after.used.gamma).toBe(before.gamma);
+    expect(after.used.alpha).toBe(before.alpha);
+  });
+
+  it("drops among the untouched tabs by rearranging the DOCK order, not by inventing a rank", () => {
+    const r = used(emptyRanks(), "alpha"); // alpha | beta, gamma, delta
+    const after = dropAt(r, tabOrder({ order: ORDER, ranks: r }), "delta", 2);
+    // no rank of its own down here — the dock order is the position, and the caller owns that
+    expect(tierOf(after, "delta")).toBe("n");
+    expect(after.dock).toEqual({ pc: "delta", after: "beta" });
+  });
+
+  it("clears the rank it had in the other tier, so the tiers cannot disagree", () => {
+    let r = ran(emptyRanks(), "delta");
+    r = used(r, "alpha");
+    const after = dropAt(r, tabOrder({ order: ORDER, ranks: r }), "delta", 1);
+    expect(tierOf(after, "delta")).toBe("u");
+    expect(after.ran.delta).toBeUndefined();
+  });
+
+  it("survives junk — no pc, an index off either end, a tab that is not on the strip", () => {
+    const r = used(emptyRanks(), "alpha");
+    expect(dropAt(r, ORDER, "", 1)).toBe(r);
+    expect(tabOrder({ order: ORDER, ranks: dropAt(r, ORDER, "delta", -5) })).toEqual(["delta", "alpha", "beta", "gamma"]);
+    expect(() => dropAt(r, ORDER, "delta", 99)).not.toThrow();
+    expect(() => dropAt(r, [], "delta", 0)).not.toThrow();
   });
 });

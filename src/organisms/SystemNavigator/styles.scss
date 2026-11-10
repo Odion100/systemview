@@ -303,6 +303,29 @@
 // his ruling made it the universal collapse button, and one costume lives in one file.
 // One tab per agent: face + name (+ live dot). The strip scrolls sideways, bar hidden — tabs
 // never wrap and never push the collapse chevron off the row.
+// ─── WHERE A CARRIED AGENT WILL LAND ───────────────────────────────────────────────────────────
+//
+// A line BETWEEN two tabs, because that is the question a drop answers — between which two. A
+// highlighted tab would read as "onto this one", which is not something the strip can do.
+.system-nav__agenttab-line {
+  flex: 0 0 2px;
+  align-self: stretch;
+  min-height: 18px;
+  margin: 0 1px;
+  border-radius: 2px;
+  background: var(--sv-blue);
+  // IT TAKES NO ROOM IT IS NOT GIVEN. The strip is a flex row of text-width tabs, so a line that
+  // grew the row would shift every tab sideways the moment it appeared — and the thing he is
+  // aiming at would move as he aimed.
+  box-shadow: 0 0 0 1px var(--sv-surface);
+  pointer-events: none;
+}
+.system-nav__agenttabs--landing .system-nav__agenttab {
+  // the tabs stay exactly where they are; only the pointer's own target is emphasised
+  transition: opacity 90ms ease;
+  opacity: 0.82;
+}
+
 .system-nav__agenttabs {
   display: flex;
   gap: 2px;
