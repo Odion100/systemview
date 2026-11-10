@@ -21,17 +21,22 @@ describe("<SystemNavigator/>", () => {
   });
 });
 
-// ─── THE STRIP IS WIRED TO THE ANNOUNCEMENT ────────────────────────────────────────────────────
+// ─── THE STRIP IS WIRED TO THE RANKS ──────────────────────────────────────────────────────────
 //
 // `tabOrder.test.js` holds the ordering to its rules. What a pure module cannot say is whether the
-// COMPONENT is actually plugged into it — so these drive the real `sv:agentState` event and read
-// the tabs back out of the DOM, which is the only thing that proves the wire.
-describe("the working agents come to the front of the strip", () => {
+// COMPONENT is plugged into it — so these drive the real `sv:agentState` event, press real tabs,
+// and read the strip back out of the DOM.
+//
+// AND THEY ARE WRITTEN AROUND THE TWO THINGS HE CAUGHT, because the first build failed both:
+//   *"it moved in front of you, which should have just added to the end of you"*
+//   *"why did it move away? it went back to where it was"*
+describe("the strip is ordered by what he has been using", () => {
   const names = () => [...document.querySelectorAll(".system-nav__agenttab-name")].map((n) => n.textContent);
   const cooking = () =>
     [...document.querySelectorAll(".system-nav__agenttab")]
       .filter((t) => t.querySelector(".system-nav__agenttab-dot--cooking"))
       .map((t) => t.querySelector(".system-nav__agenttab-name").textContent);
+  const tab = (pc) => [...document.querySelectorAll(".system-nav__agenttab")].find((t) => t.textContent.includes(pc));
   const working = (pc, state) =>
     act(() => {
       window.dispatchEvent(new CustomEvent("sv:agentState", { detail: { projectCode: pc, state } }));
@@ -40,26 +45,97 @@ describe("the working agents come to the front of the strip", () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem("sv.navView", "tabs");
+    localStorage.setItem("sv.navTabPc", "alpha"); // he is in alpha
     localStorage.setItem("sv.husks", JSON.stringify(["alpha", "beta", "gamma"].map((projectCode) => ({ projectCode }))));
     localStorage.setItem("sv.dockOrder", JSON.stringify(["alpha", "beta", "gamma"]));
   });
   afterEach(() => localStorage.clear());
 
-  it("moves a working agent to the front, and a second one lands BEHIND it rather than above it", async () => {
+  // ─── HIS FIRST COMPLAINT ─────────────────────────────────────────────────────────────────────
+  it("brings a working agent forward BEHIND the tab he is in, never over it", async () => {
     render(<SystemNavigator />);
-    expect(names()).toEqual(["alpha", "beta", "gamma"]);
-    // the dots arrive with the host's answer — without them the mark assertions below say nothing
     await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab-dot").length).toBe(3));
+    expect(names()).toEqual(["alpha", "beta", "gamma"]);
 
-    // GAMMA STARTS WORKING — it comes to him rather than him going to find it
+    // GAMMA STARTS WORKING — it comes forward, and alpha keeps the front because he is in it
     working("gamma", "working");
-    expect(names()).toEqual(["gamma", "alpha", "beta"]);
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
     expect(cooking()).toEqual(["gamma"]);
 
-    // A SECOND ONE STARTS and lands BEHIND gamma — nothing already up front moves
+    // A SECOND ONE lands behind the first — nothing already forward moves
     working("beta", "working");
-    expect(names()).toEqual(["gamma", "beta", "alpha"]);
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
     expect(cooking()).toEqual(["gamma", "beta"]);
+  });
+
+  // ─── HIS SECOND COMPLAINT ────────────────────────────────────────────────────────────────────
+  it("does not put a finished agent back where it was", async () => {
+    render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab-dot").length).toBe(3));
+    working("gamma", "working");
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
+
+    // gamma finishes. The DOT goes out — that is about what is happening. The PLACE is kept, for
+    // good: the whole value of it having come forward is that it is still there to be found.
+    working("gamma", "idle");
+    expect(cooking()).toEqual([]);
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
+
+    // and it does not drift back later either — there is no state that undoes a place
+    working("beta", "working");
+    working("beta", "idle");
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
+  });
+
+  it("survives a reload where it got to, rather than reverting", async () => {
+    const { unmount } = render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab-dot").length).toBe(3));
+    working("gamma", "working");
+    working("gamma", "idle");
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
+    unmount();
+
+    render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab-dot").length).toBe(3));
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
+  });
+
+  it("puts the tab he presses at the front, and it outranks any agent's own announcement", async () => {
+    render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab-dot").length).toBe(3));
+    working("gamma", "working");
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
+
+    // HE OPENS BETA — usage is the strongest claim, so beta goes to the front over a working gamma
+    act(() => {
+      fireEvent.click(tab("beta"));
+    });
+    expect(names()).toEqual(["beta", "alpha", "gamma"]);
+    // and gamma working on cannot climb back over either of his
+    working("gamma", "working");
+    expect(names()).toEqual(["beta", "alpha", "gamma"]);
+  });
+
+  // RECENCY IS RECENCY, NOT FIRST-SEEN. Found by mutation: removing the rank from the press alone
+  // changed nothing, because the cold-start effect ranks whatever tab he lands in — but only the
+  // FIRST time it sees it. So going back to a tab he used earlier has to move it again, and that
+  // is the case that tells the two paths apart.
+  it("moves a tab he goes BACK to, not only one he opens for the first time", async () => {
+    render(<SystemNavigator />);
+    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab-dot").length).toBe(3));
+    act(() => {
+      fireEvent.click(tab("beta"));
+    });
+    expect(names()).toEqual(["beta", "alpha", "gamma"]);
+    act(() => {
+      fireEvent.click(tab("gamma"));
+    });
+    expect(names()).toEqual(["gamma", "beta", "alpha"]);
+    // BACK TO BETA, which he has already used — it has to come forward again
+    act(() => {
+      fireEvent.click(tab("beta"));
+    });
+    expect(names()).toEqual(["beta", "gamma", "alpha"]);
   });
 
   it("holds completely still while his pointer is on the strip", async () => {
@@ -70,8 +146,6 @@ describe("the working agents come to the front of the strip", () => {
     act(() => {
       fireEvent.pointerEnter(strip);
     });
-    // GAMMA STARTS WHILE HE IS HOVERING. It would otherwise jump to the front; it does not move,
-    // because a tab that moves out from under a click is worse than a tab he had to look for.
     working("gamma", "working");
     expect(names()).toEqual(["alpha", "beta", "gamma"]);
     // the MARK still lands — what is frozen is the order, never the truth about who is working
@@ -80,19 +154,6 @@ describe("the working agents come to the front of the strip", () => {
     act(() => {
       fireEvent.pointerLeave(strip);
     });
-    expect(names()).toEqual(["gamma", "alpha", "beta"]);
-  });
-
-  it("does not yank the strip around when an agent FINISHES", async () => {
-    render(<SystemNavigator />);
-    await waitFor(() => expect(document.querySelectorAll(".system-nav__agenttab-dot").length).toBe(3));
-    working("gamma", "working");
-    expect(names()).toEqual(["gamma", "alpha", "beta"]);
-
-    // gamma goes quiet. The dot goes out immediately; the PLACE is held through the afterglow,
-    // because a tab that moved because something ENDED is the least useful movement there is.
-    working("gamma", "idle");
-    expect(cooking()).toEqual([]);
-    expect(names()).toEqual(["gamma", "alpha", "beta"]);
+    expect(names()).toEqual(["alpha", "gamma", "beta"]);
   });
 });

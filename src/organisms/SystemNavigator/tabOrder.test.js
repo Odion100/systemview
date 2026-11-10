@@ -1,122 +1,131 @@
-// THE ORDERING IS HELD TO THE CONSTRAINT, NOT TO THE FEATURE. "Working agents come to the front"
-// is the easy half and one line of sort would do it. What these assert is the half he actually
-// asked for — *"it can't be fighting, I don't want to see constant switching"* — so every test
-// below is about a tab that must NOT move.
-import { tabOrder, beginRun, endRun, workingNow, glowing, AFTERGLOW_MS } from "./tabOrder";
+// THE ORDER IS HELD TO THE TWO THINGS HE CAUGHT, because the first build of this failed both and
+// they came out of one wrong idea — that "working" was a transient state with a group of its own.
+//
+//   *"It moved in front of you, which should have just added to the end of you."*
+//   *"Why did it move away? It went back to where it was."*
+//
+// So: a tab he is in is never jumped over, and NOTHING EVER FALLS BACK. Most of the assertions
+// below are about a tab that must not move.
+import { tabOrder, used, ran, prune, emptyRanks } from "./tabOrder";
 
 const ORDER = ["alpha", "beta", "gamma", "delta"];
-const T = 1_700_000_000_000;
 
-describe("the working agents come to the front", () => {
-  it("leaves his order alone when nobody is working", () => {
-    expect(tabOrder({ order: ORDER, runs: {}, now: T })).toEqual(ORDER);
+describe("the strip is ordered by what he has been using", () => {
+  it("is his dock order until something earns a place", () => {
+    expect(tabOrder({ order: ORDER, ranks: emptyRanks() })).toEqual(ORDER);
+    expect(tabOrder({ order: ORDER })).toEqual(ORDER);
   });
 
-  it("brings a working agent to the front and leaves the rest in his order", () => {
-    const runs = beginRun({}, "gamma", T);
-    expect(tabOrder({ order: ORDER, runs, now: T })).toEqual(["gamma", "alpha", "beta", "delta"]);
+  it("puts the tab he opened at the front", () => {
+    const r = used(emptyRanks(), "gamma");
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["gamma", "alpha", "beta", "delta"]);
   });
 
-  it("orders the front group by WHO STARTED FIRST, so a new one lands behind it and moves nobody", () => {
-    let runs = beginRun({}, "delta", T);
-    runs = beginRun(runs, "beta", T + 1000);
-    expect(tabOrder({ order: ORDER, runs, now: T + 1000 })).toEqual(["delta", "beta", "alpha", "gamma"]);
-    // a THIRD one starting goes to the back of the front group — delta and beta do not budge
-    runs = beginRun(runs, "alpha", T + 2000);
-    expect(tabOrder({ order: ORDER, runs, now: T + 2000 })).toEqual(["delta", "beta", "alpha", "gamma"]);
+  it("orders the tabs he has opened by how recently he opened them", () => {
+    let r = used(emptyRanks(), "gamma");
+    r = used(r, "delta");
+    r = used(r, "beta");
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["beta", "delta", "gamma", "alpha"]);
   });
 
-  it("never swaps two working agents, however long one of them runs", () => {
-    let runs = beginRun({}, "gamma", T);
-    runs = beginRun(runs, "alpha", T + 500);
-    const first = tabOrder({ order: ORDER, runs, now: T + 500 });
-    // hours later, both still working — the order is the same order
-    expect(tabOrder({ order: ORDER, runs, now: T + 6 * 3600_000 })).toEqual(first);
+  // ─── HIS FIRST COMPLAINT ─────────────────────────────────────────────────────────────────────
+  it("a working agent lands BEHIND the tab he is in, never over it", () => {
+    let r = used(emptyRanks(), "alpha"); // he is in alpha
+    r = ran(r, "delta"); // delta starts working
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["alpha", "delta", "beta", "gamma"]);
   });
 
-  it("holds a finished agent's place through its afterglow, then lets it fall back", () => {
-    let runs = beginRun({}, "delta", T);
-    runs = endRun(runs, "delta", T + 1000);
-    // STILL UP — a tab that moved because something ENDED is the least useful movement there is
-    expect(tabOrder({ order: ORDER, runs, now: T + 1000 })).toEqual(["delta", "alpha", "beta", "gamma"]);
-    expect(tabOrder({ order: ORDER, runs, now: T + 1000 + AFTERGLOW_MS - 1 })).toEqual(["delta", "alpha", "beta", "gamma"]);
-    // and then back to his order, with nothing else disturbed
-    expect(tabOrder({ order: ORDER, runs, now: T + 1000 + AFTERGLOW_MS + 1 })).toEqual(ORDER);
+  it("a working agent cannot climb over ANY tab he has opened, however long ago", () => {
+    let r = used(emptyRanks(), "gamma");
+    r = used(r, "alpha");
+    r = ran(r, "delta");
+    // both of his are ahead of the bot's own announcement about itself
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["alpha", "gamma", "delta", "beta"]);
   });
 
-  it("a restart inside its own afterglow keeps its old place instead of going to the back", () => {
-    let runs = beginRun({}, "delta", T);
-    runs = beginRun(runs, "beta", T + 1000);
-    // delta flickers off and straight back on — it never left, so it does not re-arrive
-    runs = endRun(runs, "delta", T + 2000);
-    runs = beginRun(runs, "delta", T + 3000);
-    expect(runs.delta.since).toBe(T);
-    expect(tabOrder({ order: ORDER, runs, now: T + 3000 })).toEqual(["delta", "beta", "alpha", "gamma"]);
+  it("a second working agent lands behind the first, so nothing already forward moves", () => {
+    let r = used(emptyRanks(), "alpha");
+    r = ran(r, "delta");
+    const first = tabOrder({ order: ORDER, ranks: r });
+    r = ran(r, "beta");
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["alpha", "delta", "beta", "gamma"]);
+    // delta did not move when beta arrived
+    expect(first.indexOf("delta")).toBe(1);
   });
 
-  it("a restart AFTER the afterglow has run out is a real arrival", () => {
-    let runs = beginRun({}, "delta", T);
-    runs = endRun(runs, "delta", T);
-    runs = beginRun(runs, "beta", T + 1000);
-    const back = T + AFTERGLOW_MS + 5000;
-    runs = beginRun(runs, "delta", back);
-    expect(runs.delta.since).toBe(back);
-    expect(tabOrder({ order: ORDER, runs, now: back })).toEqual(["beta", "delta", "alpha", "gamma"]);
+  it("never swaps two agents that have come forward, whatever happens afterwards", () => {
+    let r = ran(emptyRanks(), "gamma");
+    r = ran(r, "beta");
+    const before = tabOrder({ order: ORDER, ranks: r });
+    // both announce themselves again, repeatedly — a flip must not re-rank anything
+    r = ran(r, "gamma");
+    r = ran(r, "beta");
+    r = ran(r, "gamma");
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(before);
   });
 
-  it("ignores a repeated announcement — the same state twice changes nothing at all", () => {
-    const runs = beginRun({}, "beta", T);
-    expect(beginRun(runs, "beta", T + 9999)).toBe(runs);
-    const quiet = endRun(runs, "beta", T);
-    expect(endRun(quiet, "beta", T + 9999)).toBe(quiet);
+  // ─── HIS SECOND COMPLAINT ────────────────────────────────────────────────────────────────────
+  it("NOTHING FALLS BACK — there is no state an agent can reach that undoes its place", () => {
+    let r = ran(emptyRanks(), "delta");
+    const forward = tabOrder({ order: ORDER, ranks: r });
+    expect(forward).toEqual(["delta", "alpha", "beta", "gamma"]);
+    // the ranks are the whole state, and nothing in the module can lower one: finishing, going
+    // idle and reloading all leave this list identical, which is the point.
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(forward);
+    expect(tabOrder({ order: ORDER, ranks: JSON.parse(JSON.stringify(r)) })).toEqual(forward);
   });
 
-  it("holds completely still while he is on the strip", () => {
-    const last = ["gamma", "alpha", "beta", "delta"];
-    let runs = beginRun({}, "gamma", T);
-    runs = beginRun(runs, "delta", T + 1000);
-    // delta has started working and would normally be second. His pointer is on the strip, so no.
-    expect(tabOrder({ order: ORDER, runs, now: T + 1000, frozen: true, last })).toEqual(last);
-    // off the strip, it takes its place
-    expect(tabOrder({ order: ORDER, runs, now: T + 1000, frozen: false, last })).toEqual(["gamma", "delta", "alpha", "beta"]);
+  it("opening a tab retires the rank it earned by working, so the tiers cannot disagree", () => {
+    let r = ran(emptyRanks(), "delta");
+    r = ran(r, "beta");
+    r = used(r, "beta"); // he opens the one that was working
+    expect(r.ran.beta).toBeUndefined();
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(["beta", "delta", "alpha", "gamma"]);
+  });
+
+  // ─── MOVEMENT HE DID NOT CAUSE, AT THE MOMENT HE IS ABOUT TO PRESS ───────────────────────────
+  it("holds completely still while his pointer is on the strip", () => {
+    const last = ["alpha", "beta", "gamma", "delta"];
+    const r = ran(emptyRanks(), "delta");
+    expect(tabOrder({ order: ORDER, ranks: r, frozen: true, last })).toEqual(last);
+    expect(tabOrder({ order: ORDER, ranks: r, frozen: false, last })).toEqual(["delta", "alpha", "beta", "gamma"]);
   });
 
   it("stays truthful while frozen — a tab that appeared is drawn, one that went away is not", () => {
-    const last = ["gamma", "alpha", "beta", "delta"];
+    const last = ["delta", "alpha", "beta", "gamma"];
     const order = ["alpha", "beta", "gamma", "epsilon"]; // delta gone, epsilon new
-    const held = tabOrder({ order, runs: {}, now: T, frozen: true, last });
-    expect(held).toEqual(["gamma", "alpha", "beta", "epsilon"]);
+    const held = tabOrder({ order, ranks: emptyRanks(), frozen: true, last });
+    expect(held).toEqual(["alpha", "beta", "gamma", "epsilon"]);
     expect(held).not.toContain("delta");
   });
 
   it("falls back to his order when there is nothing to hold to", () => {
-    expect(tabOrder({ order: ORDER, runs: {}, now: T, frozen: true, last: [] })).toEqual(ORDER);
+    expect(tabOrder({ order: ORDER, ranks: emptyRanks(), frozen: true, last: [] })).toEqual(ORDER);
   });
 
-  it("derives the working mark from the same runs the order comes from", () => {
-    let runs = beginRun({}, "alpha", T);
-    runs = beginRun(runs, "beta", T);
-    expect([...workingNow(runs)].sort()).toEqual(["alpha", "beta"]);
-    runs = endRun(runs, "beta", T);
-    // THE DOT IS OFF THE MOMENT IT STOPS, even though the TAB keeps its place through the
-    // afterglow — the mark is about what is happening, the place is about not jerking him around
-    expect([...workingNow(runs)]).toEqual(["alpha"]);
-    expect(tabOrder({ order: ORDER, runs, now: T })).toEqual(["alpha", "beta", "gamma", "delta"]);
+  // ─── HOUSEKEEPING ────────────────────────────────────────────────────────────────────────────
+  it("forgets a project that no longer exists, and leaves the ranks alone when none has", () => {
+    let r = used(emptyRanks(), "gone");
+    r = ran(r, "beta");
+    const pruned = prune(r, ORDER);
+    expect(pruned.used.gone).toBeUndefined();
+    expect(pruned.ran.beta).toBe(r.ran.beta);
+    // UNCHANGED MEANS THE SAME OBJECT — the strip stores this on every change, and a new object
+    // every render would be a write every render.
+    expect(prune(pruned, ORDER)).toBe(pruned);
   });
 
-  it("only asks for a clock while something is actually counting down", () => {
-    expect(glowing({}, T)).toBe(false);
-    const working = beginRun({}, "alpha", T);
-    expect(glowing(working, T)).toBe(false); // working forever needs no tick
-    const quiet = endRun(working, "alpha", T);
-    expect(glowing(quiet, T)).toBe(true);
-    expect(glowing(quiet, T + AFTERGLOW_MS + 1)).toBe(false);
+  it("a rank for a project that is not on the strip changes nothing about the order", () => {
+    const r = used(emptyRanks(), "vanished");
+    expect(tabOrder({ order: ORDER, ranks: r })).toEqual(ORDER);
   });
 
-  it("survives junk — no arguments, empty order, a run for a project that is gone", () => {
+  it("survives junk — no arguments, empty names, a half-written store", () => {
     expect(() => tabOrder()).not.toThrow();
     expect(tabOrder()).toEqual([]);
-    expect(tabOrder({ order: [null, "", "alpha"], runs: {}, now: T })).toEqual(["alpha"]);
-    expect(tabOrder({ order: ORDER, runs: beginRun({}, "vanished", T), now: T })).toEqual(ORDER);
+    expect(tabOrder({ order: [null, "", "alpha"], ranks: emptyRanks() })).toEqual(["alpha"]);
+    expect(used(emptyRanks(), "")).toEqual(emptyRanks());
+    expect(ran(emptyRanks(), null)).toEqual(emptyRanks());
+    expect(tabOrder({ order: ORDER, ranks: { seq: 3 } })).toEqual(ORDER);
   });
 });

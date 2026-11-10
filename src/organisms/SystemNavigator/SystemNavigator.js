@@ -18,7 +18,7 @@ import {
   hostProjectEntry,
 } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
-import { tabOrder, beginRun, endRun, workingNow, glowing } from "./tabOrder";
+import { tabOrder, used as rankUsed, ran as rankRan, prune, readRanks, writeRanks } from "./tabOrder";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useDockOrder, orderProjects, isNavDocked, pinId } from "../AgentChat/navDock";
 import { liveSessions } from "../../utils/hostAgents";
@@ -73,6 +73,10 @@ const SystemNav = ({
   }, []);
   const [tabPc, setTabPc] = useState(() => localStorage.getItem("sv.navTabPc") || "");
   const pickTab = (pc) => {
+    // USING IT IS THE STRONGEST CLAIM THERE IS — *"it's ordered by what I've been using."* So his
+    // own pick ranks above any agent's announcement about itself, and a bot starting up lands
+    // behind the tab he is in rather than over it.
+    bump((cur) => rankUsed(cur, pc));
     setTabPc(pc);
     localStorage.setItem("sv.navTabPc", pc);
     window.dispatchEvent(new CustomEvent("sv:navView"));
@@ -93,30 +97,36 @@ const SystemNav = ({
   }, [view]);
   // WHO IS COOKING — announced by each chat (`sv:agentState`) as its state changes; the tab wears
   // the mark. Not polled: the chats already know, and the strip only has to listen.
-  //
-  // AND THE SAME ANNOUNCEMENT IS WHAT MOVES THE TAB. `runs` keeps when each agent started and
-  // when its afterglow runs out, which is what `tabOrder` needs to be stable; the dot is DERIVED
-  // from it, so the mark and the place can never disagree about who is working.
-  const [runs, setRuns] = useState({});
+  const [cookingPcs, setCookingPcs] = useState(() => new Set());
+  // AND THE RANKS ARE WHAT ORDER THE STRIP. Persisted, because a tab that came forward and then
+  // went back where it was on a reload is the same complaint as one that springs back when an
+  // agent finishes: *"why did it move away? it went back to where it was."*
+  const [ranks, setRanks] = useState(readRanks);
+  const bump = (fn) =>
+    setRanks((cur) => {
+      const next = fn(cur);
+      if (next !== cur) writeRanks(next);
+      return next;
+    });
   useEffect(() => {
     const on = (e) => {
       const d = (e && e.detail) || {};
       if (!d.projectCode) return;
       const cooking = d.state === "working" || d.state === "waiting";
-      setRuns((cur) => (cooking ? beginRun(cur, d.projectCode) : endRun(cur, d.projectCode)));
+      setCookingPcs((cur) => {
+        if (cur.has(d.projectCode) === cooking) return cur;
+        const n = new Set(cur);
+        if (cooking) n.add(d.projectCode);
+        else n.delete(d.projectCode);
+        return n;
+      });
+      // STARTING COMES FORWARD; STOPPING DOES NOTHING AT ALL. There is no demotion anywhere in
+      // this file, which is the only way to be sure nothing ever springs back.
+      if (cooking) bump((cur) => rankRan(cur, d.projectCode));
     };
     window.addEventListener("sv:agentState", on);
     return () => window.removeEventListener("sv:agentState", on);
   }, []);
-  const cookingPcs = useMemo(() => workingNow(runs), [runs]);
-  // A CLOCK ONLY WHILE AN AFTERGLOW IS COUNTING DOWN. Nothing else in the order is time-dependent:
-  // working is working until the chat says otherwise, so a strip with nothing fading needs no tick.
-  const [glowBeat, setGlowBeat] = useState(0);
-  useEffect(() => {
-    if (!glowing(runs)) return undefined;
-    const t = setInterval(() => setGlowBeat((n) => n + 1), 4000);
-    return () => clearInterval(t);
-  }, [runs, glowBeat]);
   // FROZEN WHILE HE IS ON THE STRIP — hovering the tabs means he is about to press one, and a tab
   // that moves out from under a click is worse than a tab he had to look for.
   const [onStrip, setOnStrip] = useState(false);
@@ -464,9 +474,9 @@ const SystemNav = ({
   // hard — not moving anything that does not have to move.
   const lastTabs = useRef([]);
   const tabPcs = useMemo(
-    () => tabOrder({ order: dockPcs, runs, frozen: onStrip, last: lastTabs.current }),
+    () => tabOrder({ order: dockPcs, ranks, frozen: onStrip, last: lastTabs.current }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dockPcs.join("|"), runs, onStrip, glowBeat],
+    [dockPcs.join("|"), ranks, onStrip],
   );
   useEffect(() => {
     lastTabs.current = tabPcs;
@@ -483,6 +493,21 @@ const SystemNav = ({
     try { localStorage.setItem("sv.navTabPc", activeTabPc); } catch {}
     window.dispatchEvent(new CustomEvent("sv:navView"));
   }, [view, activeTabPc]);
+  // THE TAB HE IS IN IS A TAB HE IS USING, even when he got here by reopening the window rather
+  // than by pressing it. Without this the resolved tab starts life unranked, which is the state
+  // an agent announcing itself could out-rank — the exact jump he caught.
+  useEffect(() => {
+    if (!activeTabPc) return;
+    bump((cur) => (cur.used[activeTabPc] == null ? rankUsed(cur, activeTabPc) : cur));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTabPc]);
+  // AND THE STORE DOES NOT GROW FOREVER — a rank for a project that no longer exists is dropped.
+  // `prune` hands back the same object when nothing changed, so this is not a write per render.
+  useEffect(() => {
+    if (!dockPcs.length) return;
+    bump((cur) => prune(cur, dockPcs));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dockPcs.join("|")]);
   return (
     <section className={`system-nav${view === "tabs" ? " system-nav--tabs" : ""}`}>
         {/* Title + tabs are a FIXED header region — they don't scroll. The service tree below is the ONLY
