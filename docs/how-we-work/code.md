@@ -55,7 +55,7 @@ comment that an afternoon had already gone to getting the wrapping wrong, the ot
 prose that it "assumes the route shape, so nothing else can be attached." Nobody chose that; it was
 easier to write one `fetch` than to load a client, twice, a year apart.
 
-## The shape of a service — modules are plain objects, and placement declares coupling
+## The shape of a service — modules are plain objects, middleware declared per method
 
 Four things that are the shape rather than one project's taste. buAPI is where this is practised
 most fully and is worth reading if you have it; what follows is the pattern, which is what travels.
@@ -81,16 +81,58 @@ object be hosted, called in-process, or wrapped for a test without changing a li
 this module do, and what runs before each thing* — so authorisation is readable without tracing a
 router.
 
-**`common/` exists at every level, and placement declares the coupling.** A repo-root `common/` is
-shared across services; a service's own `common/` across that service's modules; middleware unique
-to one module sits beside it. **Moving a file into a `common/` is a statement that a second consumer
-exists** — never a junk drawer.
+**`common/` exists at every level**, and which level a thing sits at is not a filing preference —
+it is a declaration. That is the next subject.
 
 **And the specs sit beside the service, one file per method** — `<service>/specs/tests/<Module>.<method>.json`.
 **That is the whole payoff of this chapter in one path shape.** Because the method has a namespace,
 the spec has an address; because the spec has an address, a claim in a document can point at it and
 re-run forever. A method behind a hand-rolled request cannot be named, so it cannot be pointed at,
 so the claim above it falls back to prose.
+
+## Depth declares coupling, and a file GRADUATES up to it
+
+**The goal of a folder structure is to make coupling checkable** — not merely visible. Where a file
+sits says how many things are permitted to depend on it, and the levels are a hierarchy:
+
+| the file sits | it declares |
+|---|---|
+| repo-root `common/` | every service may couple to this |
+| `<Service>/common/` | that service's modules, and nobody outside the service |
+| beside one module — its own `methods.js`, `middleware.js`, `utils.js` | that module alone |
+
+**A file is written at the narrowest level that works, and GRADUATES when a second consumer
+appears.** That is why some modules carry their own methods and middleware while others are an
+`index.js` alone: at the time of writing, those methods were genuinely unique to that module. When
+something elsewhere needs one, it moves up a level — and **what moves is the function and the
+comment that says why it exists, together.** A method that arrives in a `common/` without its reason
+reads as a utility and gets used for a shape it was never built for.
+
+**So depth is a record of demand, not a design.** This cannot be laid out top-down, because at write
+time nobody knows what will be needed twice. The tree accumulates the answer, one promotion at a
+time.
+
+**And coupling has a legal direction — up, never sideways.** A module does not require a sibling
+module. Measured across four services in the codebase where this is practised most fully: **zero
+sideways requires**, 40 reaches up into a service's own `common/`, 62 into the repo root's. When a
+sibling's function is wanted, the answer is never an import across; it is to graduate the shared
+part up, or to recognise it belonged to one module and inline it there.
+
+## The two coupling defects, and what the tree cannot tell you
+
+**The second is the one nobody looks for:**
+
+- **A sideways require.** It is in the path, so it is mechanical to find and the fix is one of the
+  two moves above — never "add an import".
+- **A file that was BORN shared.** Placed in a `common/` because it felt general, so it skipped
+  graduation and its depth is a claim no second consumer ever paid for. **The tell is a shared file
+  with exactly one consumer.** Nothing breaks, which is why it survives for years — and every reader
+  after it takes the depth as settled fact and couples to it accordingly.
+
+**What the tree cannot tell you.** It declares what MAY couple, never what does: a clean tree and a
+tree with a sideways reach are indistinguishable until something greps the requires. So a folder
+structure is a claim in exactly the sense that word carries here — it reads as proven, and it is
+proven only when something presses it.
 
 ## A custom HTTP client is the framework's seam, not a workaround
 
