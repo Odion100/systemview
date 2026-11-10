@@ -272,7 +272,9 @@ The planning document is where a shape is argued. The **arc** is what comes out 
 holds the objectives. Every project that has work gets its own — projects are separate repos, and an
 arc written somewhere central is one its builder does not have, cannot commit and will not find.
 
-Write it at `RFCs/arcs/ARC-<nnn>-<kebab-subject>.md`, and **find it by asking, never by that path**
+**An arc registers off its `::arc` leaf the moment the file is saved, and that is the whole of it.**
+The leaf is the identity (RFC-073): no path makes a document an arc and no path stops one, so there
+is nothing here to get right and nothing to be told. **Find one by asking**
 — `registry({kind: "arc"})`, or `registry({kind: "arc", member: "<your project code>"})` for the
 ones you are on, across every project. The arc registers off its leaf when the file is saved, so
 the folder is tidiness; the id is the address. A reader who globs the folder instead gets silence
