@@ -49,10 +49,10 @@ describe("the line draws when there is a line", () => {
   // state he once got stuck in.
   it("still draws while paused, because a pause needs to say so", () => {
     cutIn(row("r1"));
-    setPaused("r1", true);
+    setPaused(true);
     const { container } = render(<SpeechLine />);
     expect(container.querySelector(".speech-line")).not.toBeNull();
-    setPaused("r1", false);
+    setPaused(false);
   });
 });
 
@@ -180,7 +180,7 @@ describe("pause lives on the line, not only on the row", () => {
     const { container } = render(<SpeechLine />);
     fireEvent.click(container.querySelector(".speech-line__pause"));
     expect(view().playing.paused).toBe(true);
-    setPaused("r1", false);
+    setPaused(false);
   });
 
   it("and pressing it again resumes, rather than needing stop", () => {
@@ -195,6 +195,34 @@ describe("pause lives on the line, not only on the row", () => {
     cutIn(null);
     const { container } = render(<SpeechLine />);
     expect(container.querySelector(".speech-line__pause")).toBeNull();
+  });
+
+  // HIS BUG, FROM THE BUTTON'S SIDE. *"In between cues, nothing is playing, but the pause button is
+  // there."* A hold pressed in that silence had nowhere to be drawn from — the pause lived on the
+  // playing item and there was no playing item — so the line went blank over a queue that would not
+  // move. It is the line's hold now, so the line draws it, and the press that releases it.
+  it("draws the hold, and the press that lets it go, with nothing playing at all", () => {
+    cutIn(null);
+    setPaused(true);
+    const { container } = render(<SpeechLine />);
+    expect(container.querySelector(".speech-line")).not.toBeNull();
+    expect(container.querySelector(".speech-line__stop").textContent).toContain("paused");
+    const resume = container.querySelector(".speech-line__pause");
+    expect(resume.title).toBe("Resume");
+    fireEvent.click(resume);
+    expect(view().paused).toEqual([]);
+  });
+
+  it("starts the line it was holding the moment he lets go", () => {
+    cutIn(null);
+    setPaused(true);
+    const spoke = [];
+    enqueue({ key: "held-one", label: "held-one", start: () => { spoke.push("held-one"); return { stop: () => {} }; } });
+    const { container } = render(<SpeechLine />);
+    expect(spoke).toEqual([]);
+    fireEvent.click(container.querySelector(".speech-line__pause"));
+    expect(spoke).toEqual(["held-one"]);
+    expect(view().playing.key).toBe("held-one");
   });
 });
 
@@ -223,11 +251,11 @@ describe("loading shows on the line, not only on the row", () => {
   it("paused outranks loading — a pause is the thing he needs explained", () => {
     cutIn(row("sel-1"));
     setWarming("sel-1", true);
-    setPaused("sel-1", true);
+    setPaused(true);
     const { container } = render(<SpeechLine />);
     expect(container.querySelector(".speech-line__stop").textContent).toContain("paused");
     expect(container.querySelector(".speech-line__stop").textContent).not.toContain("loading");
-    setPaused("sel-1", false);
+    setPaused(false);
     setWarming("sel-1", false);
   });
 

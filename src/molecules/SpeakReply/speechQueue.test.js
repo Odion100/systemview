@@ -61,7 +61,7 @@ describe("replies wait their turn", () => {
   it("goes quiet when the last one ends", () => {
     enqueue(item("a"));
     done("a");
-    expect(view()).toEqual({ playing: null, waiting: [] });
+    expect(view()).toEqual({ playing: null, waiting: [], paused: [] });
   });
 });
 
@@ -82,7 +82,7 @@ describe("a press cuts in, and the line goes with it", () => {
     enqueue(item("b"));
     clear();
     expect(spoken).toEqual(["a", "stop:a"]);
-    expect(view()).toEqual({ playing: null, waiting: [] });
+    expect(view()).toEqual({ playing: null, waiting: [], paused: [] });
   });
 
   // A stop that throws must not strand the queue holding a reply that is no longer audible.
@@ -141,7 +141,7 @@ describe("getting past the one that is reading", () => {
   it("skipping the last one leaves silence rather than an empty playing slot", () => {
     enqueue(item("a"));
     skip();
-    expect(view()).toEqual({ playing: null, waiting: [] });
+    expect(view()).toEqual({ playing: null, waiting: [], paused: [] });
   });
 
   it("refuses when nothing is reading, instead of pretending", () => {
@@ -154,16 +154,19 @@ describe("getting past the one that is reading", () => {
     enqueue(item("a"));
     enqueue(item("b"));
     expect(view().playing.paused).toBe(false);
-    setPaused("a", true);
+    setPaused(true);
     expect(view().playing.paused).toBe(true);
-    setPaused("a", false);
+    setPaused(false);
     expect(view().playing.paused).toBe(false);
   });
 
-  it("ignores a paused flag from something that is not reading", () => {
-    enqueue(item("a"));
-    expect(setPaused("b", true)).toBe(false);
-    expect(view().playing.paused).toBe(false);
+  // SUPERSEDED — a pause used to be refused unless it named the item that was reading, which is
+  // exactly how it got lost in the gaps between them. It is the LINE's now, so a press with nothing
+  // reading is recorded rather than thrown away.
+  it("takes a pause with nothing reading — that is the gap he kept pressing in", () => {
+    expect(setPaused(true)).toBe(true);
+    expect(view().paused).toEqual([""]);
+    expect(view().playing).toBeNull();
   });
 });
 

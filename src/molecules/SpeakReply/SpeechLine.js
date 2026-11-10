@@ -60,31 +60,47 @@ const SpeechLine = ({ className = "", onGo = null, scope = "", compact = false }
     ? {
         playing: raw.playing && raw.playing.scope === scope ? raw.playing : null,
         waiting: raw.waiting.filter((w) => w.scope === scope),
+        // The holds ride through unfiltered — they are scopes, not items, and whether one of them
+        // is this line's is the question below.
+        paused: raw.paused,
       }
     : raw;
 
   // Nothing queued behind it is the ordinary case, and it draws nothing — EXCEPT while paused,
   // because a pause holds the line forever and silence with no explanation is the state he got
   // stuck in: replies arriving, nothing reading them, and no way to tell why.
-  const stalled = !!(q.playing && q.playing.paused);
+  //
+  // AND THE PAUSE IS THE LINE'S, so it is read off the line and not off the item. The item was the
+  // only place it could be read from before, which meant the one state he most needed drawn — a
+  // pause pressed in the silence between two cues — could not be drawn at all: no item, no pause,
+  // no button, and the next cue started talking. A chat's line reports its own hold and the window's;
+  // a surface that owns no project draws everyone's line, so it reports any hold on it.
+  const holds = q.paused || [];
+  const pausedHere = scope ? holds.includes("") || holds.includes(scope) : holds.length > 0;
+  const stalled = pausedHere || !!(q.playing && q.playing.paused);
   // LOADING BELONGS HERE TOO. *"Sometimes you're not… you press the button or you highlight and you
   // press the button. They're just waiting."* On a cold machine the first utterance waits on an
   // 86MB model, and the ROW that was pressed is the only thing that says so — useless for a box
   // selection, which has no row, and for a reply he has scrolled away from. Silence with no account
   // is the exact state this line exists to end.
   const warming = !!(q.playing && q.playing.warming && !stalled);
-  if (!q.playing && !q.waiting.length) return null;
+  // A HELD LINE DRAWS EVEN WITH NOTHING ON IT, because that is the one state with no other witness:
+  // he pressed pause in a gap, so there is no reading and perhaps nothing waiting yet, and the only
+  // thing that can tell him why the next reply stays silent — and give him the press that releases
+  // it — is this row.
+  if (!q.playing && !q.waiting.length && !pausedHere) return null;
   // Everything the line is holding, the one talking included — that IS the line.
   const inLine = (q.playing ? 1 : 0) + q.waiting.length;
 
+  // THE HOLD IS THE LINE'S, so the press needs no item to act on — which is what lets it be pressed
+  // at any moment, no matter what, and lets it be pressed BACK in the same silence.
   const togglePause = () => {
-    if (!q.playing) return;
     if (stalled) {
       voiceResume();
-      setPaused(q.playing.key, false);
+      setPaused(false, scope);
     } else {
       voicePause();
-      setPaused(q.playing.key, true);
+      setPaused(true, scope);
     }
   };
 
@@ -121,12 +137,14 @@ const SpeechLine = ({ className = "", onGo = null, scope = "", compact = false }
         {/* WAITING: the line is standing still with items on it — on-screen turn-taking is the
             only lane that waits (an elsewhere reply is read popped-out or dropped, never lined
             up) — the play starts it */}
-        {!q.playing && q.waiting.length > 0 && (
+        {/* …and not while it is HELD: the resume below is the ▶ then, and two of them would be two
+            answers to the same press. */}
+        {!q.playing && !pausedHere && q.waiting.length > 0 && (
           <button type="button" className="speech-line__pause" title="Read it now" aria-label="Start reading" onClick={() => release()}>
             ▶
           </button>
         )}
-        {q.playing && (
+        {(q.playing || pausedHere) && (
           <button
             type="button"
             className={`speech-line__pause${stalled ? " is-paused" : ""}`}
@@ -163,22 +181,16 @@ const SpeechLine = ({ className = "", onGo = null, scope = "", compact = false }
             only stop it. The queue should have the full functionality of whatever is playing so
             that you don't have to have it in view."*
             It does not need the row's handle: `voice.pause()` acts on whatever is currently
-            speaking, which is exactly what the line is about. */}
-        {q.playing && (
+            speaking, which is exactly what the line is about.
+            AND IT DOES NOT NEED SOMETHING TO BE SPEAKING EITHER, which is the whole of his report:
+            the press belongs to the line, so it is here whenever the line is reading OR held. */}
+        {(q.playing || pausedHere) && (
           <button
             type="button"
             className={`speech-line__pause${stalled ? " is-paused" : ""}`}
             title={stalled ? "Resume" : "Pause"}
             aria-label={stalled ? "Resume reading" : "Pause reading"}
-            onClick={() => {
-              if (stalled) {
-                voiceResume();
-                setPaused(q.playing.key, false);
-              } else {
-                voicePause();
-                setPaused(q.playing.key, true);
-              }
-            }}
+            onClick={togglePause}
           >
             {stalled ? "▶" : "❙❙"}
           </button>

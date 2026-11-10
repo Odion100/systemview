@@ -7,7 +7,16 @@ import { hostFiles, machineFiles, isMachineAddress } from "../../utils/hostFiles
 import { available, ready as engineReady, speak, voices } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings } from "../../utils/voicePref";
 import { takeIfNew } from "./autoSpeak";
-import { enqueue, cutIn, done as queueDone, setPaused, setPosition as queuePosition, setWarming as queueWarming } from "./speechQueue";
+import {
+  enqueue,
+  cutIn,
+  done as queueDone,
+  isPaused,
+  setPaused,
+  setPosition as queuePosition,
+  setWarming as queueWarming,
+  whenResumed,
+} from "./speechQueue";
 import { behind, register } from "./lineUp";
 import { useMarkdownScope } from "../../atoms/Markdown/context";
 import { announce, claim, isOwner, nextSpeakerId, subscribe } from "./speaker";
@@ -192,6 +201,13 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           const playFrom = (i) => {
             if (seq.current !== token) return;
             if (i >= segs.length) return finish();
+            // A PAUSE HOLDS THE NEXT BEAT, not only the sentence that is sounding. These beats play
+            // inside ONE queue item, so the line cannot stop them — and the silences BETWEEN them
+            // are where he presses: a press cue holding through its settle, a point cue waiting on
+            // a scroll. Asked here, the rest of the sequence waits where it stands and picks up on
+            // the same beat when he lets go. Without this the hold was recorded and then talked
+            // straight through, which is why pausing took him three presses.
+            if (isPaused(projectCode)) return whenResumed(projectCode, () => playFrom(i));
             const seg = segs[i];
             if (seg.kind === "cue") {
               // a cue plays inside the reply's own turn — voice and motion from the ONE performer
@@ -423,15 +439,15 @@ const SpeakReply = ({ text, className = "", rowKey = "", ts = 0 }) => {
           e.stopPropagation();
           e.preventDefault();
           if (!handle.current) return;
-          // THE LINE HAS TO KNOW. A pause holds the current item forever, so a queue stalled
-          // behind one is indistinguishable from a queue working — which is the state he got
-          // stuck in without being told.
+          // THE LINE HAS TO KNOW, and the pause is the LINE'S — this one reading is only where he
+          // happened to press it. So it holds the whole of this chat's line: the beats after this
+          // one in the same reply, and whatever is queued behind it.
           if (paused) {
             handle.current.resume();
-            setPaused(rowKey, false);
+            setPaused(false, projectCode);
           } else {
             handle.current.pause();
-            setPaused(rowKey, true);
+            setPaused(true, projectCode);
           }
         }}
         aria-label={paused ? "Resume reading" : "Pause reading"}
