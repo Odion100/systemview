@@ -421,7 +421,7 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
   border-left: 2px solid var(--sv-border-soft);
   b { font-size: 11.5px; color: var(--sv-text-strong); letter-spacing: 0.2px; }
   i { font-size: 10px; font-style: normal; color: var(--sv-text-faint); line-height: 1.35; }
-  &:hover b { text-decoration: underline; text-decoration-color: var(--sv-border); text-underline-offset: 3px; }
+  &:hover b { color: var(--sv-blue); }
 }
 .dba-axis__n { font-size: 10px; color: var(--sv-text-muted); }
 // THE DIRECTION OF TRAVEL, SHOWN. The left border warms up left to right, so the axis reads as a
@@ -434,12 +434,13 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
 .dba-axis__col--setdown { border-left-color: var(--sv-border-soft); }
 .dba-axis__col--stack { border-left-color: var(--dba-report-dim); }
 
-// HELD. An underline, because it is the one mark that reads as "this word is doing something" on a
-// word whose colour already means its phase — his call on the report filters, kept here.
+// HELD — WEIGHT, NOT A LINE. *"I don't like the underline, something else for selection."* The
+// label thickens and its count comes up to full strength, which costs no layout at all: a bolder
+// word occupies the same box, so the axis does not reflow as he moves between columns.
 .dba-axis__col.is-on {
-  b { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  b { font-weight: 700; color: var(--sv-blue); }
   i { color: var(--sv-text-muted); }
-  .dba-axis__n { color: var(--sv-text-strong); font-weight: 600; }
+  .dba-axis__n { color: var(--sv-text-strong); font-weight: 700; }
 }
 
 // ─── ONE LANE ──────────────────────────────────────────────────────────────────────────────────
@@ -467,10 +468,20 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
   letter-spacing: -0.1px;
 }
 .dba-lane__counts { display: flex; gap: 9px; flex-wrap: wrap; }
+// A COUNT IS A BUTTON NOW. The reset is the whole of what keeps a pressable count looking exactly
+// like the label it already was — *"nothing changed about its look."*
 .dba-count {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   font-size: 10.5px;
   color: var(--sv-text-muted);
-  padding-left: 9px;
+  padding: 0 0 0 9px;
   position: relative;
   &::before {
     content: "";
@@ -486,6 +497,15 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
 .dba-count--arc::before { background: var(--dba-arc); }
 .dba-count--gap::before { background: var(--dba-gap); }
 .dba-count--report::before { background: var(--dba-report); }
+.dba-count:hover { color: var(--sv-text-strong); }
+// HELD — the word thickens and its own dot opens up. Declared after the colour rules so the hue a
+// kind owns is never out-specified by the state, and sized off the absolute dot so a held count
+// takes exactly the width it took before.
+.dba-count.is-on {
+  color: var(--sv-text-strong);
+  font-weight: 700;
+  &::before { width: 7px; height: 7px; top: 0.35em; left: -1px; }
+}
 
 .dba-lane__owes {
   margin-left: auto;
@@ -508,47 +528,6 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
   color: var(--sv-text-faint);
   code { margin-left: 8px; font-size: 10px; }
 }
-// THE LANE'S FILTER WORDS — the same words the head counts in, because they are the same fact:
-// a kind and how much of it is here. Nothing about them says "button" until you are over one.
-.dba-lane__picks {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-.dba-pick {
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
-  border: 0;
-  font: inherit;
-  font-size: 10.5px;
-  color: var(--sv-text-muted);
-  cursor: pointer;
-  padding: 0 0 0 9px;
-  position: relative;
-  &::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 0.45em;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-  }
-  &:hover { color: var(--sv-text-strong); }
-}
-.dba-pick--rfc::before { background: var(--dba-rfc); }
-.dba-pick--arc::before { background: var(--dba-arc); }
-.dba-pick--gap::before { background: var(--dba-gap); }
-// DECLARED LAST so the colour rules above cannot out-specify the one state he reads.
-.dba-pick.is-on {
-  color: var(--sv-text-strong);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-}
-
 // THE FOOTNOTE LANES. The count is the statement, so the control is a line of text and not a
 // panel: he reads it and moves on, or he opens it.
 .dba-quiet {

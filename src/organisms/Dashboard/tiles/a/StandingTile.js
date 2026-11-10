@@ -28,19 +28,24 @@ export const StandingTileA = ({ data }) => {
   const { totals } = d;
 
   const [fanned, setFanned] = useState("");
-  // WHICH AXIS COLUMNS ARE HELD — phase ids, plus "reports". Empty means everything, so there is
-  // no `all` to press. More than one at a time: "moving + landed" is a real question.
-  const [held, setHeld] = useState([]);
-  const hold = (k) => setHeld((h) => (h.includes(k) ? h.filter((x) => x !== k) : [...h, k]));
-  // WHICH KINDS ARE HELD INSIDE EACH LANE, keyed by project code — alpha's gaps are not beta's.
+  // WHICH AXIS COLUMN IS HELD — a phase id, or "reports". Empty means everything, so there is no
+  // `all` to press. ONE AT A TIME, everywhere on this page: *"all the filters become toggles
+  // between each other, even the higher level ones."*
+  const [held, setHeld] = useState("");
+  const hold = (k) => setHeld((h) => (h === k ? "" : k));
+  // WHICH KIND IS HELD INSIDE EACH LANE, keyed by project code — alpha's gaps are not beta's.
   const [picks, setPicks] = useState({});
   // WHICH SINGLE DOCUMENT A LANE IS PINNED TO, keyed by project code. Set by pressing its mark.
   const [only, setOnly] = useState({});
   const pick = (code, kind) => {
-    // PRESSING A KIND WORD LETS GO OF THE PINNED MARK. One list, one question at a time: he asked
-    // for the kind, so the one document he pinned a moment ago is not the answer any more.
+    const next = (picks[code] || "") === kind ? "" : kind;
+    // PRESSING A COUNT LETS GO OF THE PINNED MARK. One list, one question at a time: he asked for
+    // the kind, so the one document he pinned a moment ago is not the answer any more.
     setOnly((o) => ({ ...o, [code]: "" }));
-    setPicks((o) => ({ ...o, [code]: { ...(o[code] || {}), [kind]: !((o[code] || {})[kind]) } }));
+    setPicks((o) => ({ ...o, [code]: next }));
+    // AND HOLDING `report` OPENS THE STACK, because that is where a report actually is — it never
+    // travels, so there is no row of it to narrow to. Letting go closes the fan again.
+    setFanned((f) => (next === "report" ? code : f === code ? "" : f));
   };
   const pin = (code, key) => setOnly((o) => ({ ...o, [code]: o[code] === key ? "" : key }));
   // THE FOOTNOTE LANES, OPENED ON REQUEST — folded by default, never dropped.
@@ -50,7 +55,7 @@ export const StandingTileA = ({ data }) => {
   // is a fact about the project, and a lane the filter excluded is a fact about what he is
   // holding. One fold would make those read as the same thing.
   const { live: drawn, quiet } = foldLanes(d.projects);
-  const lanes = holdLanes(drawn, held);
+  const lanes = holdLanes(drawn, held ? [held] : []);
   const showing = lanes.reduce((n, p) => n + p.marks.length, 0);
   const showingReports = lanes.reduce((n, p) => n + p.reports.length, 0);
 
@@ -65,7 +70,7 @@ export const StandingTileA = ({ data }) => {
           <span>
             {showing} travelling {showing === 1 ? "document" : "documents"} · {showingReports} reports · across{" "}
             {lanes.length} of {totals.projects} projects
-            {held.length ? ` · holding ${held.join(" + ")}` : ""}
+            {held ? ` · holding ${held}` : ""}
           </span>
         </h2>
         {/* THE LEGEND IS THE HEADER, ONCE, and the lanes are a grid under it so a column means the
@@ -83,8 +88,8 @@ export const StandingTileA = ({ data }) => {
             <button
               key={ph.id}
               type="button"
-              className={`dba-axis__col dba-axis__col--${ph.id}${held.includes(ph.id) ? " is-on" : ""}`}
-              aria-pressed={held.includes(ph.id)}
+              className={`dba-axis__col dba-axis__col--${ph.id}${held === ph.id ? " is-on" : ""}`}
+              aria-pressed={held === ph.id}
               onClick={() => hold(ph.id)}
             >
               <b>{ph.label}</b>
@@ -94,8 +99,8 @@ export const StandingTileA = ({ data }) => {
           ))}
           <button
             type="button"
-            className={`dba-axis__col dba-axis__col--stack${held.includes("reports") ? " is-on" : ""}`}
-            aria-pressed={held.includes("reports")}
+            className={`dba-axis__col dba-axis__col--stack${held === "reports" ? " is-on" : ""}`}
+            aria-pressed={held === "reports"}
             onClick={() => hold("reports")}
           >
             <b>reports</b>
@@ -109,18 +114,18 @@ export const StandingTileA = ({ data }) => {
             p={p}
             fanned={fanned === p.code}
             onFan={() => setFanned((f) => (f === p.code ? "" : p.code))}
-            picks={picks[p.code] || {}}
+            pick={picks[p.code] || ""}
             onPick={(kind) => pick(p.code, kind)}
             only={only[p.code] || ""}
             onOnly={(key) => pin(p.code, key)}
-            heldAny={!!held.length}
+            heldAny={!!held}
             open={open}
           />
         ))}
         {/* A FILTER THAT MATCHES NOTHING SAYS SO IN THE FILTER'S OWN WORDS. "no projects" here
             would be a claim about the machine; this is a claim about what he is holding. */}
         {!lanes.length && drawn.length ? (
-          <p className="dba-lane__none">nothing is {held.join(" or ")} in any project right now</p>
+          <p className="dba-lane__none">nothing is {held} in any project right now</p>
         ) : null}
         {!d.projects.length ? (
           <p className="dba-lane__none">
@@ -152,11 +157,11 @@ export const StandingTileA = ({ data }) => {
                     p={p}
                     fanned={fanned === p.code}
                     onFan={() => setFanned((f) => (f === p.code ? "" : p.code))}
-                    picks={picks[p.code] || {}}
+                    pick={picks[p.code] || ""}
                     onPick={(kind) => pick(p.code, kind)}
                     only={only[p.code] || ""}
                     onOnly={(key) => pin(p.code, key)}
-                    heldAny={!!held.length}
+                    heldAny={!!held}
                     open={open}
                   />
                 ))

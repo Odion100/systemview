@@ -105,7 +105,7 @@ it("stacks the reports with a number and never shows a clock it was not given", 
     { alpha: "/repos/alpha" },
   );
   // the stack is a PILE WITH A NUMBER — his words — and the number is the pile's own
-  const pile = await screen.findByRole("button", { name: /2 reports/ });
+  const pile = await screen.findByRole("button", { name: /2 reports — press to fan them out/ });
   expect(within(pile).getByText("2")).toBeInTheDocument();
   expect(screen.getByText(/retires 7 days after first read/)).toBeInTheDocument();
   expect(screen.getByText("permanent")).toBeInTheDocument();
@@ -202,7 +202,7 @@ const twoProjects = () => {
   );
 };
 
-it("holds a column from the axis and narrows every lane at once, more than one at a time", async () => {
+it("holds one column from the axis and narrows every lane at once, toggling between them", async () => {
   twoProjects();
   expect(await screen.findByText("alpha")).toBeInTheDocument();
   expect(screen.getByText("beta")).toBeInTheDocument();
@@ -216,15 +216,17 @@ it("holds a column from the axis and narrows every lane at once, more than one a
   // and the page says what it is holding rather than quietly showing him less
   expect(screen.getByText(/holding moving/)).toBeInTheDocument();
 
-  // HOLD `proposed` AS WELL — both lanes are back, which is the whole reason it is not a radio
-  fireEvent.click(screen.getByRole("button", { name: /proposed/ }));
-  expect(screen.getByText("alpha")).toBeInTheDocument();
+  // HOLD `proposed` AND `moving` LETS GO — one at a time, across the whole page
+  const proposed = screen.getByRole("button", { name: /proposed/ });
+  fireEvent.click(proposed);
+  expect(moving).toHaveAttribute("aria-pressed", "false");
+  expect(proposed).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByText(/holding proposed/)).toBeInTheDocument();
+  expect(screen.queryByText("alpha")).not.toBeInTheDocument();
   expect(screen.getByText("beta")).toBeInTheDocument();
-  expect(screen.getByText(/holding moving \+ proposed/)).toBeInTheDocument();
 
-  // AND PRESSING IT AGAIN LETS GO. There is no `all` to find: nothing held is everything.
-  fireEvent.click(moving);
-  fireEvent.click(screen.getByRole("button", { name: /proposed/ }));
+  // AND PRESSING THE HELD ONE AGAIN CLEARS IT. There is no `all` to find: nothing held is everything.
+  fireEvent.click(proposed);
   expect(screen.queryByText(/holding/)).not.toBeInTheDocument();
   expect(screen.getByText("alpha")).toBeInTheDocument();
   expect(screen.getByText("beta")).toBeInTheDocument();
@@ -246,7 +248,7 @@ it("says a filter matched nothing in the filter's own words, never as a claim ab
 // section of the type of documents that are there."* THE NUMBERS ARE ALWAYS SHOWING — that is why
 // the show-hide went: *"The numbers should be showing. All of them. That's the fucking point."* The
 // words NARROW the list; they do not open it.
-it("shows every number by default and narrows to the kind pressed, until the last one is let go", async () => {
+it("shows every number by default and narrows to the count pressed, toggling between kinds", async () => {
   mockFiles["RFCs/RFC-081-a.md"] = "# RFC-081 — a design\n\n::rfc{id=RFC-081}\n";
   mockFiles["gaps/g-21.md"] = "# G-21 — a thing missing\n\n::gap{id=G-21}\n";
   mount(
@@ -262,9 +264,11 @@ it("shows every number by default and narrows to the kind pressed, until the las
   expect(screen.queryByText("hide the numbers")).not.toBeInTheDocument();
 
   const lane = screen.getByText("alpha").closest(".dba-lane");
-  const picks = lane.querySelector(".dba-lane__picks");
-  const rfc = within(picks).getByRole("button", { name: /1 RFC/ });
-  const gap = within(picks).getByRole("button", { name: /1 gap/ });
+  // THE CONTROL IS THE COUNT BESIDE THE TITLE — there is no second row of words to find
+  expect(lane.querySelector(".dba-lane__picks")).toBeNull();
+  const counts = lane.querySelector(".dba-lane__counts");
+  const rfc = within(counts).getByRole("button", { name: /1 RFC/ });
+  const gap = within(counts).getByRole("button", { name: /1 gap/ });
 
   // NOTHING HELD IS EVERYTHING — the numbers are on screen before anybody presses anything
   expect(within(lane.querySelector(".dba-list")).getByText("RFC-081")).toBeInTheDocument();
@@ -276,13 +280,13 @@ it("shows every number by default and narrows to the kind pressed, until the las
   expect(within(list()).getByText("RFC-081")).toBeInTheDocument();
   expect(within(list()).queryByText("G-21")).not.toBeInTheDocument();
 
-  // MORE THAN ONE AT A TIME
+  // ONE AT A TIME — the gap takes over from the RFC rather than joining it
   fireEvent.click(gap);
-  expect(within(list()).getByText("RFC-081")).toBeInTheDocument();
+  expect(rfc).toHaveAttribute("aria-pressed", "false");
   expect(within(list()).getByText("G-21")).toBeInTheDocument();
+  expect(within(list()).queryByText("RFC-081")).not.toBeInTheDocument();
 
-  // and letting them all go shows all of them again, rather than closing
-  fireEvent.click(rfc);
+  // and letting the held one go shows all of them again, rather than closing
   fireEvent.click(gap);
   expect(within(list()).getByText("RFC-081")).toBeInTheDocument();
   expect(within(list()).getByText("G-21")).toBeInTheDocument();
@@ -305,9 +309,9 @@ it("keeps each lane's kinds its own — narrowing alpha does not narrow beta", a
   expect(within(alpha.querySelector(".dba-list")).getByText("G-30")).toBeInTheDocument();
   expect(within(beta.querySelector(".dba-list")).getByText("G-31")).toBeInTheDocument();
   // holding alpha's gaps leaves alpha narrowed to them and beta untouched
-  fireEvent.click(within(alpha.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ }));
-  expect(within(alpha.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ })).toHaveAttribute("aria-pressed", "true");
-  expect(within(beta.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ })).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(within(alpha.querySelector(".dba-lane__counts")).getByRole("button", { name: /1 gap/ }));
+  expect(within(alpha.querySelector(".dba-lane__counts")).getByRole("button", { name: /1 gap/ })).toHaveAttribute("aria-pressed", "true");
+  expect(within(beta.querySelector(".dba-lane__counts")).getByRole("button", { name: /1 gap/ })).toHaveAttribute("aria-pressed", "false");
   expect(within(beta.querySelector(".dba-list")).getByText("G-31")).toBeInTheDocument();
 });
 
@@ -356,7 +360,7 @@ it("narrows the lane to one document when its mark is pressed, and opens nothing
   expect(within(list()).getByText("RFC-091")).toBeInTheDocument();
 });
 
-it("lets a kind word take over from a pinned mark rather than intersecting with it", async () => {
+it("lets a count take over from a pinned mark rather than intersecting with it", async () => {
   mockFiles["RFCs/RFC-092.md"] = "# RFC-092 — a design\n\n::rfc{id=RFC-092}\n";
   mockFiles["gaps/g-40.md"] = "# G-40 — a thing missing\n\n::gap{id=G-40}\n";
   mount(
@@ -373,8 +377,45 @@ it("lets a kind word take over from a pinned mark rather than intersecting with 
   expect(within(list()).getByText("RFC-092")).toBeInTheDocument();
 
   // ASK FOR THE GAPS and the pin lets go — an intersection could only answer with nothing
-  fireEvent.click(within(lane.querySelector(".dba-lane__picks")).getByRole("button", { name: /1 gap/ }));
+  fireEvent.click(within(lane.querySelector(".dba-lane__counts")).getByRole("button", { name: /1 gap/ }));
   expect(within(list()).getByText("G-40")).toBeInTheDocument();
   expect(within(list()).queryByText("RFC-092")).not.toBeInTheDocument();
-  expect(within(lane).getByRole("button", { name: /^RFC-092 —/ })).toHaveAttribute("aria-pressed", "false");
+  // AND THE REST OF THE LANE IS NARROWED TOO, not just the list — the RFC's mark is off the track
+  // while the gaps are held, which is what "hide the rest" means on a lane.
+  expect(within(lane).queryByRole("button", { name: /^RFC-092 —/ })).not.toBeInTheDocument();
+  expect(within(lane).getByRole("button", { name: /^G-40 —/ })).toBeInTheDocument();
+});
+
+// ─── THE REPORT COUNT OPENS, IT DOES NOT NARROW ────────────────────────────────────────────────
+//
+// A report never travels, so there is no row of it in the numbers to narrow to — which makes its
+// count the one word in the header that has to mean something else. *"Yes, hide the rest, open up
+// that."* So it fans the stack and the lane goes quiet behind it.
+it("fans the stack and hides the rest when a lane's report count is pressed", async () => {
+  mockFiles["RFCs/RFC-095.md"] = "# RFC-095 — a design\n\n::rfc{id=RFC-095}\n";
+  mockFiles["meetings/kept.md"] = "# A meeting that is kept\n\n::report{id=kept retain=permanent}\n";
+  mount(
+    [
+      { id: "RFC-095", kind: "rfc", path: "RFCs/RFC-095.md", project: "alpha", at: NOW, state: { verdict: "approved", built: true, parsed: NOW } },
+      { id: "kept", kind: "report", path: "meetings/kept.md", project: "alpha", at: NOW, state: { retain: "permanent", subtype: "planning", parsed: NOW } },
+    ],
+    { alpha: "/repos/alpha" },
+  );
+  await screen.findByText("alpha");
+  const lane = screen.getByText("alpha").closest(".dba-lane");
+  const pile = within(lane).getByRole("button", { name: /1 report — press to fan/ });
+  expect(pile).toHaveAttribute("aria-expanded", "false");
+
+  fireEvent.click(within(lane.querySelector(".dba-lane__counts")).getByRole("button", { name: /1 report/ }));
+
+  // THE STACK IS OPEN
+  expect(within(lane).getByRole("button", { name: /1 report — press to fan/ })).toHaveAttribute("aria-expanded", "true");
+  // AND THE REST OF THE LANE IS QUIET — no mark on the track, no numbers underneath
+  expect(within(lane).queryByRole("button", { name: /^RFC-095 —/ })).not.toBeInTheDocument();
+  expect(lane.querySelector(".dba-list")).toBeNull();
+
+  // letting it go closes the fan and brings the lane back
+  fireEvent.click(within(lane.querySelector(".dba-lane__counts")).getByRole("button", { name: /1 report/ }));
+  expect(within(lane).getByRole("button", { name: /1 report — press to fan/ })).toHaveAttribute("aria-expanded", "false");
+  expect(within(lane).getByRole("button", { name: /^RFC-095 —/ })).toBeInTheDocument();
 });

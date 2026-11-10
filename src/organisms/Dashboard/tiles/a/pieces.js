@@ -1,5 +1,5 @@
 import React from "react";
-import { PHASES, kindsIn } from "../../../DashboardA/dashboardA.data";
+import { PHASES } from "../../../DashboardA/dashboardA.data";
 import { fillStyle } from "../../../../atoms/meterWidth";
 
 // ─── A'S PIECES — THE PARTS MORE THAN ONE OF A'S TILES DRAWS ───────────────────────────────────
@@ -208,33 +208,44 @@ export const OwedGroup = ({ g, open: shown, onToggle, onOpen }) => {
 };
 
 /** One project: who it is, what it owes, the track, the stack, and the numbers it is asked for. */
-export const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny, open }) => {
-  // THE LANE'S OWN FILTER WORDS, and the rows they open. Derived from the marks in front of him,
-  // so a word never offers a count that opens an empty list.
-  const kinds = kindsIn(p.marks);
-  const held = kinds.filter((k) => picks[k.kind]).map((k) => k.kind);
+export const Lane = ({ p, fanned, onFan, pick, onPick, only, onOnly, heldAny, open }) => {
+  // REPORTS DO NOT TRAVEL, so holding them means something different from holding a kind that
+  // does: the stack opens and the rest of the lane goes quiet. *"Yes, hide the rest, open up
+  // that."* Everything else narrows the numbers.
+  const onReports = pick === "report";
+  const marks = onReports ? [] : pick ? p.marks.filter((m) => m.kind === pick) : p.marks;
   // THE NUMBERS ARE ALWAYS SHOWING — that is the whole reason the show-hide went. Nothing held is
-  // every document in the lane; the words NARROW it, they do not open it.
+  // every document in the lane; a count NARROWS it, it does not open it.
   //
-  // A PINNED MARK IS THE NARROWEST FILTER THERE IS, so it wins over the kind words rather than
+  // A PINNED MARK IS THE NARROWEST FILTER THERE IS, so it wins over the counts rather than
   // intersecting with them — pressing a mark means "just that one", and an intersection could
   // only ever answer with the same row or with nothing.
-  const rows = only
-    ? p.marks.filter((m) => m.key === only)
-    : held.length
-      ? p.marks.filter((m) => held.includes(m.kind))
-      : p.marks;
+  const rows = only ? p.marks.filter((m) => m.key === only) : marks;
   return (
   <article className={`dba-lane${p.registered ? "" : " is-quiet"}`}>
     <header className="dba-lane__head">
       <h3 className="dba-lane__code">{p.code}</h3>
+      {/* THE COUNTS BESIDE THE TITLE ARE THE FILTERS. They already said the one thing a filter
+          needs to say — a kind and how much of it is here — so a second row of words underneath
+          was the same sentence twice. Nothing about them changed but what happens when you press
+          one: *"nothing changed about its look."*
+
+          ONE AT A TIME. Pressing another lets go of the one before it, and pressing the held one
+          clears it — his later call, over the whole page: *"all the filters become toggles between
+          each other, even the higher level ones."* */}
       <span className="dba-lane__counts">
         {["rfc", "arc", "gap", "report"].map((k) =>
           p.counts[k] ? (
-            <span key={k} className={`dba-count dba-count--${k}`}>
+            <button
+              key={k}
+              type="button"
+              className={`dba-count dba-count--${k}${pick === k ? " is-on" : ""}`}
+              aria-pressed={pick === k}
+              onClick={() => onPick(k)}
+            >
               {p.counts[k]} {KIND_WORD[k]}
               {p.counts[k] === 1 || k === "rfc" ? "" : "s"}
-            </span>
+            </button>
           ) : null,
         )}
       </span>
@@ -251,7 +262,7 @@ export const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny, o
         <div className="dba-track">
           {PHASES.map((ph) => (
             <div key={ph.id} className={`dba-cell dba-cell--${ph.id}`}>
-              {p.marks
+              {marks
                 .filter((m) => m.phase === ph.id)
                 .map((m) => (
                   <Mark key={m.key} m={m} pressed={only === m.key} onPress={() => onOnly(m.key)} />
@@ -263,26 +274,6 @@ export const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny, o
           </div>
         </div>
         <StackFan reports={p.reports} open={fanned} onOpen={open} />
-        {/* THE KINDS IN THE LANE ARE THE CONTROL — there is no show-hide button left, because a
-            show-hide answers one question ("is there more?") and the words answer the one he
-            actually has ("where are the gaps?"). Pressing a word opens the numbers filtered to
-            that kind; more than one at a time; letting them all go shows all of them again. */}
-        {kinds.length ? (
-          <div className="dba-lane__picks">
-            {kinds.map((k) => (
-              <button
-                key={k.kind}
-                type="button"
-                className={`dba-pick dba-pick--${k.kind}${picks[k.kind] ? " is-on" : ""}`}
-                aria-pressed={!!picks[k.kind]}
-                onClick={() => onPick(k.kind)}
-              >
-                {k.n} {KIND_WORD[k.kind]}
-                {k.n === 1 || k.kind === "rfc" ? "" : "s"}
-              </button>
-            ))}
-          </div>
-        ) : null}
         {rows.length ? (
           <ul className="dba-list">
             {rows.map((m) => (

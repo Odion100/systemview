@@ -323,33 +323,44 @@ const OwedGroup = ({ g, open: shown, onToggle }) => {
 };
 
 /** One project: who it is, what it owes, the track, the stack, and the numbers it is asked for. */
-const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny }) => {
-  // THE LANE'S OWN FILTER WORDS, and the rows they open. Derived from the marks in front of him,
-  // so a word never offers a count that opens an empty list.
-  const kinds = kindsIn(p.marks);
-  const held = kinds.filter((k) => picks[k.kind]).map((k) => k.kind);
+const Lane = ({ p, fanned, onFan, pick, onPick, only, onOnly, heldAny }) => {
+  // REPORTS DO NOT TRAVEL, so holding them means something different from holding a kind that
+  // does: the stack opens and the rest of the lane goes quiet. *"Yes, hide the rest, open up
+  // that."* Everything else narrows the numbers.
+  const onReports = pick === "report";
+  const marks = onReports ? [] : pick ? p.marks.filter((m) => m.kind === pick) : p.marks;
   // THE NUMBERS ARE ALWAYS SHOWING — that is the whole reason the show-hide went. Nothing held is
-  // every document in the lane; the words NARROW it, they do not open it.
+  // every document in the lane; a count NARROWS it, it does not open it.
   //
-  // A PINNED MARK IS THE NARROWEST FILTER THERE IS, so it wins over the kind words rather than
+  // A PINNED MARK IS THE NARROWEST FILTER THERE IS, so it wins over the counts rather than
   // intersecting with them — pressing a mark means "just that one", and an intersection could
   // only ever answer with the same row or with nothing.
-  const rows = only
-    ? p.marks.filter((m) => m.key === only)
-    : held.length
-      ? p.marks.filter((m) => held.includes(m.kind))
-      : p.marks;
+  const rows = only ? p.marks.filter((m) => m.key === only) : marks;
   return (
   <article className={`dba-lane${p.registered ? "" : " is-quiet"}`}>
     <header className="dba-lane__head">
       <h3 className="dba-lane__code">{p.code}</h3>
+      {/* THE COUNTS BESIDE THE TITLE ARE THE FILTERS. They already said the one thing a filter
+          needs to say — a kind and how much of it is here — so a second row of words underneath
+          was the same sentence twice. Nothing about them changed but what happens when you press
+          one: *"nothing changed about its look."*
+
+          ONE AT A TIME. Pressing another lets go of the one before it, and pressing the held one
+          clears it — his later call, over the whole page: *"all the filters become toggles between
+          each other, even the higher level ones."* */}
       <span className="dba-lane__counts">
         {["rfc", "arc", "gap", "report"].map((k) =>
           p.counts[k] ? (
-            <span key={k} className={`dba-count dba-count--${k}`}>
+            <button
+              key={k}
+              type="button"
+              className={`dba-count dba-count--${k}${pick === k ? " is-on" : ""}`}
+              aria-pressed={pick === k}
+              onClick={() => onPick(k)}
+            >
               {p.counts[k]} {KIND_WORD[k]}
               {p.counts[k] === 1 || k === "rfc" ? "" : "s"}
-            </span>
+            </button>
           ) : null,
         )}
       </span>
@@ -366,7 +377,7 @@ const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny }) => {
         <div className="dba-track">
           {PHASES.map((ph) => (
             <div key={ph.id} className={`dba-cell dba-cell--${ph.id}`}>
-              {p.marks
+              {marks
                 .filter((m) => m.phase === ph.id)
                 .map((m) => (
                   <Mark key={m.key} m={m} pressed={only === m.key} onPress={() => onOnly(m.key)} />
@@ -378,26 +389,6 @@ const Lane = ({ p, fanned, onFan, picks, onPick, only, onOnly, heldAny }) => {
           </div>
         </div>
         <StackFan reports={p.reports} open={fanned} />
-        {/* THE KINDS IN THE LANE ARE THE CONTROL — there is no show-hide button left, because a
-            show-hide answers one question ("is there more?") and the words answer the one he
-            actually has ("where are the gaps?"). Pressing a word opens the numbers filtered to
-            that kind; more than one at a time; letting them all go shows all of them again. */}
-        {kinds.length ? (
-          <div className="dba-lane__picks">
-            {kinds.map((k) => (
-              <button
-                key={k.kind}
-                type="button"
-                className={`dba-pick dba-pick--${k.kind}${picks[k.kind] ? " is-on" : ""}`}
-                aria-pressed={!!picks[k.kind]}
-                onClick={() => onPick(k.kind)}
-              >
-                {k.n} {KIND_WORD[k.kind]}
-                {k.n === 1 || k.kind === "rfc" ? "" : "s"}
-              </button>
-            ))}
-          </div>
-        ) : null}
         {rows.length ? (
           <ul className="dba-list">
             {rows.map((m) => (
@@ -449,19 +440,24 @@ const DashboardA = () => {
   const { read, docs, roots, error } = useRegistry(SystemViewService);
   const [fixtures, setFixtures] = useState(false);
   const [fanned, setFanned] = useState("");
-  // WHICH AXIS COLUMNS ARE HELD — phase ids, plus "reports". Empty means everything, so there is
-  // no `all` to press. More than one at a time: "moving + landed" is a real question.
-  const [held, setHeld] = useState([]);
-  const hold = (k) => setHeld((h) => (h.includes(k) ? h.filter((x) => x !== k) : [...h, k]));
-  // WHICH KINDS ARE HELD INSIDE EACH LANE, keyed by project code — alpha's gaps are not beta's.
+  // WHICH AXIS COLUMN IS HELD — a phase id, or "reports". Empty means everything, so there is no
+  // `all` to press. ONE AT A TIME, everywhere on this page: *"all the filters become toggles
+  // between each other, even the higher level ones."*
+  const [held, setHeld] = useState("");
+  const hold = (k) => setHeld((h) => (h === k ? "" : k));
+  // WHICH KIND IS HELD INSIDE EACH LANE, keyed by project code — alpha's gaps are not beta's.
   const [picks, setPicks] = useState({});
   // WHICH SINGLE DOCUMENT A LANE IS PINNED TO, keyed by project code. Set by pressing its mark.
   const [only, setOnly] = useState({});
   const pick = (code, kind) => {
-    // PRESSING A KIND WORD LETS GO OF THE PINNED MARK. One list, one question at a time: he asked
-    // for the kind, so the one document he pinned a moment ago is not the answer any more.
+    const next = (picks[code] || "") === kind ? "" : kind;
+    // PRESSING A COUNT LETS GO OF THE PINNED MARK. One list, one question at a time: he asked for
+    // the kind, so the one document he pinned a moment ago is not the answer any more.
     setOnly((o) => ({ ...o, [code]: "" }));
-    setPicks((o) => ({ ...o, [code]: { ...(o[code] || {}), [kind]: !((o[code] || {})[kind]) } }));
+    setPicks((o) => ({ ...o, [code]: next }));
+    // AND HOLDING `report` OPENS THE STACK, because that is where a report actually is — it never
+    // travels, so there is no row of it to narrow to. Letting go closes the fan again.
+    setFanned((f) => (next === "report" ? code : f === code ? "" : f));
   };
   const pin = (code, key) => setOnly((o) => ({ ...o, [code]: o[code] === key ? "" : key }));
   // THE FOOTNOTE LANES, OPENED ON REQUEST — folded by default, never dropped.
@@ -495,7 +491,7 @@ const DashboardA = () => {
   // is a fact about the project, and a lane the filter excluded is a fact about what he is
   // holding. One fold would make those read as the same thing.
   const { live: drawn, quiet } = foldLanes(d.projects);
-  const lanes = holdLanes(drawn, held);
+  const lanes = holdLanes(drawn, held ? [held] : []);
   const showing = lanes.reduce((n, p) => n + p.marks.length, 0);
   const showingReports = lanes.reduce((n, p) => n + p.reports.length, 0);
 
@@ -590,7 +586,7 @@ const DashboardA = () => {
           <span>
             {showing} travelling {showing === 1 ? "document" : "documents"} · {showingReports} reports · across{" "}
             {lanes.length} of {totals.projects} projects
-            {held.length ? ` · holding ${held.join(" + ")}` : ""}
+            {held ? ` · holding ${held}` : ""}
           </span>
         </h2>
         {/* THE LEGEND IS THE HEADER, ONCE, and the lanes are a grid under it so a column means the
@@ -608,8 +604,8 @@ const DashboardA = () => {
             <button
               key={ph.id}
               type="button"
-              className={`dba-axis__col dba-axis__col--${ph.id}${held.includes(ph.id) ? " is-on" : ""}`}
-              aria-pressed={held.includes(ph.id)}
+              className={`dba-axis__col dba-axis__col--${ph.id}${held === ph.id ? " is-on" : ""}`}
+              aria-pressed={held === ph.id}
               onClick={() => hold(ph.id)}
             >
               <b>{ph.label}</b>
@@ -619,8 +615,8 @@ const DashboardA = () => {
           ))}
           <button
             type="button"
-            className={`dba-axis__col dba-axis__col--stack${held.includes("reports") ? " is-on" : ""}`}
-            aria-pressed={held.includes("reports")}
+            className={`dba-axis__col dba-axis__col--stack${held === "reports" ? " is-on" : ""}`}
+            aria-pressed={held === "reports"}
             onClick={() => hold("reports")}
           >
             <b>reports</b>
@@ -634,17 +630,17 @@ const DashboardA = () => {
             p={p}
             fanned={fanned === p.code}
             onFan={() => setFanned((f) => (f === p.code ? "" : p.code))}
-            picks={picks[p.code] || {}}
+            pick={picks[p.code] || ""}
             onPick={(kind) => pick(p.code, kind)}
             only={only[p.code] || ""}
             onOnly={(key) => pin(p.code, key)}
-            heldAny={!!held.length}
+            heldAny={!!held}
           />
         ))}
         {/* A FILTER THAT MATCHES NOTHING SAYS SO IN THE FILTER'S OWN WORDS. "no projects" here
             would be a claim about the machine; this is a claim about what he is holding. */}
         {!lanes.length && drawn.length ? (
-          <p className="dba-lane__none">nothing is {held.join(" or ")} in any project right now</p>
+          <p className="dba-lane__none">nothing is {held} in any project right now</p>
         ) : null}
         {!d.projects.length ? (
           <p className="dba-lane__none">
@@ -676,11 +672,11 @@ const DashboardA = () => {
                     p={p}
                     fanned={fanned === p.code}
                     onFan={() => setFanned((f) => (f === p.code ? "" : p.code))}
-                    picks={picks[p.code] || {}}
+                    pick={picks[p.code] || ""}
                     onPick={(kind) => pick(p.code, kind)}
                     only={only[p.code] || ""}
                     onOnly={(key) => pin(p.code, key)}
-                    heldAny={!!held.length}
+                    heldAny={!!held}
                   />
                 ))
               : null}
