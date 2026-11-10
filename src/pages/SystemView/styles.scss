@@ -325,7 +325,14 @@ body.panel-resizing--bottom .panel-divider--h {
       }
       box-shadow: 0 1px 3px rgba(20, 30, 80, 0.12); // a lift, not a border (his catch)
       border-radius: 0 8px 8px 0;
-      margin-top: 6px;
+      // IT DOES NOT TOUCH THE TOP OR THE BOTTOM. Once it scrolls it reads as a panel rather than a
+      // strip, and a panel flush against both edges of the window reads as the window's own
+      // furniture — his call: *"if you're going to give it a scroll it shouldn't have to be
+      // touching the top and the bottom, and it should still give it space away from the nav."*
+      // The column it sits in starts at 74px, so the cap is the window less that and the two gaps.
+      max-height: calc(100vh - 74px - 34px);
+      margin-top: 10px;
+      margin-bottom: 20px;
       // SCROLLS WHEN THERE ARE MORE AGENTS THAN ROOM, and not before — the dock is still exactly
       // as long as its spots until they run past the bottom of the window.
       //

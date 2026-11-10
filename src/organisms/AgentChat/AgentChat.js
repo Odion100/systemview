@@ -5564,14 +5564,21 @@ const countdown = (str, now = Date.now()) => {
   // the slot lookup, because it reads the four open-flags — declared further down, and reading one
   // above its declaration is a TDZ crash that takes the whole surface with it.
   const navShowing = navDocked && (open || boardOpen || linksOpen || tvOpen);
-  // DOCKED IN AN AGENT-PANEL CARD. Same rail mode, different home: the card lives in a
-  // SCROLLING column, so everything measured off the bot (the panel row, the peek, the say bubble)
-  // must re-measure as he scrolls or it stays behind while the face moves (his catch). A scroll
-  // tick re-renders the bot; the fixed positions are recomputed from the fresh rect each time.
-  const inPanelCard = inRail && !!(slotEl && typeof slotEl.closest === "function" && slotEl.closest(".agent-panel"));
+  // DOCKED IN A HOME THAT SCROLLS — and there are two of those now.
+  //
+  // The agent-panel CARD always was one: everything measured off the bot (the panel row, the peek,
+  // the say bubble) has to re-measure as he scrolls or it stays behind while the face moves (his
+  // catch). THE DOCK IS THE SECOND, since it started scrolling at thirteen agents — and the
+  // symptom was the one already solved here: *"when the agents are in the dock I can still see
+  // their previews, and those are being cut off, as if overflow hidden or z-index."* Exactly that:
+  // a scroller clips, so a peek positioned inside it is cut at the dock's edge.
+  //
+  // ONE FLAG, NOT A SECOND MECHANISM. `inRail` covers both homes, so the fix that was written for
+  // the card is the fix the dock gets, rather than a parallel one that would drift from it.
+  const inScroller = inRail;
   const [, bumpReflow] = useState(0);
   useEffect(() => {
-    if (!inPanelCard) return undefined;
+    if (!inScroller) return undefined;
     const on = () => bumpReflow((n) => n + 1);
     window.addEventListener("scroll", on, true); // capture reaches the panel's inner scroll
     window.addEventListener("resize", on);
@@ -5579,12 +5586,12 @@ const countdown = (str, now = Date.now()) => {
       window.removeEventListener("scroll", on, true);
       window.removeEventListener("resize", on);
     };
-  }, [inPanelCard]);
-  // …and the bubbles ESCAPE the card: the panel clips (it scrolls) and sits under the page, so a
-  // peek or say positioned inside it gets cut at the panel's edge. Fixed, measured off the face,
-  // over everything (his rule: "that z-index should be above all this stuff on the page").
+  }, [inScroller]);
+  // …and the bubbles ESCAPE their home: it clips (it scrolls) and sits under the page, so a peek
+  // or say positioned inside it is cut at its edge. Fixed, measured off the face, over everything
+  // (his rule: "that z-index should be above all this stuff on the page").
   const bubbleFix = (dy = 0) => {
-    if (!inPanelCard || !rootRef.current) return undefined;
+    if (!inScroller || !rootRef.current) return undefined;
     const b = rootRef.current.getBoundingClientRect();
     return { position: "fixed", left: b.right + 8, right: "auto", top: b.top + dy, transform: "none", zIndex: 9000 };
   };
