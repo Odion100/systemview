@@ -1,6 +1,7 @@
 # MOCK — the first of two plans on one objective
 
-::rfc{id=MOCK-RFC-2 arc=MOCK-ARC-O3 title="MOCK — the first of two plans on one objective"}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js all on -->
+<!-- mock-leaf: ::rfc{id=MOCK-RFC-2 arc=MOCK-ARC-O3 title="MOCK — the first of two plans on one objective"} -->
 
 **This document exists to be looked at, not read.** It is one of the fixtures that give the mock
 arc's `::progress` map something real to draw: it serves `MOCK-ARC-O3` by address, beside

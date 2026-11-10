@@ -1,6 +1,7 @@
 # MOCK — an arc you can push around
 
-::arc{id=MOCK-ARC owner=systemview-test title="MOCK — an arc you can push around"}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js arc on -->
+<!-- mock-leaf: ::arc{id=MOCK-ARC owner=systemview-test title="MOCK — an arc you can push around"} -->
 
 An arc to mess with — and the one kind whose forward states **you cannot press**, because they
 derive UPWARD from the plans attached to its objectives. The walk below moves the arc by moving the

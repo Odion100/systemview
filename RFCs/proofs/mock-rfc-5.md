@@ -1,6 +1,7 @@
 # MOCK — a plan attached and untouched
 
-::rfc{id=MOCK-RFC-5 arc=MOCK-ARC-O5 title="MOCK — a plan attached and untouched"}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js all on -->
+<!-- mock-leaf: ::rfc{id=MOCK-RFC-5 arc=MOCK-ARC-O5 title="MOCK — a plan attached and untouched"} -->
 
 **This document exists to be looked at, not read.** It serves `MOCK-ARC-O5`: attached by address,
 nothing started — the card is planned (solid border) and its count sits at zero.

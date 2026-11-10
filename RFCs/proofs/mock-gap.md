@@ -1,6 +1,7 @@
 # MOCK — a gap you can push around
 
-::gap{id=MOCK-GAP title="MOCK — a gap you can push around"}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js gap on -->
+<!-- mock-leaf: ::gap{id=MOCK-GAP title="MOCK — a gap you can push around"} -->
 
 A gap to mess with. Its trail FORKS — two endings, and only one of them needs evidence: `resolved`
 is the one state in the whole system a press cannot outrun.

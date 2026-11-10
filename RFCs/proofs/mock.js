@@ -101,24 +101,72 @@ function writeLines(kind, lines) {
   fs.writeFileSync(file(kind), lines.join("\n"));
 }
 
+// ANY LEAF, FOUND RATHER THAN LOOKED UP. `LEAF[kind]` only answers for the four kinds this script
+// names, and the mocks outgrew that: `mock-rfc-2` through `-5` and `mock-plan` are real registered
+// documents with no kind of their own, so they had no off switch and sat in the registry forever.
+// Four of nine being teardownable is the same as none, because the count never goes quiet.
+const LEAF_RE = /^::(rfc|arc|gap|report)\{/;
+
+const everyMock = () =>
+  fs
+    .readdirSync(DIR)
+    .filter((n) => /^mock-.*\.md$/.test(n))
+    .sort()
+    .map((n) => path.join(DIR, n));
+
 /** TEARDOWN — the leaf becomes a comment, the parse sees no registration, the row is removed. */
-function off(kind) {
-  const lines = readLines(kind).map((l) =>
-    l.startsWith(LEAF[kind] + "{") ? `${OFF_MARK} ${kind} on -->\n<!-- mock-leaf: ${l} -->` : l
+function offFile(f) {
+  const lines = fs.readFileSync(f, "utf8").split("\n");
+  if (!lines.some((l) => LEAF_RE.test(l))) return false;
+  fs.writeFileSync(
+    f,
+    lines.map((l) => (LEAF_RE.test(l) ? `${OFF_MARK} all on -->\n<!-- mock-leaf: ${l} -->` : l)).join("\n")
   );
-  writeLines(kind, lines);
-  console.log(`mock-${kind}.md → off (the leaf is a comment; the registry row follows on the next parse)`);
+  return true;
 }
 
 /** Bring it back — the exact leaf, out of the comment. */
-function on(kind) {
-  const lines = [];
-  for (const l of readLines(kind)) {
+function onFile(f) {
+  const src = fs.readFileSync(f, "utf8").split("\n");
+  if (!src.some((l) => /^<!-- mock-leaf: /.test(l))) return false;
+  const out = [];
+  for (const l of src) {
     if (l.startsWith(OFF_MARK)) continue;
     const m = /^<!-- mock-leaf: (.+) -->$/.exec(l);
-    lines.push(m ? m[1] : l);
+    out.push(m ? m[1] : l);
   }
-  writeLines(kind, lines);
+  fs.writeFileSync(f, out.join("\n"));
+  return true;
+}
+
+// EVERY MOCK IN ONE PRESS, which is the whole point: the fixtures are not needed once the system
+// produces real documents, and a teardown that takes nine commands is a teardown nobody runs.
+// `all on` brings every one back exactly as it was, because the leaf was parked verbatim.
+function allOff() {
+  const did = everyMock().filter(offFile);
+  console.log(
+    did.length
+      ? `${did.length} mock(s) → off: ${did.map((f) => path.basename(f)).join(", ")}\n  the registry rows follow on the next parse. Back with: node RFCs/proofs/mock.js all on`
+      : "every mock is already off — nothing to tear down"
+  );
+}
+
+function allOn() {
+  const did = everyMock().filter(onFile);
+  console.log(
+    did.length
+      ? `${did.length} mock(s) → on: ${did.map((f) => path.basename(f)).join(", ")}\n  saving re-registers them`
+      : "every mock is already on — nothing to raise"
+  );
+}
+
+function off(kind) {
+  offFile(file(kind));
+  console.log(`mock-${kind}.md → off (the leaf is a comment; the registry row follows on the next parse)`);
+}
+
+function on(kind) {
+  onFile(file(kind));
   console.log(`mock-${kind}.md → on (the leaf is back; saving re-registers it)`);
 }
 
@@ -196,6 +244,13 @@ function removeApproval(kind) {
 }
 
 function apply(kind, state) {
+  // `all` IS NOT A KIND, so it is answered before anything reads the kind tables.
+  if (kind === "all") {
+    if (state === "off") return allOff();
+    if (state === "on") return allOn();
+    console.error('`all` takes only `off` or `on` — a STATE is per-kind, because each kind walks its own trail');
+    process.exit(1);
+  }
   if (state === "off") return off(kind);
   if (state === "on") return on(kind);
   if (state === "approval+") return addApproval(kind);
@@ -287,6 +342,7 @@ if (!kind || !state) {
   for (const [k, v] of Object.entries(STATES))
     console.log(`  ${k.padEnd(7)} ${Object.keys(v).concat(["off", "on", "approval+", "approval-"]).join(" · ")}`);
   console.log(`  plan    (moved by the arc's states — it serves MOCK-ARC-O2)`);
+  console.log(`  all     off · on   EVERY mock-*.md at once, including the numbered plans`);
   process.exit(0);
 }
 apply(kind, state);

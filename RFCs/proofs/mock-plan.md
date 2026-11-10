@@ -1,6 +1,7 @@
 # MOCK — the second plan, serving the arc's other objective
 
-::rfc{id=MOCK-PLAN title="MOCK — the plan that serves O2" arc=MOCK-ARC-O2}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js all on -->
+<!-- mock-leaf: ::rfc{id=MOCK-PLAN title="MOCK — the plan that serves O2" arc=MOCK-ARC-O2} -->
 
 This document exists so the mock arc can reach `settled` honestly: an arc settles when **every**
 objective has a plan and every plan is settled, and that takes two plans for two objectives. The

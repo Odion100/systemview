@@ -1,6 +1,7 @@
 # MOCK — the second of two plans on one objective
 
-::rfc{id=MOCK-RFC-3 arc=MOCK-ARC-O3 title="MOCK — the second of two plans on one objective"}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js all on -->
+<!-- mock-leaf: ::rfc{id=MOCK-RFC-3 arc=MOCK-ARC-O3 title="MOCK — the second of two plans on one objective"} -->
 
 **This document exists to be looked at, not read.** The other half of `MOCK-ARC-O3`'s pair — the
 map should show it beside `MOCK-RFC-2`, both addressed to the same objective.

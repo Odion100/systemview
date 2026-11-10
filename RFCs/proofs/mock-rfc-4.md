@@ -1,6 +1,7 @@
 # MOCK — a plan mid-flight
 
-::rfc{id=MOCK-RFC-4 arc=MOCK-ARC-O4 title="MOCK — a plan mid-flight"}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js all on -->
+<!-- mock-leaf: ::rfc{id=MOCK-RFC-4 arc=MOCK-ARC-O4 title="MOCK — a plan mid-flight"} -->
 
 **This document exists to be looked at, not read.** It serves `MOCK-ARC-O4`, the objective marked
 `doing` — one plan, claims partly met, the most common shape a real arc wears.

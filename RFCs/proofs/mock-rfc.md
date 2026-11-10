@@ -1,6 +1,7 @@
 # MOCK — an RFC you can push around
 
-::report{id=MOCK-RFC-SPEC as=spec retain=permanent title="MOCK — an RFC you can push around"}
+<!-- mock off — bring it back with: node RFCs/proofs/mock.js all on -->
+<!-- mock-leaf: ::report{id=MOCK-RFC-SPEC as=spec retain=permanent title="MOCK — an RFC you can push around"} -->
 
 **At rest, this document is a SPEC.** It is the fixture for the RFC lifecycle: it decides nothing
 and designs nothing — it carries the blocks an RFC's lifecycle reads, so every state can be walked
