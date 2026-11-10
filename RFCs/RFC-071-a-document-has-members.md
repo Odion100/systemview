@@ -253,3 +253,10 @@ Press ✓ to make this binding work, ✗ to reject it. Unpressed, it is a draft 
 from it.
 :::
 
+## STATUS — built 2026-11-10
+
+Members, the audience derivation and the fire path are in and in daily use. **This document carries
+no `::claim` blocks, so this heading is the only thing that says so** — there is nothing here a
+reader can walk, and no `::claims` bar can be put under it. It predates claims, which makes it one
+of the five RFCs owed the migration `rfc-authoring` calls *migrated, not left*. Until that pass runs,
+read this heading as a statement, not as evidence.
