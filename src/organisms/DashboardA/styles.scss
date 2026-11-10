@@ -675,6 +675,21 @@ $dba-grid: repeat(5, minmax(0, 1fr)) 210px;
   pointer-events: none;
 }
 :root.sv-dark .dba-card { background: var(--sv-pane-header); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+// AT THE EDGE THE CARD TUCKS IN, RATHER THAN HANGING OFF IT.
+//
+// `.dba` is the scroll container and it carries `overflow-x: hidden` — and NOTHING ESCAPES AN
+// OVERFLOW CLIP: a z-index raises an element within its stacking context, it does not let it draw
+// outside the box doing the clipping. So raising the card could never have fixed this; the card
+// has to stay inside, which means knowing when it is at a corner.
+//
+// THE COLUMN IS THE ANSWER AND IT NEEDS NO MEASURING. The first column is always the page's left
+// edge, so a card centred on a mark in it reaches ~145px into nothing. In that one column it
+// anchors to its own left instead of centring. Every other column has room on both sides, and
+// they are left exactly as they were.
+.dba-cell--proposed .dba-card {
+  left: 0;
+  transform: translateX(0) translateY(4px);
+}
 
 .dba-mark:hover .dba-card,
 .dba-mark:focus-visible .dba-card { display: flex; }
