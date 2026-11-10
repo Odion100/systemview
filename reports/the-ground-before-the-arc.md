@@ -8,7 +8,7 @@ the count of what that left on the floor, so the real arc starts from known grou
 **35 documents are registered. 26 of them are real.** The other nine are test fixtures that have
 already stood down — their leaves are lifted, so each has deregistered itself and each still has a
 row. That is the only kind of not-real left on the floor, and it is not a judgement about the work.
-(37 and 28 before RFC-071 and RFC-053 went out of service.)
+(37 and 28 before RFC-071 and RFC-053 were deleted; their rows are ghosts until a re-parse.)
 
 ## Decisions that are yours
 
@@ -23,9 +23,8 @@ to plan — either is clean, but it cannot stay a draft with finished work hangi
 `RFCs/` holds **73 .md files and only 10 carry a leaf** — the other 63 are already files rather than
 RFCs, which is the same state the two retired below are now in. Of the ten, five carried no
 `::claim` at all. His ruling, 2026-11-10: an RFC with no claims and no way back to spec'ing one is
-history. **RFC-071 and RFC-053 are out of service** (leaves parked, `1a2b80cf`); **RFC-064 is
-kept** — and it is NOT the same subject as RFC-010, which is `RFC-010-gap-closure.md`, about CLI
-persistent headers, unleafed for a long time. That leaves two:
+history. **RFC-071 and RFC-053 are deleted** (`62530aa5`); **RFC-064 is kept** — and it is NOT the same subject as RFC-010 — that was `RFC-010-gap-closure.md`, CLI persistent
+headers, unleafed for a long time and deleted with the other two. That leaves two:
 
 - **RFC-072** — 808 lines, arc planning and execution, **both approvals pressed**, zero claims. The
   largest fully-approved unprovable commitment on the machine, and it describes the machinery the
@@ -62,15 +61,15 @@ That is the whole of it. Two documents out of ten real RFCs can say what they ar
 | **RFC-072** | none | both approvals pressed, 808 lines, nothing checkable — his decision |
 | **RFC-064** | none | no approval block at all. Kept |
 | **RFC-077** | none | two approvals, neither pressed, nothing checkable — his decision |
-| ~~RFC-071~~ | none | out of service 2026-11-10, leaf parked |
-| ~~RFC-053~~ | none | out of service 2026-11-10, leaf parked |
+| ~~RFC-071~~ | none | deleted 2026-11-10 |
+| ~~RFC-053~~ | none | deleted 2026-11-10 |
 
 **The pattern is one thing, not eight — and its two halves are different work.**
 
 **Five of the ten had no claims at all, and most of that is now settled.** Claims came late, so
 everything written before them is unprovable by construction — and `rfc-authoring` says a pre-block
 RFC is *migrated, not left*, because a numbered line has nowhere to put a mark. Rather than migrate
-five, three were decided by their subject: RFC-071 and RFC-053 out of service, RFC-064 kept. RFC-072
+five, three were decided by their subject: RFC-071 and RFC-053 deleted, RFC-064 kept. RFC-072
 and RFC-077 are still open, and the 63 leafless files in `RFCs/` were already in that state before
 anybody asked.
 
