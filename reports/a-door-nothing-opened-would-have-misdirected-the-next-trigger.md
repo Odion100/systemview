@@ -134,14 +134,26 @@ project's `unclaimed`, which is what the original filter was protecting.
 *"SystemView's hub is not running on port 3000. The IDE hosts it — open SystemView and the hub comes
 up with it."* For a few minutes his window had no backend.
 
-**The cause is the stale global CLI, card 1793837402865** — *"the node-14 global is systemview 1.20.1,
-a CLI from a different era."* The working tree's `cli/launchApp.js` carries the FIXED refusal
-(*"Bring it up with `systemview start <port>` — that command hosts it"*) and a comment describing this
-exact incident happening to him before. The `systemview` on PATH is the old build, whose `start` could
-not host. So a carded problem I had read and not prioritised is the one that bit.
+**THERE ARE TWO INSTALLS, and the one an agent's PATH resolves is the stale one.** Measured with
+`which -a systemview`, because my first diagnosis blamed "the stale global" and card 1793837402865's
+node-14 CLI, and that was wrong in a way that would have sent you looking in the wrong place:
+
+| | version | |
+|---|---|---|
+| `~/.nvm/versions/node/v22.21.1/bin/systemview` | **2.40.1** | first on an agent shell's PATH — the one that refused |
+| `/usr/local/bin/systemview` | **2.40.3** | a yarn link to `~/Systemly/systemview` |
+
+2.40.1 predates the restoration of hosting (`f1f31146`, 2026-11-07), which is why its `start` printed
+the *pre-fix* refusal while the working tree's copy carries the corrected wording — and
+`cli/launchApp.js` holds a comment describing this exact failure happening to you before.
+
+**And your shell is fine — that is the half I had backwards.** `autobot
+electron/apps/registry.cjs:22` launches the ABSOLUTE path, `["/usr/local/bin/systemview", "start",
+"3000"]`, so opening SystemView runs the yarn link into the working tree. Nothing about the launcher
+needs touching.
 
 **Brought back by running the working tree directly** — `node ~/Systemly/systemview/cli/index.js start
-3000` from `~/autobot` — and verified: pid listening on 3000, and the MCP door answering.
+3000` from `~/autobot` — and verified: a node process listening on 3000 and the MCP doors answering.
 
 :::callout
 **One thing to know about that, because it is not how the hub normally runs.** It is hosted by MY
