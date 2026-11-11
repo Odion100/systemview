@@ -253,6 +253,10 @@ function audit({ commits = [], documents = [], retired = {}, resolved = null, un
   }));
   const unlinked = [];
   const dangling = [];
+  // A COMMIT THAT ONLY WROTE THE DOCUMENT IT SERVES. Not a disagreement between the two directions
+  // — the arithmetic of a report recording its own history — so it is counted and listed rather
+  // than left to dilute the bucket a reader is meant to act on.
+  const selfWriting = [];
   // SERVED SOMETHING THIS REPO ONCE HELD — a finding with an address rather than an accusation.
   const expired = [];
   const oneWay = [];
@@ -306,7 +310,33 @@ function audit({ commits = [], documents = [], retired = {}, resolved = null, un
       }
       const claimed = (docShas.find((d) => d.doc === doc) || { shas: [] }).shas;
       if (!claimed.some((s) => sameSha(s, c.sha))) {
-        oneWay.push({ sha: c.sha, subject: c.subject || "", id, path: doc.path || "" });
+        // THE SELF-REFERENCE IS ARITHMETIC, NOT A FINDING — and nine of them were burying the
+        // tenth. A report cannot hold the sha of the commit that writes it, so every account ever
+        // filed left a permanent entry here. Measured 2026-11-11 on one night's work: `oneWay` was
+        // NINE, every one a commit that wrote or edited the report it serves, and the fault this
+        // bucket exists for — a code commit whose document forgot to record it — would have had
+        // nowhere to stand out. This door already named that fault class when the unreadable
+        // bucket landed ("how a real finding gets buried under its own echoes"); it had not been
+        // applied to its own busiest bucket.
+        //
+        // IT IS CLASSIFIED, NEVER HIDDEN. Note `pq5k` is explicit that the fixed point should stay
+        // VISIBLE rather than be made to disappear by dropping a trailer, and it does: `selfWriting`
+        // is reported in full, with the same fields, and counted. What changes is that it is no
+        // longer mixed in with the links somebody has to go and fix.
+        //
+        // STRUCTURAL, NEVER A SUBJECT-LINE GUESS. A `docs(report):` prefix is a habit; the files a
+        // commit touched are a fact — and this repo has been bitten twice by checks that read prose
+        // (a dupes guard that broke on the comment explaining it, a dead-wire rule that sniffed
+        // messages). An absent file list is UNKNOWABLE and stays a finding: a merge lists nothing,
+        // and "touched only its own document" is not a claim an empty list can support.
+        const files = Array.isArray(c.files) ? c.files : [];
+        const itsOwn = doc.path && files.length && files.every((f) => f === doc.path);
+        (itsOwn ? selfWriting : oneWay).push({
+          sha: c.sha,
+          subject: c.subject || "",
+          id,
+          path: doc.path || "",
+        });
       }
     }
   }
@@ -401,6 +431,8 @@ function audit({ commits = [], documents = [], retired = {}, resolved = null, un
     unlinked,
     dangling,
     oneWay,
+    // REPORTED IN FULL AND SEPARATELY — visible, as `pq5k` requires, and out of the way.
+    selfWriting,
     expired,
     unresolvable,
     unclaimed,
@@ -416,6 +448,10 @@ function audit({ commits = [], documents = [], retired = {}, resolved = null, un
     unreadable: [...unopenable.values()],
     // `unresolvable` COUNTS as a disagreement: a record pointing at no commit anywhere is the one
     // finding here that renders as a visible fault in his window.
+    // `selfWriting` IS DELIBERATELY NOT IN THIS LIST. Every other bucket here is something somebody
+    // has to go and fix; a report recording its own writing history is not, and it can never be
+    // emptied — so counting it would mean this door could never say "agreed" again after any
+    // account was ever filed. That is the whole reason it was split out.
     agreed:
       !dangling.length && !oneWay.length && !unclaimed.length && !crossed.length && !misplaced.length && !unresolvable.length,
   };

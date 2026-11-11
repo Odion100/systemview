@@ -3564,18 +3564,35 @@ module.exports = function launchSystemView(port = 3000) {
         if (!cwd) return { ok: false, error: "no folder for this project" };
         const SEP = "\u001f";
         const REC = "\u001e";
+        // THE FILE LIST RIDES ALONG, so the audit can tell a report's own writing commit from a
+        // real broken link. Without it every account ever filed left a permanent entry in `oneWay`
+        // — nine of them by this point, all structural — and the tenth, a code commit whose
+        // document genuinely forgot to record it, would have had nowhere to stand out.
+        //
+        // THE RECORD MARKER LEADS AND THE BODY GETS ITS OWN TERMINATOR, and both are forced by
+        // `--name-only`: git appends the names AFTER the pretty output, so a trailing `REC` would
+        // land before the files, and `%B` is multi-line so the body and the names blur without a
+        // `SEP` between them. (The `armed` handler above can split on lines because its format is
+        // single-line; this one cannot.)
         const log = await git(cwd, [
           "log", `--max-count=${Math.min(Math.max(Number(since) || 200, 1), 2000)}`,
-          `--pretty=format:%H${SEP}%s${SEP}%B${REC}`,
+          "--name-only",
+          `--pretty=format:${REC}%H${SEP}%s${SEP}%B${SEP}`,
         ]);
         if (!log.ok) return { ok: false, error: log.error || "git log failed" };
         const commits = String(log.out || "")
           .split(REC)
-          .map((r) => r.replace(/^\n/, ""))
           .filter((r) => r.trim())
           .map((r) => {
-            const [sha, subject, message] = r.split(SEP);
-            return { sha: String(sha || "").trim(), subject: String(subject || ""), message: String(message || "") };
+            const [sha, subject, message, names] = r.split(SEP);
+            return {
+              sha: String(sha || "").trim(),
+              subject: String(subject || ""),
+              message: String(message || ""),
+              // A MERGE LISTS NOTHING, and an absent list must never read as "touched nothing" —
+              // the audit treats empty as unknowable rather than as proof of a self-reference.
+              files: String(names || "").split("\n").map((l) => l.trim()).filter(Boolean),
+            };
           })
           .filter((c) => c.sha);
         // EVERY REGISTERED DOCUMENT, not only this project's: a commit here routinely serves an

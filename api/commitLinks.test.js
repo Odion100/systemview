@@ -753,3 +753,84 @@ test("with no project passed, the audit behaves exactly as it did before", () =>
   });
   assert.deepStrictEqual(r.oneWay, [], "a caller that does not say which log it reads loses nothing");
 });
+
+// A COMMIT THAT ONLY WROTE THE DOCUMENT IT SERVES IS ARITHMETIC, NOT A FINDING.
+//
+// A report cannot hold the sha of the commit that writes it, so every account ever filed left a
+// permanent entry in `oneWay`. Measured on one night's work, 2026-11-11: the bucket was NINE deep
+// and every one was a report-writing commit — which is where the fault it exists for, a code commit
+// whose document forgot to record it, would have gone unnoticed.
+//
+// CLASSIFIED, NEVER HIDDEN: it is reported in full under its own name, with the same fields.
+const rep = (id, text, path) => ({ id, kind: "report", path, project: "systemview-test", text });
+
+test("a commit touching only the document it serves is selfWriting, not oneWay", () => {
+  const r = audit({
+    project: "systemview-test",
+    commits: [
+      {
+        sha: "aaa1111",
+        subject: "docs(report): the account",
+        message: "docs(report): the account\n\nServes: An account",
+        files: ["reports/an-account.md"],
+      },
+    ],
+    documents: [rep("An account", "body with no commit block", "reports/an-account.md")],
+  });
+  assert.deepStrictEqual(r.oneWay, [], "nobody has to go and fix this");
+  assert.strictEqual(r.selfWriting.length, 1);
+  assert.strictEqual(r.selfWriting[0].sha, "aaa1111");
+  assert.strictEqual(r.selfWriting[0].id, "An account", "reported in full, with the same fields");
+  assert.strictEqual(r.selfWriting[0].path, "reports/an-account.md");
+  assert.strictEqual(r.agreed, true, "and the door can say agreed again");
+});
+
+test("a commit that touched anything ELSE is still a real oneWay", () => {
+  const r = audit({
+    project: "systemview-test",
+    commits: [
+      {
+        sha: "bbb2222",
+        subject: "fix: a thing",
+        message: "fix: a thing\n\nServes: An account",
+        files: ["reports/an-account.md", "api/thing.js"],
+      },
+    ],
+    documents: [rep("An account", "body with no commit block", "reports/an-account.md")],
+  });
+  assert.strictEqual(r.oneWay.length, 1, "it changed code, so the document owes it a record");
+  assert.deepStrictEqual(r.selfWriting, []);
+  assert.strictEqual(r.agreed, false);
+});
+
+// AN ABSENT FILE LIST IS UNKNOWABLE, NOT EMPTY. A merge lists nothing, and "touched only its own
+// document" is not a claim an empty list can support — so it stays a finding rather than being
+// excused by a gap in the evidence.
+test("a commit with no file list stays a finding", () => {
+  const r = audit({
+    project: "systemview-test",
+    commits: [{ sha: "ccc3333", subject: "merge", message: "merge\n\nServes: An account" }],
+    documents: [rep("An account", "body with no commit block", "reports/an-account.md")],
+  });
+  assert.strictEqual(r.oneWay.length, 1, "nothing proved it was only its own document");
+  assert.deepStrictEqual(r.selfWriting, []);
+});
+
+test("the document carrying the sha is still the ordinary agreed case, self-writing or not", () => {
+  const r = audit({
+    project: "systemview-test",
+    commits: [
+      {
+        sha: "ddd4444",
+        subject: "docs(report): the account",
+        message: "docs(report): the account\n\nServes: An account",
+        files: ["reports/an-account.md"],
+      },
+    ],
+    documents: [rep("An account", "body\n\n::commit{sha=ddd4444}", "reports/an-account.md")],
+  });
+  assert.deepStrictEqual(r.selfWriting, [], "it is recorded, so there is no one-way-ness to classify");
+  assert.deepStrictEqual(r.oneWay, []);
+  assert.strictEqual(r.linked, 1);
+  assert.strictEqual(r.agreed, true);
+});
