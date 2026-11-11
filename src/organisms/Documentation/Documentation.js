@@ -458,20 +458,43 @@ export default function Documentation({
             />
           </div>
         )}
-        {/* REPORTS — one document with the whole panel. The picker shows only until you choose;
-            then the document owns the space and an ✕ brings the list back. */}
-        {/* With a file open, Logs and Report run at the PROJECT level — same rule as Stories. */}
-        {!helpOpen && tab === "reports" && reportPath && (
-          <ReportsTab
-            key={fileLens ? codeFile.projectCode : `${sProject}.${sService}.${sModule}.${sMethod}`}
-            projectCode={fileLens ? codeFile.projectCode : sProject}
-            serviceId={fileLens ? undefined : sService}
-            moduleName={fileLens ? undefined : sModule}
-            methodName={fileLens ? undefined : sMethod}
-            openName={reportPath}
-            onOpen={openReport}
-          />
-        )}
+        {/* REPORTS — ONE PANEL PER OPEN DOCUMENT, not one panel per tab KIND.
+            His ask, narrowed by him: *"not working for documents… meaning, saving where you are in
+            the document."* That is scroll position, and the only way a scroll offset survives is
+            for the panel never to be torn down — so every open report tab gets its own instance and
+            all but the active one are hidden.
+
+            THE `key` CHANGED ON PURPOSE. It used to be the SCOPE, which meant navigating the tree
+            rebuilt an open document — the remount this whole change exists to stop. The key is the
+            TAB now, because a document's identity is its path and nothing about where you are
+            standing in the service tree makes it a different document.
+
+            A WRAPPER IS SAFE HERE and was not safe for the dashboard: nothing targets
+            `.reports-tab` with a direct-child selector (checked, not assumed, after
+            `> .documentation-view__data-table` cost him a scrollable dashboard). It still has to
+            PASS THE SPACE THROUGH, which is what that rule was doing — `.doc-kept-doc` does it
+            explicitly.
+
+            With a file open, Logs and Report run at the PROJECT level — same rule as Stories. */}
+        {!helpOpen &&
+          (tabsState.panes || [])
+            .flatMap((pn) => pn.tabs || [])
+            .filter((t) => t.kind === "report" && t.report && t.report.path)
+            .map((t) => (
+              <div
+                key={t.key}
+                className={`doc-kept-doc${tab === "reports" && reportPath === t.report.path ? "" : " doc-kept-away"}`}
+              >
+                <ReportsTab
+                  projectCode={fileLens ? codeFile.projectCode : sProject}
+                  serviceId={fileLens ? undefined : sService}
+                  moduleName={fileLens ? undefined : sModule}
+                  methodName={fileLens ? undefined : sMethod}
+                  openName={t.report.path}
+                  onOpen={openReport}
+                />
+              </div>
+            ))}
         {!helpOpen && (tab === "links" || tab === "cmds") && (
           <div id={`sv-dock-slot-${tabsPc}-${tab}`} className="doc-dockslot">
             {/* the docked AgentChat portals the live panel in here; an empty slot means the chat

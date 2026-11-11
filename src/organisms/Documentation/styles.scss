@@ -651,3 +651,24 @@
 .doc-kept-away {
   display: none !important;
 }
+
+// A KEPT DOCUMENT'S BOX. One of these per open document tab, all but the active one carrying
+// `.doc-kept-away`.
+//
+// It exists to PASS THE SPACE THROUGH, which is the job `> .documentation-view__data-table` was
+// doing for the panel that used to sit here directly. Written out rather than inherited, because
+// the lesson from the dashboard is that a layout that arrives through a direct-child selector
+// breaks the moment anything is nested — and this nests by design.
+.doc-kept-doc {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+
+  // Whatever the document panel's own root is, it fills this box and is allowed to scroll inside
+  // it — `min-height: 0` being the half that makes a flex child scroll instead of stretching.
+  > * {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+}
