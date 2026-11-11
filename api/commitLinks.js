@@ -126,7 +126,7 @@ function recordsIn(text) {
     const attrs = m[1];
     const sha = (attrs.match(/\bsha=("?)([0-9a-fA-F]{4,40})\1/) || [])[2];
     if (!sha) continue;
-    const project = (attrs.match(/\bproject=("?)([A-Za-z0-9_.\-]+)\1/) || [])[2] || "";
+    const project = (attrs.match(/\bproject=("?)([A-Za-z0-9_.-]+)\1/) || [])[2] || "";
     if (out.some((r) => r.sha === sha && r.project === project)) continue;
     out.push({ sha, project });
   }

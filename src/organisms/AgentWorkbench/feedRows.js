@@ -623,7 +623,7 @@ export function foldEvents(events) {
         closeOpen();
         const nm = t.match(/<command-name>\s*([^<]+?)\s*<\/command-name>/);
         const out = t.match(/<local-command-stdout>([\s\S]*?)<\/local-command-stdout>/);
-        const args = (t.match(/<command-args>([\s\S]*?)<\/command-args>/) || [, ""])[1].trim();
+        const args = (t.match(/<command-args>([\s\S]*?)<\/command-args>/) || ["", ""])[1].trim();
         const rest = t.replace(new RegExp(CMD_TAGS.source, "g"), "").trim();
         if (nm) {
           openCmd = { key, kind: "cmdret", name: nm[1], args, out: out ? out[1].replace(/\s+$/, "") : "", ts: ev.ts, replay: !!ev.replay, i };

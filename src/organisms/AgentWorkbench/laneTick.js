@@ -33,6 +33,7 @@ export const ticksLanes = (e) => {
     // no tick at all. Measured 2026-11-09 with a real assign from the manager — two runs on disk,
     // `stripRuns` returning them first, and the band reading "0 corrections" until something
     // unrelated happened to tick the re-read. Work that arrives has to arrive.
+    // falls through — every label in this group shares the one answer below
     case "run.assigned":
       return true;
     case "todo.updated":

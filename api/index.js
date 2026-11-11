@@ -227,7 +227,7 @@ const express = require("express");
 const path = require("path");
 
 const isUrl = (str) =>
-  /^(http:\/\/|https:\/\/)?((localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}))(:[0-9]{1,5})?(\/.*)?$/i.test(
+  /^(http:\/\/|https:\/\/)?((localhost|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-z0-9]+([-.]{1}[a-z0-9]+)*\.[a-z]{2,}))(:[0-9]{1,5})?(\/.*)?$/i.test(
     str,
   );
 
@@ -1439,7 +1439,10 @@ async function stageHunk(projectCode, { path: rel, content, root } = {}) {
     if (!hashed.ok) return hashed;
     // Keep the entry's mode when it has one (an executable stays executable); a new file is 100644.
     const ls = await git(cwd, ["ls-files", "--stage", "--", rel]);
-    const mode = (ls.ok && /^(\d{6}) /.exec(ls.out.trim()) || [])[1] || "100644";
+    // PARENTHESISED, because `&&` binds tighter than `||` and a reader should not have to know
+    // that to read the line. The behaviour is unchanged: the match is attempted only when the
+    // `ls-files` call succeeded, and an empty array stands in when either half gives nothing.
+    const mode = ((ls.ok && /^(\d{6}) /.exec(ls.out.trim())) || [])[1] || "100644";
     return git(cwd, ["update-index", "--add", "--cacheinfo", `${mode},${hashed.out},${rel}`]);
   });
   bustGit(projectCode);

@@ -38,7 +38,11 @@ export async function resolveRef(path, hint = "") {
     answer =
       body && body.ok
         ? {
-            resolved: false,
+            // NO `resolved` DEFAULT HERE. It used to sit above the spread and was overwritten
+            // twice over — once by `...body` and again by the normalisation below — so the two
+            // literal keys made eslint read a duplicate where there was only a redundancy. The
+            // normalised line is the one that answers, and it answers `false` for a body that
+            // carries nothing.
             projectCode: "",
             path: p,
             suffix: "",

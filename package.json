@@ -51,7 +51,8 @@
     "services": "node test/service/index.js & sleep 1; node test/service/gated/index.js & sleep 1; node test/service/gated/sibling.js & sleep 1; node test/LogSuite/index.js & wait",
     "test:plugin": "node --test \"systemview-plugin/**/*.test.js\"",
     "build:check": "rm -rf build.check && BUILD_PATH=build.check NODE_OPTIONS=--max-old-space-size=4096 react-scripts build && rm -rf build.check",
-    "verify": "CI=true react-scripts test --watchAll=false && yarn test:api && yarn test:cli && yarn build:check"
+    "lint:ratchet": "node tools/lintRatchet.js",
+    "verify": "CI=true react-scripts test --watchAll=false && yarn test:api && yarn test:cli && yarn lint:ratchet && yarn build:check"
   },
   "eslintConfig": {
     "parser": "@babel/eslint-parser",

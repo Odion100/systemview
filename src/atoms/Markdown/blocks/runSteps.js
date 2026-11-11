@@ -62,7 +62,7 @@ export function parseSteps(src) {
       // Pull a trailing `{title="…"}` off the step before the call is parsed, so the arg parser
       // never sees it and a label can never be mistaken for an argument.
       const { body: callBody, attrs: stepAttrs } = splitStepAttrs(body);
-      const m = callBody.match(/^([A-Za-z0-9_$.\-]+)\s*(.*)$/);
+      const m = callBody.match(/^([A-Za-z0-9_$.-]+)\s*(.*)$/);
       if (!m) return;
       cur = { ns: m[1], rest: m[2] || "" };
       if (stepAttrs.title) cur.title = stepAttrs.title;

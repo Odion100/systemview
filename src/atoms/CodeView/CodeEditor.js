@@ -191,8 +191,13 @@ const hunkField = StateField.define({
         const next = e.value || [];
         // Keep what's open when the RUNS are the same (staging a hunk changes its badge, not its
         // position) and drop it only when the line numbers actually moved.
+        // READ FROM A CONST, not from the `let` this loop reassigns on the next line. The closure
+        // runs synchronously so the old code was correct — but a function in a loop closing over a
+        // variable the loop moves is one reordering away from being wrong, and it is the shape
+        // eslint flags for exactly that reason.
+        const prev = hunks;
         const same =
-          next.length === hunks.length && next.every((h, i) => hunks[i] && hunks[i].from === h.from);
+          next.length === prev.length && next.every((h, i) => prev[i] && prev[i].from === h.from);
         hunks = next;
         if (!same) open = new Set();
         touched = true;

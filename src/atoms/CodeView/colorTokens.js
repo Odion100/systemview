@@ -229,4 +229,5 @@ export const findColors = (text) => {
   return out;
 };
 
-export default { COLOR_RE, parseColor, formatColor, findColors };
+const colorTokens = { COLOR_RE, parseColor, formatColor, findColors };
+export default colorTokens;

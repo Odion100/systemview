@@ -265,8 +265,12 @@ const FullTestInner = ({
     // seedSum_2, …), a valid identifier so references (test.seedSum_2[0].results) resolve; all still point
     // at the one stored definition. Initialize steps bound to the current sections object + key it there
     // immediately so the action's own internal refs resolve from the moment it lands.
+    // THE NAMES, ONCE. This asked `named.some(…)` per candidate — a function declared in the loop,
+    // closing over a `key` the loop moves, which is correct only because the condition is evaluated
+    // synchronously. A set read instead: no closure, no re-scan, same answer.
+    const taken = new Set(named.map((e) => e.name));
     let key = action.name;
-    for (let i = 2; named.some((e) => e.name === key); i++) key = `${action.name}_${i}`;
+    for (let i = 2; taken.has(key); i++) key = `${action.name}_${i}`;
     const tests = (action.steps || []).map((s) =>
       resetTest(s, FullTest, projectServices, false),
     );

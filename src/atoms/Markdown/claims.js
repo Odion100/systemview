@@ -108,7 +108,7 @@ export function parseClaims(source) {
     // normalizeFences guarantees an outer fence is LONGER than every inner one — so a line of
     // exactly these colons and nothing else is unambiguously this claim's close, with no nesting
     // ambiguity to resolve. A leaf (`::claim`) has no body and carries no spec by construction.
-    const fence = ((/^\s*(:+)/.exec(lines[i]) || [, ""])[1] || "").length;
+    const fence = ((/^\s*(:+)/.exec(lines[i]) || ["", ""])[1] || "").length;
     let hasSpec = false;
     let proofSpec = false;
     let proofShown = false;

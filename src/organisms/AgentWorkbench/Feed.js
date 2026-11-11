@@ -62,7 +62,7 @@ const When = ({ ts }) => (ts ? <span className={`${CLASSNAME}__ts`}>{timeOf(ts)}
 // library (CSP), no font-size change — just color, which is what "distinguished" meant.
 const HiJson = ({ value }) => {
   const text = JSON.stringify(value, null, 2);
-  const re = /("(?:\\.|[^"\\])*")(\s*:)?|(\btrue\b|\bfalse\b|\bnull\b)|(-?\d+(?:\.\d+)?)|([{}\[\],])/g;
+  const re = /("(?:\\.|[^"\\])*")(\s*:)?|(\btrue\b|\bfalse\b|\bnull\b)|(-?\d+(?:\.\d+)?)|([{}[\],])/g;
   const parts = [];
   let last = 0;
   let m;
