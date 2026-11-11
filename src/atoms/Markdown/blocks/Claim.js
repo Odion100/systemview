@@ -90,6 +90,11 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
       report({
         kind: "claim",
         ref: attrs.id || statement,
+        // A STATE FAULT, NOT A RESOLUTION ONE — and saying so is the whole of this flag. `c1`
+        // resolved: it exists and it is marked. The composer's default wording would open with
+        // "points at "c1" and it does not resolve", which describes nothing that happened and
+        // sends the reader hunting a bad reference they never wrote.
+        fault: "state",
         reason: "marked met with no proof embedded — it does not count as met",
       }).catch(() => {});
     }, UNPROVED_GRACE_MS);

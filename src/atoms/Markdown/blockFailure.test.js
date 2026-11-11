@@ -213,3 +213,125 @@ describe("being told survives the page", () => {
     expect(after.k399).toBe(399);
   });
 });
+
+// TWO FAULTS, AND THE COMPOSER HAD ONE SENTENCE FOR BOTH.
+//
+// An unproved met-mark was reported as *"a ::claim you wrote points at "c1" and it does not
+// resolve — marked met with no proof embedded"*. `c1` resolved: it exists and it is marked. Nothing
+// pointed anywhere and nothing failed to resolve, so the message opened on a fault that had not
+// happened and sent the reader hunting a bad reference they never wrote.
+//
+// These claims pin BOTH halves: that a state fault says the true thing, and that the five blocks
+// which really do resolve something kept the wording that was already right for them.
+describe("a state fault is not a resolution fault", () => {
+  it("states the whole fact and never claims a reference failed", () => {
+    expect(
+      failureSummary({
+        kind: "claim",
+        ref: "c1",
+        fault: "state",
+        reason: "marked met with no proof embedded — it does not count as met",
+      }),
+    ).toBe(
+      'the ::claim you wrote at "c1" is marked met with no proof embedded — it does not count as met',
+    );
+  });
+
+  it("never says points-at or does-not-resolve about a block that resolved", () => {
+    const line = failureSummary({ kind: "claim", ref: "c1", fault: "state", reason: "unproved" });
+    expect(line).not.toContain("does not resolve");
+    expect(line).not.toContain("points at");
+  });
+
+  it("still reads when the claim carried no id to locate it by", () => {
+    expect(failureSummary({ kind: "claim", fault: "state", reason: "marked met with no proof" })).toBe(
+      "the ::claim you wrote is marked met with no proof",
+    );
+  });
+
+  it("says where, the same way the resolution shape does", () => {
+    expect(
+      failureSummary({ kind: "claim", ref: "c1", fault: "state", reason: "unproved", where: "this chat" }),
+    ).toContain("in this chat");
+  });
+
+  // THE REGRESSION LOCK. Five callers — file, test, report, branch, commit — are genuine resolution
+  // faults whose copy was always correct. The default is what keeps them right by construction, so
+  // the default is what gets pinned.
+  it("leaves every resolution caller's sentence byte-identical", () => {
+    expect(failureSummary({ kind: "commit", ref: "4ce4444", reason: "no such commit" })).toBe(
+      'a ::commit you wrote points at "4ce4444" and it does not resolve — no such commit',
+    );
+    expect(failureSummary({ kind: "file", ref: "a.js", reason: "there is no path in this reference" })).toBe(
+      'a ::file you wrote points at "a.js" and it does not resolve — there is no path in this reference',
+    );
+    // and passing the default EXPLICITLY is the same sentence as leaving it off
+    expect(failureSummary({ kind: "test", ref: "Math.add", reason: "no test named", fault: "unresolved" })).toBe(
+      failureSummary({ kind: "test", ref: "Math.add", reason: "no test named" }),
+    );
+  });
+
+  // A FAULT CHANNEL MUST NOT BREAK ON ITS OWN ARGUMENT — throwing here would mean telling nobody
+  // about the fault it was called for, which is the one outcome the mechanism exists to prevent.
+  it("falls back to the resolution wording on a shape it does not know", () => {
+    expect(failureSummary({ kind: "commit", ref: "abc", reason: "no such commit", fault: "nonsense" })).toBe(
+      'a ::commit you wrote points at "abc" and it does not resolve — no such commit',
+    );
+  });
+});
+
+// THE KEYS ARE PERSISTED, so a key format that changes invalidates every key already on his disk
+// and re-reports every still-broken block once. That is the reload-flood this file's history is
+// about, and it is why the default shape is OMITTED from the key rather than written into it.
+describe("the dedupe key survives this change", () => {
+  it("is byte-identical to the old format for a resolution fault", () => {
+    expect(failureKey({ kind: "commit", ref: "abc", reason: "no such commit", audience: ["a"] })).toBe(
+      "commit abc no such commit a",
+    );
+    // explicit default included — still no shape in the key
+    expect(
+      failureKey({ kind: "commit", ref: "abc", reason: "no such commit", audience: ["a"], fault: "unresolved" }),
+    ).toBe("commit abc no such commit a");
+  });
+
+  it("gives a state fault its own key, so the corrected line is sent once", () => {
+    const resolution = failureKey({ kind: "claim", ref: "c1", reason: "unproved", audience: ["a"] });
+    const state = failureKey({ kind: "claim", ref: "c1", reason: "unproved", audience: ["a"], fault: "state" });
+    expect(state).not.toBe(resolution);
+  });
+});
+
+// AND THROUGH THE REAL HOOK, because a pure function agreeing with itself says nothing about what
+// the agent actually receives — the shape has to survive the send.
+describe("the shape reaches the message", () => {
+  const StateProbe = () => {
+    const report = useBlockFailure();
+    React.useEffect(() => {
+      report({
+        kind: "claim",
+        ref: "c1",
+        fault: "state",
+        reason: "marked met with no proof embedded — it does not count as met",
+      });
+    }, [report]);
+    return null;
+  };
+
+  it("sends the state wording, not the resolution wording", async () => {
+    render(
+      <MemoryRouter><MarkdownScopeProvider value={{ projectCode: "systemview-test", chat: "main" }}>
+        <MarkdownMembersProvider value={{ members: [], hasMembers: false, source: "", docPath: "", projectCode: "" }}>
+          <StateProbe />
+        </MarkdownMembersProvider>
+      </MarkdownScopeProvider></MemoryRouter>,
+    );
+    await waitFor(() => expect(sendUpdateTo).toHaveBeenCalledTimes(1));
+    const { summary } = sendUpdateTo.mock.calls[0][0];
+    // "in this chat" rides along because this probe stands in a room rather than a document — the
+    // same `where` the resolution shape carries, which is the point of it being one composer.
+    expect(summary).toBe(
+      'the ::claim you wrote in this chat at "c1" is marked met with no proof embedded — it does not count as met',
+    );
+    expect(summary).not.toContain("does not resolve");
+  });
+});

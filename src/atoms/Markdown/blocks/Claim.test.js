@@ -441,9 +441,13 @@ describe("what the claim owes — spec'd, owed, or by eye", () => {
     at(2, { id: "c1", state: "met", by: "sv", at: "1" });
     expect(mockReported).not.toHaveBeenCalled(); // not yet — the author may still be embedding it
     act(() => { jest.advanceTimersByTime(60000); });
+    // `fault: "state"` is the part that keeps the message true. The composer's default wording
+    // opens with "points at "c1" and it does not resolve", and `c1` resolves perfectly — it exists
+    // and it is marked. A state fault locates the block and states the whole fact instead.
     expect(mockReported).toHaveBeenCalledWith({
       kind: "claim",
       ref: "c1",
+      fault: "state",
       reason: "marked met with no proof embedded — it does not count as met",
     });
     jest.useRealTimers();

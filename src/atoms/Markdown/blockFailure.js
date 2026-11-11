@@ -21,21 +21,66 @@ import { sendUpdateTo } from "./docSend";
 // per-project and an agent is addressed by its project code. Nobody else is told, because a broken
 // block is a note to its writer, not news.
 
+// TWO DIFFERENT FAULTS, AND ONLY ONE OF THEM IS ABOUT RESOLUTION.
+//
+// This composer had one sentence and used it for everything: "a ::<kind> you wrote points at
+// "<ref>" and it does not resolve — <why>". For the five blocks that resolve something — a file, a
+// test, a report chip, a branch, a commit — that is exactly right, and `why` finishes it.
+//
+// For a CLAIM it was false in both halves. An unproved met-mark came out as *"a ::claim you wrote
+// points at "c1" and it does not resolve — marked met with no proof embedded"*, and `c1` resolved
+// perfectly: it exists, it is marked met, it carries no proof. Nothing pointed anywhere and nothing
+// failed to resolve. The first clause described no part of the fault and the whole fact was in the
+// second — so the message spent its opening on a lie and the agent reading it was sent looking for
+// a bad reference it never wrote. Measured 2026-11-08 on RFC-078's 21 marks.
+//
+// So the caller says WHICH FAULT IT IS, and `unresolved` is the default: the five resolution blocks
+// are untouched by construction rather than by my having remembered them. A state fault locates the
+// block and then states the whole fact, because for that shape the whole fact is all there is.
+const FAULTS = {
+  // A reference that points somewhere and that somewhere is not there.
+  unresolved: (k, r, at, why) =>
+    r
+      ? `a ::${k} you wrote${at} points at "${r}" and it does not resolve — ${why}`
+      : `a ::${k} you wrote${at} does not resolve — ${why}`,
+  // A block that resolved and is in a state it should not be in. The ref LOCATES it; it is not the
+  // thing that failed, so it never gets a verb of its own.
+  state: (k, r, at, why) =>
+    r ? `the ::${k} you wrote${at} at "${r}" is ${why}` : `the ::${k} you wrote${at} is ${why}`,
+};
+
 /** The one line the agent receives. Pure, so the wording is checkable without a host. */
-export function failureSummary({ kind, ref, reason, where = "" } = {}) {
+export function failureSummary({ kind, ref, reason, where = "", fault = "unresolved" } = {}) {
   const k = String(kind || "block").trim();
   const r = String(ref || "").trim();
   const why = String(reason || "could not be resolved").trim();
   const at = where ? ` in ${where}` : "";
-  // The REF comes first: the agent's next act is to find the exact value it wrote and change it.
-  return r
-    ? `a ::${k} you wrote${at} points at "${r}" and it does not resolve — ${why}`
-    : `a ::${k} you wrote${at} does not resolve — ${why}`;
+  // An unknown shape falls back to the resolution wording rather than throwing: a fault channel
+  // that breaks on its own argument tells nobody about the fault it was called for, which is the
+  // one outcome this whole mechanism exists to prevent.
+  // The REF comes first for a resolution fault: the agent's next act is to find the exact value it
+  // wrote and change it.
+  return (FAULTS[fault] || FAULTS.unresolved)(k, r, at, why);
 }
 
-/** Stable key for one failure, so a re-render cannot re-send it. */
-export const failureKey = ({ kind, ref, reason, audience = [] } = {}) =>
-  [kind, ref, reason, [...audience].sort().join(",")].join(" ");
+// Stable key for one failure, so a re-render cannot re-send it.
+//
+// THE DEFAULT SHAPE IS OMITTED FROM THE KEY ON PURPOSE, and it is not tidiness. These keys are
+// PERSISTED (`sv.blockFault.sent`), so a key format that changes silently invalidates every key
+// already on his disk — and the five resolution blocks would each re-report once, which is the
+// reload-flood this file's own history is about. Appending the shape only when it is NOT the
+// default leaves every stored key byte-identical, so nothing already told is told again.
+//
+// A `state` fault does get its own key, and for the one claim block that is the correct outcome
+// rather than a cost: the message it sends changed, so the next one he receives is the fixed line.
+export const failureKey = ({ kind, ref, reason, audience = [], fault = "unresolved" } = {}) =>
+  [
+    kind,
+    ref,
+    reason,
+    ...(fault && fault !== "unresolved" ? [fault] : []),
+    [...audience].sort().join(","),
+  ].join(" ");
 
 // ONE SEND PER FAILURE, AND IT HAS TO SURVIVE A RELOAD.
 //
@@ -92,7 +137,9 @@ export const _resetSentFailures = () => {
 };
 
 /**
- * `report({kind, ref, reason})` — tells whoever should hear about this block, once.
+ * `report({kind, ref, reason, fault})` — tells whoever should hear about this block, once.
+ * `fault` is `unresolved` (the default — a reference that leads nowhere) or `state` (the block
+ * resolved and is in a state it should not be in); it picks the wording and is part of the key.
  * Answers the audience it told, or `null` when there was nobody to tell. Nobody is a legitimate
  * answer: a block rendered where no agent stands behind it has no writer to inform.
  */
@@ -102,13 +149,13 @@ export function useBlockFailure() {
   const inFlight = useRef(new Set());
 
   return useCallback(
-    async ({ kind, ref, reason }) => {
+    async ({ kind, ref, reason, fault = "unresolved" }) => {
       const members = Array.isArray(doc.members) && doc.members.length ? doc.members : [];
       const audience = members.length
         ? members
         : [String(scope.projectCode || "").trim()].filter(Boolean);
       if (!audience.length) return null;
-      const key = failureKey({ kind, ref, reason, audience });
+      const key = failureKey({ kind, ref, reason, audience, fault });
       if (wasSent(key) || inFlight.current.has(key)) return null;
       inFlight.current.add(key);
       // THE PATH HAS TO BE A FILE THAT EXISTS, because the message the agent receives ends with
@@ -130,7 +177,7 @@ export function useBlockFailure() {
         path: where,
         project: doc.projectCode || scope.projectCode || "",
         members: audience,
-        summary: failureSummary({ kind, ref, reason, where: doc.docPath ? "" : "this chat" }),
+        summary: failureSummary({ kind, ref, reason, fault, where: doc.docPath ? "" : "this chat" }),
         by: "the window",
         // SAY WHAT THIS IS. Without it the harness composes "a document you are a member of was
         // updated", which is wrong twice over: there is no document, and the recipient is the
