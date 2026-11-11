@@ -291,3 +291,80 @@ test("an empty log has no floor to quote, and says null rather than inventing on
   assert.strictEqual(w.exhausted, true);
   assert.strictEqual(w.oldest, null);
 });
+
+// AN ACCOUNT ASKED FOR NOTHING, so nothing owes it a trailer.
+//
+// A `Serves:` line answers "what asked for this work". An arc, an RFC and a gap all asked for
+// something. A report is written AFTER the work it accounts for — its id did not exist when those
+// commits were made — while report-authoring requires a `::commit{sha=}` record per commit. So
+// every honest account used to manufacture `unclaimed` findings: 17 on this repo on 2026-11-11,
+// eight of them from a single report, and the number only grew.
+const noTrailer = (subject) => [subject, "", "a body with no trailer at all"].join("\n");
+const serving = (subject, id) => [subject, "", "body", "", `Serves: ${id}`].join("\n");
+
+test("a record on an account is counted, not accused", () => {
+  const out = audit({
+    commits: [{ sha: "aaaa1111", subject: "feat: x", message: noTrailer("feat: x") }],
+    documents: [{ id: "An account", kind: "report", path: "reports/a.md", text: "::commit{sha=aaaa1111}" }],
+  });
+  assert.deepStrictEqual(out.unclaimed, [], "an account commissioned nothing, so nothing is owed");
+  assert.deepStrictEqual(out.noted, [{ sha: "aaaa1111", id: "An account", path: "reports/a.md", kind: "report" }]);
+  assert.strictEqual(out.agreed, true, "and it does not hold the whole answer down");
+});
+
+test("a record on a document that DID commission the work is still a finding", () => {
+  for (const kind of ["rfc", "arc", "gap"]) {
+    const out = audit({
+      commits: [{ sha: "bbbb2222", subject: "feat: x", message: noTrailer("feat: x") }],
+      documents: [{ id: "RFC-9", kind, path: "RFCs/r.md", text: "::commit{sha=bbbb2222}" }],
+    });
+    assert.strictEqual(out.unclaimed.length, 1, `${kind} still owes a trailer`);
+    assert.deepStrictEqual(out.noted, []);
+    assert.strictEqual(out.agreed, false);
+  }
+});
+
+// THE DEFAULT IS STRICT — noise is visible, silence is not. A kind nobody listed must not lose its
+// teeth by not being listed.
+test("an unknown or missing kind is still checked", () => {
+  for (const kind of ["something-new", "", undefined]) {
+    const out = audit({
+      commits: [{ sha: "cccc3333", subject: "feat: x", message: noTrailer("feat: x") }],
+      documents: [{ id: "X", kind, path: "x.md", text: "::commit{sha=cccc3333}" }],
+    });
+    assert.strictEqual(out.unclaimed.length, 1, `kind ${JSON.stringify(kind)} must still be checked`);
+  }
+});
+
+// THE TEETH THAT MUST STAY, in the direction that can actually be wrong: a commit saying it served
+// a report while the report does not carry the sha is still a hole, because that trailer was a
+// deliberate act and the record is genuinely missing.
+test("a commit that really does serve a report, unrecorded, is still one-way", () => {
+  const out = audit({
+    commits: [{ sha: "dddd4444", subject: "feat: x", message: serving("feat: x", "An account") }],
+    documents: [{ id: "An account", kind: "report", path: "reports/a.md", text: "no records here" }],
+  });
+  assert.strictEqual(out.oneWay.length, 1);
+  assert.strictEqual(out.agreed, false);
+});
+
+test("a cross is still a cross when the document holding the sha is an account", () => {
+  const out = audit({
+    commits: [{ sha: "eeee5555", subject: "feat: x", message: serving("feat: x", "RFC-9") }],
+    documents: [
+      { id: "RFC-9", kind: "rfc", path: "RFCs/r.md", text: "no records here" },
+      { id: "An account", kind: "report", path: "reports/a.md", text: "::commit{sha=eeee5555}" },
+    ],
+  });
+  assert.strictEqual(out.crossed.length, 1, "the trailer is the wrong label, whoever carries the sha");
+  assert.strictEqual(out.crossed[0].says, "RFC-9");
+  assert.strictEqual(out.crossed[0].carriedBy, "An account");
+});
+
+test("noted counts only records this run could actually see", () => {
+  const out = audit({
+    commits: [{ sha: "ffff6666", subject: "feat: x", message: noTrailer("feat: x") }],
+    documents: [{ id: "An account", kind: "report", path: "reports/a.md", text: "::commit{sha=ffff6666} ::commit{sha=99990000}" }],
+  });
+  assert.strictEqual(out.noted.length, 1, "a sha outside the window is not evidence of anything, either way");
+});

@@ -126,6 +126,21 @@ const sameSha = (a, b) => {
  *               took three repeats to see. A crossed pair is therefore reported once and withheld
  *               from both halves: the count of findings should be the count of mistakes.
  */
+// WHICH DOCUMENTS COMMISSION WORK — the question `unclaimed` is really asking.
+//
+// A `Serves:` trailer answers "what asked for this work". An ARC, an RFC and a GAP all asked for
+// something: the commit owes them the line, and a record on one of them with no trailer behind it
+// is a genuine hole. AN ACCOUNT ASKED FOR NOTHING. A report is written AFTER the work it accounts
+// for, so its commits CANNOT carry `Serves: <report id>` — the id did not exist when they were
+// made — while report-authoring requires a `::commit{sha=}` record per commit. Every honest account
+// therefore manufactured findings: 17 of them on this repo on 2026-11-11, eight from one report,
+// growing every night. A door whose output is mostly noise stops being read, and then it is worth
+// less than nothing, because it looks like a check.
+//
+// THE DEFAULT IS STRICT. An unknown or missing kind is still checked: noise is visible and silence
+// is not, so a new document kind must not quietly lose its teeth by not being listed here.
+const COMMISSIONS = (kind) => !["report"].includes(String(kind || "").toLowerCase());
+
 function audit({ commits = [], documents = [] } = {}) {
   const byId = new Map(documents.map((d) => [String(d.id), d]));
   const docShas = documents.map((d) => ({ doc: d, shas: shasIn(d.text) }));
@@ -167,10 +182,21 @@ function audit({ commits = [], documents = [] } = {}) {
   }
 
   const unclaimed = [];
+  // NOT A FINDING, AND NOT DROPPED EITHER. Records carried by a document that commissioned nothing
+  // are counted and named here, so the door can say what it did not check instead of going quiet
+  // about it — the same rule the window facts answer to. A check that narrows itself in silence is
+  // the thing it was built to catch.
+  const noted = [];
   for (const { doc, shas } of docShas) {
     for (const sha of shas) {
       const c = commits.find((x) => sameSha(x.sha, sha));
       if (!c) continue; // not in the window we were handed — absence here is not evidence
+      if (!COMMISSIONS(doc.kind)) {
+        // Still only counted when the commit is in the window, so this number means the same thing
+        // the findings do: records this run could actually see.
+        noted.push({ sha, id: doc.id, path: doc.path || "", kind: String(doc.kind || "") });
+        continue;
+      }
       // A MISPLACED TRAILER IS NOT A MISSING ONE. If the commit meant to serve this document and
       // put the line in the wrong place, that is reported once as `misplaced`; saying "does not
       // serve it" here as well would be the second false half of one mistake.
@@ -217,6 +243,7 @@ function audit({ commits = [], documents = [] } = {}) {
     dangling,
     oneWay,
     unclaimed,
+    noted,
     misplaced,
     crossed,
     agreed: !dangling.length && !oneWay.length && !unclaimed.length && !crossed.length && !misplaced.length,
