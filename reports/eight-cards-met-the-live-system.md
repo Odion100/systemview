@@ -18,7 +18,8 @@ updating them.
 | **partly** | 3 — a half landed, a surface moved, a fault narrowed to latent |
 | **built this sitting** | 1 |
 | **a misdiagnosis** | 1 — real observation, wrong cause, disproven from the transcript |
-| outstanding | 1 reader still running |
+
+**All eight verdicts are in.** Of eight cards, **five were wrong in a way that would have cost a sitting each** — and only one of those five was wrong by being already built.
 
 ---
 
@@ -112,8 +113,12 @@ Both were `open` with no declaration; both now carry a reproduction and a named 
   unflagged and succeeds. The fix rests on the package's own exports map and on a measurement from
   2026-10-27 that I am repeating rather than re-deriving — said plainly because "we fixed it" and "we
   saw it fail" are different claims.
-- **One reader was still running when this was written**, so eight cards were checked and seven
-  verdicts applied. Their cards are untouched and still `open`, which is the honest state.
+- **All eight verdicts landed and all eight are applied.** The last one — subagent rows named by a
+  tool-use id — is still true and now carries its cause: the name is derived from a TRANSIENT spawn
+  event (`AgentChat.js:7812` ← `feedRows.js:106`), while a durable name sits unread on disk in
+  `subagents/agent-*.meta.json`. Two further holes in the same function were found on the way: it
+  reads only `input.prompt` where autobot reads `prompt || description`, and the capture sits in the
+  non-parented branch, so **a nested subagent can never be named**. Their cards are untouched and still `open`, which is the honest state.
 - **Every verdict here is a READER's, verified by its address rather than by me re-running it.** I
   applied them because each one carries a file:line or a command output I can follow; I did not
   independently repeat the six investigations.
