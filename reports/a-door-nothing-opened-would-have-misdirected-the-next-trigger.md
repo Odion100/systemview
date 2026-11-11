@@ -48,6 +48,8 @@ testing-utilities/`, nothing in autobot outside its own declaration, its export 
 ## Why the docstring was worth removing, and not just the function
 
 ::commit{sha=40f8a9c7 project=autobot}
+::commit{sha=6d00ad3b}
+::commit{sha=35064032}
 
 **A comment that misdirects is worse than no comment.** An agent adding a trigger reads
 `registry.cjs`, because that is where the registry lives — not `sessions.cjs`. Wiring it to "the
@@ -85,6 +87,68 @@ and watched the assertion fail, then put it back.
 | `documents` · `markdown-fires` · `markdown-parse` · `markdown-state` · `markdown-write` | 29 · 20 · 12 · 42 · 16 | green |
 | `attachments` · `job-path` · `nudge` · `hooks` · `board` | 25 · 33 · 39 · ✓ · 9 | green — exit 0 each |
 | systemview | — | **not run, and it did not need to be**: nothing in this repo changed |
+
+## And then the door I had just used was wrong — found by using it
+
+**`commitLinks` could not see a cross-repo commit record at all**, so every correctly-written one
+read as `oneWay` forever. I hit it on my own work: the autobot commit above carries its trailer, the
+report carries `::commit{sha=40f8a9c7 project=autobot}` — both halves, exactly the shape
+`report-authoring` requires — and the door still said *"add ::commit{sha=40f8a9c7}"*, advice to make
+an edit that was already in the file.
+
+::commit{sha=dd3698ee}
+
+:file[api/commitLinks.js]
+
+**Two wrong explanations died first, cheaply.** `git log --format=%h` abbreviates to seven characters
+and this door prints eight, so I suspected the record's sha was too short — it is not, the comparison
+prefix-matches either way. Then I suspected it read the git blob rather than the working tree —
+committing changed nothing.
+
+**The cause is one filter answering the wrong question.** `docShas` kept records with
+`!r.project || r.project === doc.project`. That is *right* for `unclaimed`, and its own comment says
+why: a record naming another repo cannot point back into this log, so counting it there would accuse
+a correct record of being wrong. **The same list also feeds `oneWay`, where the question inverts** —
+and there it compared `"autobot"` against the document's `"systemview-test"`, dropped the record, and
+fired.
+
+So the filter asked whether a record names the DOCUMENT's own repo when the question is whether it
+names **the log being read**. Those are the same question only while a commit and its document share
+a repo — which is why this stood unnoticed: it needs the cross-repo case, which is precisely the
+shape the handbook prescribes and nothing had ever checked.
+
+| | |
+|---|---|
+| before, `commitLinks({projectCode:"autobot"})` | **ONE WAY** — *add `::commit{sha=40f8a9c7}`* |
+| after, through the restarted hub | **the two directions agree — nothing to fix** |
+
+That second row is the proof, and it is the live door rather than the suite: four new assertions pass,
+but a classifier fix like this is exactly the kind that passes its own tests and still answers wrongly
+in the hub. **Teeth proven** by restoring the old filter and watching two of the four fail — and one of
+those four is the opposite guarantee, that a record naming another repo is *still* excluded from this
+project's `unclaimed`, which is what the original filter was protecting.
+
+## I took his hub down, and the thing that did it is already on the board
+
+**`systemview stop` worked and `systemview start 3000` refused**, eleven-times-in-two-minutes style:
+*"SystemView's hub is not running on port 3000. The IDE hosts it — open SystemView and the hub comes
+up with it."* For a few minutes his window had no backend.
+
+**The cause is the stale global CLI, card 1793837402865** — *"the node-14 global is systemview 1.20.1,
+a CLI from a different era."* The working tree's `cli/launchApp.js` carries the FIXED refusal
+(*"Bring it up with `systemview start <port>` — that command hosts it"*) and a comment describing this
+exact incident happening to him before. The `systemview` on PATH is the old build, whose `start` could
+not host. So a carded problem I had read and not prioritised is the one that bit.
+
+**Brought back by running the working tree directly** — `node ~/Systemly/systemview/cli/index.js start
+3000` from `~/autobot` — and verified: pid listening on 3000, and the MCP door answering.
+
+:::callout
+**One thing to know about that, because it is not how the hub normally runs.** It is hosted by MY
+process rather than by the shell. If this session ends it may go with it, and the fix is the ordinary
+one — the shell brings its own hub up. Nothing is lost either way; it is the restart you already owe,
+and it also arms the autobot half above.
+:::
 
 ## What I could NOT do or verify
 
