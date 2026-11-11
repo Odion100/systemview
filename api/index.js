@@ -2390,6 +2390,11 @@ const DocumentsRegistry = require("./documentsRegistry").documentsRegistryOn({ r
 // own ledger file, joined onto the registry rows at read time.
 const StampOpened = require("./documentsRegistry").stampOpened;
 const CommitLinks = require("./commitLinks");
+const { armed: armedOf } = require("./armed");
+// WHEN THIS PROCESS STARTED, computed once at load rather than per call: `process.uptime()` drifts
+// forward every second, so recomputing it would make the baseline move under a caller comparing
+// two answers. One hub, one start time.
+const HUB_STARTED_AT = Date.now() - Math.round(process.uptime() * 1000);
 // THE SAME RULE FOR "WHAT ID DOES THIS DOCUMENT DECLARE", asked of documents that no longer exist.
 const { LEAF_ID } = require("./reports");
 // How many deleted markdown paths commitLinks will read out of git before it stops and says so.
@@ -3479,6 +3484,57 @@ module.exports = function launchSystemView(port = 3000) {
       // work auditable instead of trusted. Reads both sides itself (the git log's trailers, and
       // the `::commit{sha=}` blocks in every registered document) and reports only where they
       // disagree; `api/commitLinks.js` holds the rules and why each finding is its own kind.
+      // IS THE COMMITTED CODE THE RUNNING CODE — `api/armed.js` holds the comparison and why it is
+      // a read rather than a watcher. `since` is the ms start time of the process being asked
+      // about; left off, it is THIS hub's own start, which is the only process the hub can speak
+      // for without guessing. The shell knows when it started and asks about `electron/` with it.
+      //
+      // Nothing here suggests a restart. The honest answer is a line to read when a fix looks dead.
+      armed: async ({ projectCode, since, paths, root } = {}) => {
+        const cwd = rootOf(projectCode, root);
+        if (!cwd) return { ok: false, error: "no folder for this project" };
+        const at = Number(since) > 0 ? Number(since) : HUB_STARTED_AT;
+        const SEP = "\u001f";
+        const REC = "\u001e";
+        // `--since=@<seconds>` is exact, so there is no window to report and none to get wrong —
+        // unlike commitLinks, which reads a fixed count and has to say so. Committer date on both
+        // sides (`%ct` and `--since`), because that is when the bytes reached the repository, which
+        // is the question a process start time is being compared against.
+        const log = await git(cwd, [
+          "log", `--since=@${Math.floor(at / 1000)}`, "--name-only",
+          `--pretty=format:${REC}%H${SEP}%ct${SEP}%s`,
+        ]);
+        if (!log.ok) return { ok: false, error: log.error || "git log failed" };
+        const commits = String(log.out || "")
+          .split(REC)
+          .filter((r) => r.trim())
+          .map((rec) => {
+            const lines = rec.split("\n");
+            const [sha, ct, subject] = String(lines.shift() || "").split(SEP);
+            return {
+              sha: String(sha || "").trim(),
+              at: Number(ct) * 1000,
+              subject: String(subject || ""),
+              files: lines.map((l) => l.trim()).filter(Boolean),
+            };
+          })
+          .filter((c) => c.sha);
+        // ON DISK AND NEVER COMMITTED IS THE OTHER WAY WORK IS NOT LIVE, and when a fix looks dead
+        // it is the same question wearing different clothes — so it is answered here rather than
+        // leaving the reader to run `git status` themselves and join the two by eye.
+        const st = await git(cwd, ["status", "--porcelain"]);
+        const uncommitted = st.ok ? parseStatus(st.out).map((f) => f.path) : [];
+        const groups = Array.isArray(paths) ? paths : typeof paths === "string" && paths ? [paths] : [];
+        return {
+          projectCode,
+          // WHOSE START TIME THIS IS. A baseline the caller cannot attribute is a baseline they
+          // cannot check, and "the hub" versus "a process you named" are different claims.
+          baseline: Number(since) > 0 ? "as given" : "this hub's own start",
+          ...armedOf({ since: at, groups, commits, uncommitted }),
+          // SAID RATHER THAN IMPLIED: an uncommitted-read failure is not an empty tree.
+          ...(st.ok ? {} : { uncommittedUnknown: st.error || "git status failed" }),
+        };
+      },
       commitLinks: async ({ projectCode, since, root } = {}) => {
         const cwd = rootOf(projectCode, root);
         if (!cwd) return { ok: false, error: "no folder for this project" };
