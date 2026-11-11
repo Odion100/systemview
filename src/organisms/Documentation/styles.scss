@@ -635,3 +635,19 @@
 }
 // THE DASHBOARD DOOR sits beside help and wears its shape — two doors onto centre tabs, side by
 // side in DOM order, rather than one door and one surprise somewhere else.
+
+// AWAY, NOT GONE — a centre panel whose tab is open but not active.
+//
+// `display: none` so it costs no layout and no paint, while React state, scroll offsets and
+// anything in flight survive. The panel keeps its OWN element, adding no DOM level: the first
+// attempt wrapped these in `KeptPane`, and `display: contents` is layout-neutral for boxes but does
+// nothing for SELECTORS — `> .documentation-view__data-table` above stopped matching, the panel lost
+// `min-height: 0`, and the dashboard stretched instead of scrolling.
+//
+// `!important` IS EARNED HERE and is not laziness: the rule it has to beat is a three-class
+// descendant chain setting `display: flex`, so a single class cannot win on specificity. The
+// alternative is repeating that whole chain for the hidden case, which would then have to be kept
+// in step with it forever.
+.doc-kept-away {
+  display: none !important;
+}

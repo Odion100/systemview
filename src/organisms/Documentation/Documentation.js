@@ -19,7 +19,6 @@ import Board from "../Board/Board";
 import CenterTabs, { useOpenByPath } from "../CenterTabs/CenterTabs";
 import { buildRoute, tabForUrl, floorTab, seedable } from "../../pages/SystemView/tabRoutes";
 import HowWeWork from "../HowWeWork/HowWeWork";
-import KeptPane from "../../atoms/KeptPane/KeptPane";
 import DashboardSwitch from "../DashboardSwitch/DashboardSwitch";
 
 export default function Documentation({
@@ -483,42 +482,41 @@ export default function Documentation({
             so the two can never drift into two answers about how the system works. */}
         {/* KEPT, NOT REBUILT — his ask: *"keep state as you go across tabs without... coming to
             the page."* Leaving a tab used to UNMOUNT the panel, so the scroll position, an open
-            editor and anything mid-flight were rebuilt on return. `KeptPane` hides instead.
-            MOUNTED ON FIRST SHOWING and released when the TAB IS CLOSED — the open set is the
-            lifetime, because "keep everything forever" feeds the card about the window getting
-            heavier the longer it is open. */}
+            editor and anything mid-flight were rebuilt on return.
+            Released when the TAB IS CLOSED — the open set is the lifetime, because "keep
+            everything forever" feeds the card about the window getting heavier the longer it is
+            open.
+            AND THE HIDE IS ON THE PANEL'S OWN ELEMENT, adding no DOM level. The first build
+            wrapped these in `KeptPane`, whose `display: contents` is layout-neutral by design —
+            but `display: contents` changes BOX GENERATION, never SELECTOR MATCHING, and
+            `styles.scss:621` is `> .documentation-view__data-table` giving it `min-height: 0`.
+            One element in between and that rule stopped matching, so the panel lost the one
+            property that lets a flex child scroll instead of stretching. He found it in a minute:
+            *"suddenly the dashboard cannot be scrolled, or is stretching too long."* */}
         {!helpOpen && tabIsOpen(`dash:${tabsPc}`) && (
-          <KeptPane show={tab === "dash"}>
-            {/* THE BOX STAYS INSIDE. `.kept-pane` is `display: contents` so it generates no box of
-                its own — which is what makes it layout-neutral, and also what would make a layout
-                class passed to it silently do nothing. The original div is kept verbatim. */}
-            <div className="documentation-view__data-table">
-              <DashboardSwitch projectCode={tabsPc} />
-            </div>
-          </KeptPane>
+          <div className={`documentation-view__data-table${tab === "dash" ? "" : " doc-kept-away"}`}>
+            <DashboardSwitch projectCode={tabsPc} />
+          </div>
         )}
         {!helpOpen && tabIsOpen(`how:${tabsPc}`) && (
-          <KeptPane show={tab === "how"}>
-            <div className="documentation-view__data-table">
-              <HowWeWork />
-            </div>
-          </KeptPane>
+          <div className={`documentation-view__data-table${tab === "how" ? "" : " doc-kept-away"}`}>
+            <HowWeWork />
+          </div>
         )}
         {!helpOpen && tabIsOpen(`board:${tabsPc}`) && (
-          <KeptPane show={tab === "board"}>
-            <div className="doc-board">
-              <Board projectCode={tabsPc} chrome="pane" />
-            </div>
-          </KeptPane>
+          <div className={`doc-board${tab === "board" ? "" : " doc-kept-away"}`}>
+            <Board projectCode={tabsPc} chrome="pane" />
+          </div>
         )}
-        {!helpOpen && tabIsOpen(`stats:${tabsPc}`) && (
-          <KeptPane show={tab === "stats"}>
-            <Reports
-              projectCode={fileLens ? codeFile.projectCode : sProject}
-              serviceId={fileLens ? undefined : sService}
-              embedded
-            />
-          </KeptPane>
+        {/* STATS IS NOT KEPT, and the reason is the one above: it renders with no wrapper of its
+            own, so keeping it would mean ADDING an element — which is the thing that broke the
+            dashboard. Wrapping it needs `Reports` to take a className first. */}
+        {!helpOpen && tab === "stats" && (
+          <Reports
+            projectCode={fileLens ? codeFile.projectCode : sProject}
+            serviceId={fileLens ? undefined : sService}
+            embedded
+          />
         )}
         {!helpOpen && tab === "logs" && (
           <InlineLogs
