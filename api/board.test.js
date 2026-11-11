@@ -489,3 +489,68 @@ test("an explicitly undefined parameter is not a refusal — that is how a calle
   assert.equal(r.error, undefined);
   assert.equal(r.of, 3);
 });
+
+// THREE WRITES IN ONE CALL ALL LAND — the regression that produced this test.
+//
+// `report`, `title` and `status` were three `if (…) { … return }` blocks in that order, so a call
+// carrying a status AND a declaration took the declaration, answered `ok: true`, and dropped the
+// status. Measured 2026-11-10 during a board pass: three cards in a row got their `report` and not
+// one got the line meant to justify it, and every answer said ok. A write that does not happen and
+// reports success is undetectable from the outside, which is why this is asserted on the DISK and
+// not on the answer — an answer can agree with itself.
+test("a status, a declaration and a title in ONE call all land — none is silently dropped", async () => {
+  const { api, read } = fake();
+  const r = await api({
+    projectCode: "p",
+    at: 1000,
+    title: "the first card, named",
+    report: "spec",
+    status: "reviewed — read it and it is still real",
+    as: "me",
+  });
+  assert.equal(r.ok, true);
+
+  // THE DISK, not the answer.
+  const card = read()[0];
+  assert.equal(card.title, "the first card, named", "the title landed");
+  assert.equal(card.report, "spec", "the declaration landed");
+  assert.equal(card.status.text, "reviewed — read it and it is still real", "the account landed");
+  assert.equal(card.status.state, "reviewed", "and its state was still read off the text");
+
+  // The answer says all three happened, so a caller can tell.
+  assert.equal(r.title, "the first card, named");
+  assert.equal(r.report, "spec");
+  assert.equal(r.status, "reviewed — read it and it is still real");
+  assert.equal(r.state, "reviewed");
+  // And the two counts still ride along when an account was touched.
+  assert.equal(typeof r.settled, "number");
+  assert.equal(typeof r.done, "number");
+});
+
+// ONE WRITE, NOT THREE. The board file is read-modify-written whole, so serializing once per field
+// would be three chances for a lost update on a file two processes already share.
+test("three fields in one call serialize the board exactly once", async () => {
+  const disk = { content: serializeBoard({ title: "b", cards: CARDS }), writes: 0 };
+  const api = boardOn({
+    readFile: async () => ({ ok: true, content: disk.content }),
+    writeFile: async (_pc, { content }) => ((disk.content = content), (disk.writes += 1), { ok: true }),
+  });
+  await api({ projectCode: "p", at: 1000, title: "named", report: "audit", status: "partial — half", as: "me" });
+  assert.equal(disk.writes, 1, "one write for three fields");
+});
+
+// EACH ONE STILL WORKS ALONE, with the answer shape it always had.
+test("a declaration, a title or a status on its own is unchanged by composing", async () => {
+  const a = await fake().api({ projectCode: "p", at: 1000, report: "brief", as: "me" });
+  assert.equal(a.report, "brief");
+  assert.equal(a.was, "", "report-only still answers `was`, so an older reader keeps its meaning");
+
+  const b = await fake().api({ projectCode: "p", at: 1000, status: "resolved — done", as: "me" });
+  assert.equal(b.state, "resolved");
+  assert.equal(b.done, 1, "`done` counts what a bulk clear would take");
+  assert.ok(!("report" in b), "a status-only call says nothing about a declaration");
+
+  const c = await fake().api({ projectCode: "p", at: 1000, title: "just a name", as: "me" });
+  assert.equal(c.title, "just a name");
+  assert.ok(!("status" in c));
+});

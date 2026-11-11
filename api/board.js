@@ -238,83 +238,84 @@ function boardOn({ readFile, writeFile }) {
       return { ...where, ok: true, added: board.cards[0].ts, ...(title ? { title: board.cards[0].title } : {}), ...(report ? { report: board.cards[0].report } : {}), by: as };
     }
 
-    // DECLARING WHAT A CARD OWES, ON ONE THAT ALREADY EXISTS — which is most of them, because his
-    // arrive with nothing on them. An empty string takes the declaration back OFF, the same shape
-    // as clearing a title or a status: "nobody has decided" has to stay expressible, or a wrong
-    // declaration can only be replaced by another wrong one.
-    if (report != null && add == null) {
-      const found = addressCard(board.cards, at);
-      if (found.error) return { ...where, ...found };
-      const card = found.card;
-      const was = card.report || "";
-      const next = String(report).trim();
-      if (next) card.report = next;
-      else delete card.report;
-      const w = await writeFile(projectCode, { path: boardPath(name), content: serializeBoard(board) });
-      if (!w || w.ok === false) return { ...where, error: (w && w.error) || "could not write the board" };
-      return { ...where, ok: true, card: card.ts, report: card.report || "", was };
-    }
-
-    // NAMING A CARD THAT ALREADY EXISTS. `title` with `add` names a new card; `title` with `at`
-    // names one that is already on the board — which is most of them, since the field arrived
-    // after 28 cards did. An empty string takes the name off, the same shape as clearing a status.
-    if (title != null && add == null) {
-      const found = addressCard(board.cards, at);
-      if (found.error) return { ...where, ...found };
-      const card = found.card;
-      const was = card.title || "";
-      const next = String(title).trim();
-      if (next) card.title = next;
-      else delete card.title;
-      const w = await writeFile(projectCode, { path: boardPath(name), content: serializeBoard(board) });
-      if (!w || w.ok === false) return { ...where, error: (w && w.error) || "could not write the board" };
-      return { ...where, ok: true, card: card.ts, title: next || null, ...(was && was !== next ? { was } : {}), by: as };
-    }
-
-    // THE ACCOUNT, ON THE CARD — his ask, 2026-10-16: *"it could be saying implemented, it could
-    // tell me what you did in one status, and whether it's done. Then I could come, see what it is
-    // and delete all of them."* So a status is not a lifecycle state to filter by; it is one line
-    // saying what happened, written where he is already looking, so a deletion needs no re-read of
-    // the card and no trip to a report.
+    // NAMING, DECLARING AND ACCOUNTING FOR A CARD — ONE MOTION, AND THEY COMPOSE.
     //
-    // It does NOT make a card survive. His 2026-10-14 ruling stands below — cards are deleted, and
-    // the count stays equal to the outstanding count. The status is what makes deleting SAFE to do
-    // in a batch, which is the whole of what he asked for.
+    // These were three `if (…) { … return }` blocks in the order report → title → status, so a
+    // call passing a status AND a declaration took the declaration, answered `ok: true`, and
+    // DROPPED THE STATUS SILENTLY. Measured 2026-11-10 during a board pass: three cards in a row
+    // got their `report` and not one got the line that was supposed to justify it, and every
+    // answer said ok. A write that does not happen and reports success is the worst shape a door
+    // has — the caller has no way to find out, and the next reader sees a declaration with no
+    // account behind it.
     //
-    // ONE SLOT, OVERWRITTEN. A second status replaces the first: the card's account is whatever is
-    // true now, and a card with a history of accounts is the re-read this surface exists to kill.
-    // An empty string CLEARS it — a status written in error must be removable without deleting the
-    // card it is attached to.
-    if (status != null) {
+    // They compose because REVIEWING A CARD IS ONE ACT: name it in his words, say what the work
+    // owes, and stamp what you found. `add` already composed with title and report, so status was
+    // the odd one out rather than this being a new idea.
+    //
+    // ONE WRITE AT THE END, not one per field: three serializations of the same board is three
+    // chances for a lost update, and the file is read-modify-written whole.
+    //
+    // An empty string on any of them takes that field back OFF — "nobody has decided" has to stay
+    // expressible, or a wrong declaration can only be replaced by another wrong one.
+    if ((report != null || title != null || status != null) && add == null) {
       const found = addressCard(board.cards, at);
       if (found.error) return { ...where, ...found };
       const card = found.card;
-      const text = String(status).trim();
+      const out = { ...where, ok: true, card: card.ts, by: as };
+
+      if (report != null) {
+        const wasReport = card.report || "";
+        const next = String(report).trim();
+        if (next) card.report = next;
+        else delete card.report;
+        out.report = card.report || "";
+        out.wasReport = wasReport;
+        // `was` kept as well when the declaration is the only write, so nothing that read the old
+        // single-purpose answer changes meaning under it.
+        if (title == null && status == null) out.was = wasReport;
+      }
+
+      if (title != null) {
+        const was = card.title || "";
+        const next = String(title).trim();
+        if (next) card.title = next;
+        else delete card.title;
+        out.title = next || null;
+        if (was && was !== next) out.was = was;
+      }
+
       // THE STATE RIDES WITH THE FREE TEXT — it never replaces it. His ruling, 2026-10-19: *"the
       // status can come with some free text, probably should"* — so leading with a state word is
       // what makes the board manageable (scan it, group it, clear the finished ones without
       // reading a line), and the line after it is what makes the card followable-up without
       // redoing the work. An account with no state is still an account; it simply cannot be
       // managed by anything but a human eye, which is what the grey mark says on the card.
-      const state = text ? stateOf(text) : null;
-      const had = card.status ? card.status.text : "";
-      if (text) card.status = { by: as, ts: Date.now(), text, state };
-      else delete card.status;
+      //
+      // ONE SLOT, OVERWRITTEN. A second status replaces the first: the card's account is whatever
+      // is true now, and a card with a history of accounts is the re-read this surface exists to
+      // kill.
+      if (status != null) {
+        const text = String(status).trim();
+        const state = text ? stateOf(text) : null;
+        const had = card.status ? card.status.text : "";
+        if (text) card.status = { by: as, ts: Date.now(), text, state };
+        else delete card.status;
+        out.status = text || null;
+        out.state = state;
+        if (had && had !== text) out.replaced = had;
+      }
+
       const w = await writeFile(projectCode, { path: boardPath(name), content: serializeBoard(board) });
       if (!w || w.ok === false) return { ...where, error: (w && w.error) || "could not write the board" };
-      return {
-        ...where,
-        ok: true,
-        card: card.ts,
-        by: as,
-        status: text || null,
-        state,
-        ...(had && had !== text ? { replaced: had } : {}),
-        // Both numbers, because they answer different questions and the gap between them is the
-        // point: `settled` is how many carry an account, `done` is how many a bulk clear would take.
-        settled: board.cards.filter((c) => c.status && c.status.text).length,
-        done: board.cards.filter((c) => c.status && DONE.includes(c.status.state)).length,
-      };
+
+      // Both numbers whenever an account was touched, because they answer different questions and
+      // the gap between them is the point: `settled` is how many carry an account, `done` is how
+      // many a bulk clear would take.
+      if (status != null) {
+        out.settled = board.cards.filter((c) => c.status && c.status.text).length;
+        out.done = board.cards.filter((c) => c.status && DONE.includes(c.status.state)).length;
+      }
+      return out;
     }
 
     // CLEARING THE SETTLED ONES IN ONE MOTION — the second half of his ask (*"then I could come,
