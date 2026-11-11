@@ -55,8 +55,18 @@ function armed({ since = null, groups = [], commits = [], uncommitted = [] } = {
   const cs = (Array.isArray(commits) ? commits : []).filter((c) => c && Number(c.at) > at);
   const us = Array.isArray(uncommitted) ? uncommitted.map(String) : [];
 
+  // A COMMIT WITH NO FILE LIST IS UNKNOWABLE, NOT EMPTY — an empty merge, or `--name-only` output
+  // the caller could not read. It belongs to the repo-wide group and to no NAMED one, because
+  // "this did not touch api/" is a claim its file list cannot support. That distinction is what
+  // lets the scoped verdict below be both narrow and honest.
+  const touches = (c, g) => {
+    const files = Array.isArray(c.files) ? c.files : [];
+    if (!files.length) return g === "";
+    return files.some((f) => inGroup(f, g));
+  };
+
   const out = keys.map((g) => {
-    const mine = cs.filter((c) => (Array.isArray(c.files) ? c.files : []).some((f) => inGroup(f, g)));
+    const mine = cs.filter((c) => touches(c, g));
     return {
       path: g,
       newer: mine.length,
@@ -64,6 +74,30 @@ function armed({ since = null, groups = [], commits = [], uncommitted = [] } = {
       uncommitted: us.filter((f) => inGroup(f, g)),
     };
   });
+
+  // THE VERDICT IS ABOUT WHAT WAS ASKED ABOUT, AND IT USED TO BE ABOUT THE WHOLE REPO.
+  //
+  // `newer` and `live` were computed off `cs` — every commit after the baseline — whatever paths
+  // the caller named. So asking this door its whole question, "is my api/ fix live?", answered:
+  //
+  //     groups: api newer 0 · cli newer 0 · testing-utilities newer 0
+  //     newer: 3, live: false
+  //
+  // Every group asked about said zero while the headline said not-live, because three unrelated
+  // markdown commits had landed. The true answer was in the array directly above the line a reader
+  // actually reads. Measured on the live hub 2026-11-11, the night after this file was written.
+  //
+  // THE OTHER HALF OF THE RULE CAME FIRST AND STILL HOLDS: a commit the grouping cannot place must
+  // not silently become zero, "or the group lines would disagree with the total and the reader
+  // would trust the group line". Both are honesty rules and one number was serving them both. So
+  // the scoped question gets a scoped answer, and everything the scope excluded is still COUNTED
+  // and named — `outside` for what touched none of the asked paths, `unknown` for what could not
+  // be placed at all. Narrowing a number without saying what left is the fault this door exists to
+  // report, which makes it a poor place to commit it.
+  const scoped = cs.filter((c) => keys.some((g) => touches(c, g)));
+  const usScoped = us.filter((f) => keys.some((g) => inGroup(f, g)));
+  const named = !(keys.length === 1 && keys[0] === "");
+  const unknown = named ? cs.filter((c) => !(Array.isArray(c.files) ? c.files : []).length).length : 0;
 
   return {
     ok: true,
@@ -73,13 +107,29 @@ function armed({ since = null, groups = [], commits = [], uncommitted = [] } = {
     since: at,
     groups: out,
     // ONE COMMIT TOUCHING TWO GROUPS IS COUNTED IN BOTH, so the per-group numbers add up to more
-    // than the commits involved. This total is distinct shas, which is the number a reader means
-    // when they ask how far behind a process is.
-    newer: new Set(cs.map((c) => String(c.sha))).size,
-    uncommitted: us.length,
-    // Nothing committed and nothing on disk is newer than the process: what it loaded is what is
-    // written down. Says nothing about whether the process is HEALTHY.
-    live: cs.length === 0 && us.length === 0,
+    // than the commits involved. This total is distinct shas among the paths that were ASKED
+    // about, which is the number a reader means when they ask how far behind a process is.
+    newer: new Set(scoped.map((c) => String(c.sha))).size,
+    uncommitted: usScoped.length,
+    // WHAT THE SCOPE LEFT OUT, so no number here can shrink in silence. Absent on an unscoped call
+    // because there is no outside, and a zero there would only invite the question of what it
+    // could ever be counting.
+    ...(named
+      ? {
+          outside: {
+            commits: new Set(cs.filter((c) => !scoped.includes(c)).map((c) => String(c.sha))).size,
+            uncommitted: us.length - usScoped.length,
+            // COULD NOT BE PLACED EITHER WAY. Counted here rather than hidden, and it is why
+            // `live` below is not a plain "nothing in your paths".
+            unknown,
+          },
+        }
+      : {}),
+    // Nothing committed and nothing on disk is newer than the process WITHIN WHAT WAS ASKED ABOUT:
+    // what it loaded is what is written down. An UNPLACEABLE commit blocks this too — it cannot be
+    // shown to have missed the named paths, and an unknown must never read as a no. Says nothing
+    // about whether the process is HEALTHY.
+    live: scoped.length === 0 && usScoped.length === 0 && unknown === 0,
   };
 }
 

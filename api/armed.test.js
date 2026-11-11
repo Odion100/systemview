@@ -68,7 +68,11 @@ test("uncommitted work is reported per group, because it is the other way work i
   });
   assert.deepStrictEqual(r.groups[0].uncommitted, ["api/index.js"]);
   assert.deepStrictEqual(r.groups[1].uncommitted, ["src/App.js", "src/atoms/X.js"]);
-  assert.strictEqual(r.uncommitted, 4, "the total counts the README nobody asked a group about");
+  // THE TOTAL IS WHAT WAS ASKED ABOUT, AND THE README DOES NOT VANISH. A reader who named two
+  // directories is told about those two; the file in neither is counted under `outside`, so the
+  // number narrows without anything leaving in silence — which is the whole rule of this door.
+  assert.strictEqual(r.uncommitted, 3, "three of the four are in a named group");
+  assert.strictEqual(r.outside.uncommitted, 1, "and the README nobody asked about is still counted");
 });
 
 test("`live` means nothing committed OR on disk is newer — both halves", () => {
@@ -85,12 +89,46 @@ test("`live` means nothing committed OR on disk is newer — both halves", () =>
   );
 });
 
-test("a commit with no files touches no group and is still counted against the repo", () => {
+test("a commit with no files cannot be placed, and an unknown never reads as a no", () => {
   // An empty merge, or a commit whose name-only output the caller could not read. It must not
   // silently become zero: the group lines would then disagree with the total, and the reader would
-  // trust the group line.
+  // trust the group line. "This did not touch api/" is a claim an absent file list cannot support,
+  // so it is reported as UNPLACEABLE and it blocks `live` — the one thing it must not do is let a
+  // process be called current on the strength of a commit nobody could read.
   const r = armed({ since: 1, groups: ["api"], commits: [{ sha: "merge", at: 2, files: [] }] });
-  assert.strictEqual(r.groups[0].newer, 0);
-  assert.strictEqual(r.newer, 1, "the repo is a commit behind even though no named group is");
+  assert.strictEqual(r.groups[0].newer, 0, "it is not IN api/ — that much is honest");
+  assert.strictEqual(r.newer, 0, "and it is not counted as api/ work either");
+  assert.strictEqual(r.outside.unknown, 1, "but it is counted, by name, as one nobody could place");
+  assert.strictEqual(r.live, false, "so the verdict is still no");
+});
+
+test("an UNSCOPED call is untouched — one group, the whole repo, every commit in it", () => {
+  // The fix must cost the plain question nothing: with no paths named there is one group, `""`,
+  // which every file is in — including a commit with no file list at all.
+  const r = armed({
+    since: 1,
+    commits: [{ sha: "a", at: 2, files: ["api/x.js"] }, { sha: "merge", at: 3, files: [] }],
+    uncommitted: ["README.md"],
+  });
+  assert.strictEqual(r.newer, 2, "both commits count against the repo");
+  assert.strictEqual(r.uncommitted, 1);
   assert.strictEqual(r.live, false);
+  assert.strictEqual(r.outside, undefined, "there is no outside when nothing was named");
+  assert.strictEqual(r.groups.length, 1);
+  assert.strictEqual(r.groups[0].newer, 2, "the group line and the total agree");
+});
+
+test("the scoped verdict is the fault this door was built with, and it is the point of the fix", () => {
+  // Measured on the live hub: three docs(report) commits landed, the caller asked about api, cli
+  // and testing-utilities, every group said zero, and the headline said live:false. A reader is
+  // sent to restart a process for nothing, or stops believing the door.
+  const docs = [
+    { sha: "d1", at: 2, files: ["reports/a.md"] },
+    { sha: "d2", at: 3, files: ["reports/b.md"] },
+    { sha: "d3", at: 4, files: ["reports/c.md"] },
+  ];
+  const r = armed({ since: 1, groups: ["api", "cli", "testing-utilities"], commits: docs });
+  assert.strictEqual(r.newer, 0, "nothing newer in anything that was asked about");
+  assert.strictEqual(r.live, true, "so the api/ fix IS live, which is what was asked");
+  assert.strictEqual(r.outside.commits, 3, "and the three that landed are still named");
 });

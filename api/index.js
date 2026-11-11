@@ -3509,7 +3509,11 @@ module.exports = function launchSystemView(port = 3000) {
       // for without guessing. The shell knows when it started and asks about `electron/` with it.
       //
       // Nothing here suggests a restart. The honest answer is a line to read when a fix looks dead.
-      armed: async ({ projectCode, since, paths, root } = {}) => {
+      // `groups` IS ACCEPTED BESIDE `paths` BECAUSE THE ANSWER CALLS THEM GROUPS. The input and
+      // the output disagreeing about the name of the thing is a trap with no upside: read the
+      // answer, pass `groups` back, and it was silently ignored — a confident answer about the
+      // whole repo to a question about three directories. I did it twice before reading this line.
+      armed: async ({ projectCode, since, paths, groups: groupsIn, root } = {}) => {
         const cwd = rootOf(projectCode, root);
         if (!cwd) return { ok: false, error: "no folder for this project" };
         const at = Number(since) > 0 ? Number(since) : HUB_STARTED_AT;
@@ -3543,7 +3547,8 @@ module.exports = function launchSystemView(port = 3000) {
         // leaving the reader to run `git status` themselves and join the two by eye.
         const st = await git(cwd, ["status", "--porcelain"]);
         const uncommitted = st.ok ? parseStatus(st.out).map((f) => f.path) : [];
-        const groups = Array.isArray(paths) ? paths : typeof paths === "string" && paths ? [paths] : [];
+        const asked = paths != null ? paths : groupsIn;
+        const groups = Array.isArray(asked) ? asked : typeof asked === "string" && asked ? [asked] : [];
         return {
           projectCode,
           // WHOSE START TIME THIS IS. A baseline the caller cannot attribute is a baseline they
