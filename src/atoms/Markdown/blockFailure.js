@@ -65,22 +65,23 @@ export function failureSummary({ kind, ref, reason, where = "", fault = "unresol
 
 // Stable key for one failure, so a re-render cannot re-send it.
 //
-// THE DEFAULT SHAPE IS OMITTED FROM THE KEY ON PURPOSE, and it is not tidiness. These keys are
-// PERSISTED (`sv.blockFault.sent`), so a key format that changes silently invalidates every key
-// already on his disk — and the five resolution blocks would each re-report once, which is the
-// reload-flood this file's own history is about. Appending the shape only when it is NOT the
-// default leaves every stored key byte-identical, so nothing already told is told again.
+// `fault` IS NOT IN THE KEY, and that is the rule rather than an omission. These keys are PERSISTED
+// (`sv.blockFault.sent`), so ANY change to the key format silently invalidates every key already on
+// his disk and re-tells him everything that is still on a page — which is the reload-flood this
+// file's whole history is about.
 //
-// A `state` fault does get its own key, and for the one claim block that is the correct outcome
-// rather than a cost: the message it sends changed, so the next one he receives is the fixed line.
-export const failureKey = ({ kind, ref, reason, audience = [], fault = "unresolved" } = {}) =>
-  [
-    kind,
-    ref,
-    reason,
-    ...(fault && fault !== "unresolved" ? [fault] : []),
-    [...audience].sort().join(","),
-  ].join(" ");
+// Measured 2026-11-11, and it is why this is stated as a rule: `fault` WAS in the key, appended
+// only when it was not the default, on the reasoning that a changed wording deserves a fresh
+// telling. Then the unproved-claim nudge — far and away the most numerous fault in the system —
+// gained `fault: "state"`, every one of its stored keys stopped matching at once, and the next
+// bundle he took re-reported FORTY claims into his chat while he was working on something else.
+// The wording of a message is not worth re-telling a fact he has already been told.
+//
+// `reason` is what separates two faults on one block, and it already does: a claim's unproved
+// nudge and its jammed-fence nudge carry different reasons and so get different keys. `fault` only
+// picks the SENTENCE, and the sentence is not part of the fact.
+export const failureKey = ({ kind, ref, reason, audience = [] } = {}) =>
+  [kind, ref, reason, [...audience].sort().join(",")].join(" ");
 
 // ONE SEND PER FAILURE, AND IT HAS TO SURVIVE A RELOAD.
 //
@@ -155,7 +156,7 @@ export function useBlockFailure() {
         ? members
         : [String(scope.projectCode || "").trim()].filter(Boolean);
       if (!audience.length) return null;
-      const key = failureKey({ kind, ref, reason, audience, fault });
+      const key = failureKey({ kind, ref, reason, audience });
       if (wasSent(key) || inFlight.current.has(key)) return null;
       inFlight.current.add(key);
       // THE PATH HAS TO BE A FILE THAT EXISTS, because the message the agent receives ends with

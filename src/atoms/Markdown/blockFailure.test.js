@@ -281,23 +281,32 @@ describe("a state fault is not a resolution fault", () => {
 });
 
 // THE KEYS ARE PERSISTED, so a key format that changes invalidates every key already on his disk
-// and re-reports every still-broken block once. That is the reload-flood this file's history is
-// about, and it is why the default shape is OMITTED from the key rather than written into it.
-describe("the dedupe key survives this change", () => {
-  it("is byte-identical to the old format for a resolution fault", () => {
+// and re-reports every still-broken block at once. That is the reload-flood this file's history is
+// about, and it has now happened twice — the second time measured, 2026-11-11: `fault` was put in
+// the key so a reworded message would be sent once more, the unproved-claim nudge then gained
+// `fault: "state"`, and the next bundle he took re-reported FORTY claims into his chat while he
+// was working on something else.
+describe("the dedupe key is the FACT, never the wording", () => {
+  it("is exactly kind, ref, reason and audience", () => {
     expect(failureKey({ kind: "commit", ref: "abc", reason: "no such commit", audience: ["a"] })).toBe(
       "commit abc no such commit a",
     );
-    // explicit default included — still no shape in the key
-    expect(
-      failureKey({ kind: "commit", ref: "abc", reason: "no such commit", audience: ["a"], fault: "unresolved" }),
-    ).toBe("commit abc no such commit a");
   });
 
-  it("gives a state fault its own key, so the corrected line is sent once", () => {
-    const resolution = failureKey({ kind: "claim", ref: "c1", reason: "unproved", audience: ["a"] });
-    const state = failureKey({ kind: "claim", ref: "c1", reason: "unproved", audience: ["a"], fault: "state" });
-    expect(state).not.toBe(resolution);
+  it("IGNORES the fault shape entirely — a reworded message is not a new fact", () => {
+    const plain = failureKey({ kind: "claim", ref: "c1", reason: "unproved", audience: ["a"] });
+    expect(failureKey({ kind: "claim", ref: "c1", reason: "unproved", audience: ["a"], fault: "state" })).toBe(plain);
+    expect(failureKey({ kind: "claim", ref: "c1", reason: "unproved", audience: ["a"], fault: "unresolved" })).toBe(plain);
+    // and anything invented later must not split the key either
+    expect(failureKey({ kind: "claim", ref: "c1", reason: "unproved", audience: ["a"], fault: "whatever" })).toBe(plain);
+  });
+
+  it("still separates two different faults on ONE block, because the REASON differs", () => {
+    // A claim can be unproved and it can be jammed. They are different facts and each earns its
+    // own telling — off the reason, which is what a fault actually is.
+    const unproved = failureKey({ kind: "claim", ref: "c1", reason: "marked met with no proof embedded", audience: ["a"] });
+    const jammed = failureKey({ kind: "claim", ref: "c1", reason: "closed early by a fence at its own depth", audience: ["a"] });
+    expect(unproved).not.toBe(jammed);
   });
 });
 
