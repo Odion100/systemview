@@ -88,9 +88,15 @@ HEAD is not a finding.
   RFC-078 records are proven silent, which is the other half.
 - **The rendered section.** Your shell holds the old renderer until you restart, so the
   UNRESOLVABLE heading has not come out of the door in front of me.
-- **Documents in projects this hub cannot see.** `manager`'s reports are in the registry but its
-  root is not in `projects.json`, so they are skipped entirely — not checked, and not reported as
-  broken either. A repo the hub cannot see is not a finding.
+- **The direct HTTP call, which I blamed on the hub.** A `curl` at the service route answered `no
+  folder for this project` for every project, and I wrote that up as *"the MCP route resolves roots
+  differently"*. It does not: a SystemLynx method takes its arguments in `{"__arguments":[ … ]}`,
+  my body put them at the top level, and the method then ran with `projectCode` undefined — so the
+  refusal was about the one thing I had got right. **Called through `Client.loadService`, the door
+  answers the real repository**: 42 registered documents, 42 read, `noted: 66`, `retiredScan:
+  {paths: 105, found: 34, capped: false}`, `dangling: 9`, `unreadable: 0`.
+  `~/.autobot/projects.json` has `manager` at `/Users/odionedwards/manager`, all six of its reports
+  resolve, and nothing is being skipped.
 
 ## Press-list
 

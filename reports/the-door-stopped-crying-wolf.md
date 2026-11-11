@@ -86,9 +86,11 @@ seventeen findings. The output was the evidence; the process management was test
   assertions that those seventeen land in `noted`. I have not watched the sentence come out of the
   door. **Until you restart, the door will read as a clean bill of health with the caveat missing** —
   which is the one state I would not choose if I could help it.
-- **`noted` populated over the real repo**, specifically. The direct HTTP call to the hub answers
-  "no folder for this project" (the MCP route resolves the root differently), so I proved the
-  narrowing through the MCP door and the contents through unit assertions, not both at once.
+- **`noted` populated over the real repo** — verified since, and the thing that blocked it was my
+  own call. A `curl` at the service route answered "no folder for this project" because a SystemLynx
+  method takes its arguments in `{"__arguments":[ … ]}` and my body put them at the top level, so
+  the method ran with `projectCode` undefined. Through `Client.loadService` the real repository
+  answers **`noted: 66`** at a 400-commit window, which is the number the narrowing was about.
 - **Whether killing that helper cost you anything.** I can see the shell's main process was never
   interrupted and the window answered afterwards. I cannot see whether a request in flight failed.
 

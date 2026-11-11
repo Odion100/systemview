@@ -86,10 +86,12 @@ for that reason.
 - **The EXPIRED section rendered.** Your shell holds the old renderer until you restart, so what I
   have seen is the count moving (49 dangling → 9) and the unit assertions on the bucket's shape. The
   section itself has not come out of the door in front of me.
-- **`retiredScan` over the real repo**, specifically. The direct HTTP call to the hub answers "no
-  folder for this project" (the MCP route resolves roots differently), so the scan's own numbers —
-  how many paths it read, how many ids it recovered — are inferred from the dangling count moving by
-  forty rather than read off the response.
+- **`retiredScan` over the real repo** — read off the response since, and the thing that blocked it
+  was my own call: a SystemLynx method takes its arguments in `{"__arguments":[ … ]}`, so a body
+  with them at the top level runs the method with `projectCode` undefined and the refusal reads like
+  a missing root. Through `Client.loadService` the real repository answers
+  **`retiredScan: {paths: 105, found: 34, capped: false, cap: 400}`** — the 1.0s cost measured above
+  and the cap untouched, rather than inferred from the dangling count moving.
 - **The nine remaining findings are not fixed.** They are stale links in commit trailers, which
   means fixing them is rewriting history, which is yours. They are now visible, which is the whole
   point of the change.
