@@ -406,3 +406,102 @@ describe("runProofs — a block that names a project resolves against THAT proje
     assert.match(said, /no connected services for "hubworld", which this block names/);
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// A SERVICE THAT IS NOT UP IS NOT A DOCUMENT THAT IS WRONG.
+//
+// WHY THESE EXIST. `runProofs` on RFC-078 went from 14 of 14 passing to 21 of 21 FAILING, every
+// field reading `undefined`, with one method reported as "no connected service has
+// Test.BandPanel.band". Read at face value that is twenty-one regressions and a missing method. The
+// truth was that the service had died — and an agent that trusts that number spends an hour
+// debugging its document.
+//
+// WHY THE EXECUTING REPRODUCTION IS NOT IN HERE. It was run, by hand, and it is what found the
+// second half of the fault: a spec built against `127.0.0.1:1` produced exactly the card's symptom
+// and `failed: 1, notRun: undefined`. But the SystemLynx client keeps retrying a refused socket, so
+// the file never exits — measured at 25s with every assertion passing and the FILE cancelled on
+// timeout. So the classification is pinned pure (instant, no sockets) and the door's wiring is
+// pinned on the path that needs no execution. The end-to-end run is in the account, with its output.
+describe("a dead wire is an outage, never a failure", () => {
+  const { isDeadWire, servesUnreachable } = require("./runTests");
+  const down = [{ serviceId: "Test", at: "http://127.0.0.1:1/Test" }];
+
+  // THE FAILURE SHAPE THAT WAS GETTING THROUGH, copied from the real run rather than imagined. A
+  // call that never connects leaves no socket error in the step: it records no result, every
+  // evaluation compares against `undefined`, and what surfaces is an ASSERTION-shaped failure with
+  // no `message` at all. The old rule read `f.message`, got `""`, and matched nothing.
+  const undefinedShaped = [
+    { phase: "main", step: 'Test.BandPanel.band({"projectCode":"sv-test"})', name: "typeError", expected: "boolean", received: "undefined", namespace: "results.a" },
+    { phase: "main", step: 'Test.BandPanel.band({"projectCode":"sv-test"})', name: "boolEquals", expected: true, namespace: "results.a" },
+  ];
+  const spec = (serviceId) => ({ namespace: { projectCode: "sv-test", serviceId, moduleName: "BandPanel", methodName: "band" } });
+
+  test("a failure about `undefined` from a service that did not answer IS a dead wire", () => {
+    assert.strictEqual(isDeadWire(undefinedShaped, down, spec("Test")), true);
+  });
+
+  test("and it was NOT, before the spec's own service was part of the question", () => {
+    // The same inputs with the spec withheld: no `message` to sniff, so the string rule says no.
+    // This is the regression, pinned by name so it cannot come back.
+    assert.strictEqual(isDeadWire(undefinedShaped, down, undefined), false);
+  });
+
+  test("a spec whose service IS up is a real failure, whoever else is down", () => {
+    assert.strictEqual(isDeadWire(undefinedShaped, down, spec("OtherService")), false);
+    assert.strictEqual(servesUnreachable(spec("OtherService"), down), false);
+  });
+
+  test("nothing unreachable and nothing failing are both answered without a spec", () => {
+    assert.strictEqual(isDeadWire(undefinedShaped, [], spec("Test")), false, "no outage reported, so nothing to excuse");
+    assert.strictEqual(isDeadWire([], down, spec("Test")), false, "a row with no failures is not an outage, it passed");
+  });
+
+  test("the socket-shaped rule still answers, so the old signal is not traded away", () => {
+    assert.strictEqual(isDeadWire([{ message: "connect ECONNREFUSED 127.0.0.1:1" }], down, spec("Elsewhere")), true);
+    assert.strictEqual(isDeadWire([{ message: "something about 127.0.0.1:1/Test" }], down, spec("Elsewhere")), true);
+  });
+
+  test("a spec with no namespace cannot claim an outage", () => {
+    assert.strictEqual(servesUnreachable({}, down), false);
+    assert.strictEqual(servesUnreachable(undefined, down), false);
+  });
+});
+
+describe("runProofs — nothing built because nobody answered blames the outage, not the document", () => {
+  const { runProofs } = require("./proofs");
+  // A `::test` chip resolves by ASKING each service for its saved specs, so a service that is down
+  // contributes none and every chip in the document reads as naming a spec that does not exist.
+  // "every spec in scope failed to build" then sends the reader to fix a document that is fine.
+  const chipsRel = write(
+    "r/report.chips.md",
+    ['::report{id="chips" as=spec retain=30d}', "", "::test[Test.BandPanel.band]", ""].join("\n"),
+  );
+  const deps = (unreachable) => ({
+    registry: () => [
+      { id: "chips", kind: "report", project: "sv-test", path: chipsRel,
+        specs: [{ kind: "test", line: 3, end: 3, label: "Test.BandPanel.band", attrs: {} }] },
+    ],
+    rootOf: () => root,
+    connections: [{ projectCode: "sv-test", serviceId: "Test",
+      system: { connectionData: { serviceUrl: "http://127.0.0.1:1/Test", serviceId: "Test", modules: [{ name: "BandPanel", methods: [{ fn: "band" }] }] } } }],
+    collectTests: async () => ({ lists: [], unreachable }),
+  });
+
+  test("the error names who did not answer", async () => {
+    const out = await runProofs({ projectCode: "sv-test", document: "chips" }, deps([{ serviceId: "Test", at: "http://127.0.0.1:1/Test" }]));
+    assert.match(String(out.error || ""), /did not answer/, JSON.stringify(out));
+    assert.match(String(out.error || ""), /Test/);
+  });
+
+  test("and the answer carries the list, which it used to drop on the floor", async () => {
+    const out = await runProofs({ projectCode: "sv-test", document: "chips" }, deps([{ serviceId: "Test", at: "http://127.0.0.1:1/Test" }]));
+    assert.ok(Array.isArray(out.unreachable), "dropped before — " + JSON.stringify(out));
+    assert.deepStrictEqual(out.unreachable.map((u) => u.serviceId), ["Test"]);
+  });
+
+  test("with nothing down, the honest message is still about the document", async () => {
+    const out = await runProofs({ projectCode: "sv-test", document: "chips" }, deps([]));
+    assert.match(String(out.error || ""), /failed to build/, JSON.stringify(out));
+    assert.strictEqual(out.unreachable, undefined, "and no outage is invented");
+  });
+});

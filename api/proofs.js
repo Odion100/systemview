@@ -187,6 +187,9 @@ async function runProofs({ projectCode, document, arc, objective, headers = {}, 
     ...collected,
     services: services.map((s) => ({ serviceId: idOf(s), at: s.system.connectionData.serviceUrl })),
   };
+  // NAMED IN THE ANSWER, not left for the reader to infer from a row. `where` is built before the
+  // collection runs, so this is folded in below where `unreachable` is actually known.
+  const naming = (list) => [...new Set((list || []).map((u) => u.serviceId).filter(Boolean))];
 
   if (!collected.documents.length)
     return {
@@ -262,7 +265,15 @@ async function runProofs({ projectCode, document, arc, objective, headers = {}, 
   // by using the door: 27 collectable proofs died on one stale method reference.
   const mismatched = [];
   const client = verifiedClientFor([], mismatched);
-  const { lists } = await collect(services, client);
+  // WHO DID NOT ANSWER, KEPT. This destructured `{ lists }` alone and dropped `unreachable` on the
+  // floor — the single fact that tells a dead socket from a wrong assertion. Everything below it
+  // then had nothing to classify with, so a document whose service had died reported its proofs as
+  // regressions: measured 2026-11-09 on RFC-078, 14 of 14 passing became 21 of 21 FAILING with
+  // every field reading `undefined`. Read at face value that is twenty-one regressions and a
+  // missing method; the truth was that the service was not up. `runTests` has done this correctly
+  // the whole time, which is what made the asymmetry invisible — the same engine, one door honest
+  // and one not.
+  const { lists, unreachable = [] } = await collect(services, client);
   const saved = lists.flat();
   for (const want of namespaces) {
     const hit = saved.filter((t) => matchNamespace(nsStringOf(t), want.ns));
@@ -285,21 +296,40 @@ async function runProofs({ projectCode, document, arc, objective, headers = {}, 
   if (!specs.length)
     return {
       ...where,
+      ...(unreachable.length ? { unreachable } : {}),
       tests: [],
       passed: 0,
       failed: 0,
       ...(problems.length ? { problems } : {}),
-      error: "every spec in scope failed to build — nothing was executed",
+      // "FAILED TO BUILD" IS A CLAIM ABOUT THE DOCUMENT, and it is the wrong one when the reason is
+      // that nobody answered. A `::test` chip resolves by asking each service for its saved specs,
+      // so a service that is down contributes none and every chip in the document reads as naming
+      // a spec that does not exist. The reader is then sent to fix the document. `runTests` already
+      // answers this case by name; so does this now.
+      error: unreachable.length
+        ? `nothing could be built — ${naming(unreachable).join(", ")} did not answer`
+        : "every spec in scope failed to build — nothing was executed",
     };
 
   const actionMap = await actionMapFor(services, [specs], client);
-  const { rows, ms } = await executeSpecs(specs, { services, client, actionMap, headers, bail });
+  const { rows, ms } = await executeSpecs(specs, { services, client, actionMap, headers, bail, unreachable });
 
   return {
     ...where,
+    ...(unreachable.length ? { unreachable } : {}),
     ms,
     passed: rows.filter((r) => r.passed).length,
-    failed: rows.filter((r) => !r.passed).length,
+    // A DEAD WIRE IS NOT A FAILED ASSERTION, and the count is where that distinction either lands
+    // or is lost. `runTests` has always read `!r.passed && !r.deadWire`; this read `!r.passed`, so
+    // a service that was simply not up arrived as a wall of regressions in a document's own proofs.
+    // An agent that trusts that number spends an hour debugging its document.
+    failed: rows.filter((r) => !r.passed && !r.deadWire).length,
+    // THE HONEST THIRD NUMBER, the same pair `runTests` answers with: how much the outage cost, and
+    // whose outage it was. A proof that never ran is not a proof that failed, and it is not a proof
+    // that passed either — it has no verdict, and saying so is the whole point of this change.
+    ...(rows.some((r) => r.deadWire)
+      ? { notRun: rows.filter((r) => r.deadWire).length, notUp: naming(unreachable) }
+      : {}),
     // PROBLEMS SIT BESIDE THE RESULT, never instead of it. A run of four proofs where a fifth could
     // not be built is not a clean run of four — the reader has to be able to see the difference.
     ...(problems.length ? { problems } : {}),

@@ -146,8 +146,32 @@ const countErrors = (steps) => (steps || []).reduce((n, s) => n + ((s && s.error
 // read as the wire, not the work — either the raw connect-error shapes or the dead service's own
 // address. One real assertion failure on the row keeps the whole row failed.
 const WIRE_NOISE = /AggregateError|ECONNREFUSED|ECONNRESET|ENOTFOUND|EHOSTUNREACH|ETIMEDOUT|socket hang up|Network Error|connect/i;
-function isDeadWire(failures, unreachable) {
+// WHOSE SERVICE THIS SPEC ASKS, against the list of services that did not answer. This is a FACT
+// about the run, where the message sniffing below is a guess about a string — and the guess is the
+// one that was missing the case that matters.
+//
+// MEASURED, and it is the whole reason this function exists: a call that never connects does not
+// leave a socket error in the step's failures. The step records no result, every evaluation then
+// compares against `undefined`, and what surfaces is
+// `{ name: "typeError", expected: "boolean", received: "undefined" }` — an ASSERTION-shaped failure
+// with no `message` at all. So `isDeadWire` read `""`, matched nothing, and twenty-one proofs
+// against a dead service reported as twenty-one regressions. The address never appears because the
+// thing that would have mentioned it never got to speak.
+//
+// A BLOCK SPANNING SEVERAL SERVICES is classified by the service its namespace names, which is its
+// first step. That is deliberately narrow: if anything in the block could have run, the row is a
+// failure, because a partial outage is not an excuse for the half that worked.
+const servesUnreachable = (spec, unreachable) => {
+  const want = String(((spec && spec.namespace) || {}).serviceId || "");
+  if (!want) return false;
+  return (unreachable || []).some((u) => String((u && u.serviceId) || "") === want);
+};
+
+function isDeadWire(failures, unreachable, spec) {
   if (!(unreachable || []).length || !(failures || []).length) return false;
+  // THE STRUCTURAL ANSWER FIRST. It needs no string to be shaped a particular way, so it survives
+  // the case above — where the failures are about `undefined` rather than about a socket.
+  if (servesUnreachable(spec, unreachable)) return true;
   const addrs = unreachable.map((u) => String(u.at || "").replace(/^https?:\/\//, "")).filter(Boolean);
   return failures.every((f) => {
     const msg = String((f && f.message) || "");
@@ -281,7 +305,7 @@ async function executeSpecs(
     // CLASSIFIED WHERE THE ROW IS BUILT, so a document's run block gets the dead-wire rule for free
     // rather than only the saved-test face. The row keeps its failures either way — classification
     // changes the COUNT, never the evidence.
-    const deadWire = isDeadWire(failures, unreachable);
+    const deadWire = isDeadWire(failures, unreachable, spec);
     // HOW MANY ASSERTIONS RAN, in the answer. An agent reading `passed: true` cannot tell four
     // assertions from none, and a step whose evaluations are all unsaved used to produce exactly
     // the same row as one that asserted everything (gaps/UNSAVED_EVALUATIONS…). The engine now
@@ -424,6 +448,7 @@ module.exports = {
   actionMapFor,
   countErrors,
   executeSpecs,
+  servesUnreachable,
   verifiedClientFor,
   headersOf,
   idOf,
