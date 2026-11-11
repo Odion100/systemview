@@ -141,3 +141,43 @@ describe("filedBy — who wrote a report, read out of its filename", () => {
     expect(filedBy("")).toBe("");
   });
 });
+
+// THE ROW SHAPE THE REGISTRY ACTUALLY SENDS — `id`, and no `name`.
+//
+// Every other fixture in this file supplies `{name: "..."}`, and no registry row has that field:
+// they carry `id, kind, path, project, members, at, state`. So 143 green assertions were green
+// about a shape nothing reaches this with, and the report headline fell through to the filename —
+// the exact fault the band rebuild exists to fix. Found by running `bandBlock` over all 52 real
+// registered documents rather than by reading it.
+describe("a real registry row, which carries id and no name", () => {
+  const real = {
+    id: "The drain was handed over mid-onboarding and stood down before it started",
+    kind: "report",
+    path: "reports/drain-stood-down-during-onboarding.md",
+    project: "systemview-test",
+    state: { subtype: "account", retain: "24h" },
+  };
+
+  it("puts the sentence somebody wrote in the headline, not the filename", () => {
+    const b = bandBlock("report", real, {});
+    expect(b.title).toBe("The drain was handed over mid-onboarding and stood down before it started");
+    expect(b.title).not.toContain(".md");
+  });
+
+  it("still prefers an explicit name when a caller really has one", () => {
+    expect(bandBlock("report", { ...real, name: "what the caller supplied" }, {}).title).toBe(
+      "what the caller supplied",
+    );
+  });
+
+  it("falls back to the path only when there is nothing else — an empty headline is worse", () => {
+    expect(bandBlock("report", { kind: "report", path: "reports/x.md" }, {}).title).toBe("reports/x.md");
+  });
+
+  // THE OTHER KINDS WERE NEVER AFFECTED, and that is asserted rather than assumed: they go through
+  // `titleWith`, which already reads `id` — the field the rows carry.
+  it("leaves rfc, arc and gap headlines exactly as they were", () => {
+    expect(bandBlock("rfc", { id: "RFC-078", title: "nudges", path: "RFCs/x.md" }, {}).title).toBe("RFC-078 — nudges");
+    expect(bandBlock("gap", { id: "G-16", title: "no auth", path: "gaps/x.md" }, {}).title).toBe("G-16 — no auth");
+  });
+});

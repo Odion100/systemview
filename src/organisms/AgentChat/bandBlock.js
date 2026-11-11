@@ -91,7 +91,20 @@ const BLOCK = {
     // and the band holds them in a map beside the list, so the caller says whether this one waits
     // — reconstructing it from the row would be a second count that can disagree with the head.
     flag: (r, x) => (x.waiting ? "press" : ""),
-    title: (r) => String(r.name || r.path || ""),
+    // THE SENTENCE, THEN THE FILENAME — and `id` is where the sentence actually lives. A registry
+    // row's fields are `id, kind, path, project, members, at, state`: there is no `name` on it, so
+    // this fell straight through to the path and would have drawn
+    // "reports/drain-stood-down-during-onboarding.md" where
+    // "The drain was handed over mid-onboarding and stood down before it started" belongs — the
+    // exact fault the rebuild exists to fix, shipped by the thing fixing it.
+    //
+    // NOT ONE ASSERTION CAUGHT IT because every fixture in the suite hands this a `name`. A test
+    // that supplies a field the world does not send is green about a shape nothing reaches it with,
+    // which is why the real rows had to be run through this before anybody rendered it.
+    //
+    // `name` STAYS FIRST so a caller that genuinely has one still wins; `path` stays last because a
+    // filename is better than an empty headline and worse than anything else here.
+    title: (r) => String(r.name || r.id || r.path || ""),
     fold: (r, x) => [
       // INVALID LEADS, because it is the row saying its own leaf does not parse — every other fact
       // in the fold is downstream of a leaf that does.
