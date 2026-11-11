@@ -1,6 +1,6 @@
 # Runs belong to the agent, not the session
 
-::report{id="Runs belong to the agent" as=account retain=30d}
+::report{id="Runs belong to the agent" as=account retain=12h}
 
 Work owed to an AGENT used to die with the session it was given to. This is the spec for the fix:
 the proofs for the fix — seven of them, each pressable, so somebody can come back in a month and
