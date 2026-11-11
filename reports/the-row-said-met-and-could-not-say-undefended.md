@@ -82,6 +82,31 @@ test for the first time rather than living only in a comment.
 reading `{total: 1, met: 1}` with no fraction at all, and that is now a statement about the fix
 rather than an accident of it.
 
+## And the count the row could not produce before — every RFC at once
+
+The sweep that was going to be the next question turned out to be one call per document through the
+real `deriveState`, so it is here rather than carded:
+
+| RFC | declares settled | met | spec'd |
+|---|---|---|---|
+| RFC-078 | no | 25/25 | **25/25** |
+| RFC-075 | no | 25/26 | **25/25** |
+| RFC-076 | no | 44/45 | **0/45** |
+| RFC-073 | no | 7/55 | **0/55** |
+| RFC-074 | no | 0/14 | **0/14** |
+
+**Nothing declares `settled=`**, which answers the live-risk question: the declaration hole is real
+and nobody has walked through it.
+
+**And RFC-076 is not the outlier the card made it look like — RFC-073 is the same fault and bigger.**
+Fifty-five behavioural claims, seven met, not one spec. The card about RFC-076 would have been worked
+alone, and the document with the most undefended claims in the system is not the one it names. That
+pairing is only visible because the row can now be asked the question across every document at once,
+which is the whole point of putting the count on the row rather than leaving it in the window.
+
+RFC-075 and RFC-078 are the counter-examples and worth saying out loud: both are fully spec'd, so
+this is a real difference between documents rather than a standard nothing meets.
+
 ## Where the tests stand
 
 | suite | ran | says |
@@ -102,6 +127,6 @@ rather than an accident of it.
   `partial` for exactly that reason.
 - **Nothing here was seen rendered.** The window already computed `specd` and already shows it; this
   change is about the agent-facing row, and no surface was touched.
-- **Whether any document currently declares `settled=` over zero specs — I did not sweep for it.**
-  RFC-076 reads `settled: undefined`, so it is not one. I checked the document in front of me and no
-  others, and a sweep is the obvious next question rather than one I answered.
+- **The settled-over-zero-specs sweep is DONE, and the answer is nobody.** All five claim-carrying
+  RFCs read `settled: false` — nothing has been declared settled, so the hazard I handed him is
+  latent rather than live, which is the thing worth knowing before deciding anything about it.
