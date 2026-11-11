@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { servesOf, shasIn, recordsIn, sameSha, audit, windowFacts } = require("./commitLinks");
+const { servesOf, shasIn, recordsIn, sameSha, audit, windowFacts, logLine } = require("./commitLinks");
 
 // WHAT THESE PIN. The link between a commit and the work it served has to be readable by a machine
 // in BOTH directions or it is decoration — so: the trailer is parsed by git's own rule and not
@@ -833,4 +833,62 @@ test("the document carrying the sha is still the ordinary agreed case, self-writ
   assert.deepStrictEqual(r.oneWay, []);
   assert.strictEqual(r.linked, 1);
   assert.strictEqual(r.agreed, true);
+});
+
+// ─── THE LINE IT LEAVES IN THE LOG ──────────────────────────────────────────────────────────────
+//
+// His ruling, 2026-11-11: *"then it's a log, I don't give a fuck… that's how I pick up things.
+// Whoever knows someone's making a mistake — boom, boom, boom. I will start learning what it is if
+// it was a log and I see it naturally."*
+//
+// So the property under test is not correctness, it is BORINGNESS: a line he scrolls past on a
+// normal day is the entire mechanism. One that shouts when nothing is wrong is one he stops
+// reading, and then the check has a green light nobody looks at.
+test.describe("the log line", () => {
+  test.test("is one boring line when the two directions agree", () => {
+    const line = logLine({ projectCode: "systemview-test", window: { read: 12 } });
+    assert.equal(line, "[commitLinks] systemview-test: 12 commits read");
+  });
+
+  test.test("says NOTHING about oneWay, because every finished piece of work has one", () => {
+    // A report cannot carry the sha of the commit that writes it. Reporting one-way here would
+    // mean the line is never boring, which is the one property it has to have.
+    const line = logLine({
+      projectCode: "systemview-test",
+      window: { read: 12 },
+      oneWay: [{ sha: "aaaaaaaa" }, { sha: "bbbbbbbb" }],
+    });
+    assert.equal(line, "[commitLinks] systemview-test: 12 commits read");
+  });
+
+  test.test("NAMES a link that lies, rather than counting it", () => {
+    // "2 dangling" teaches nothing in passing; the ids do.
+    const line = logLine({
+      projectCode: "systemview-test",
+      window: { read: 400 },
+      dangling: [{ sha: "5b62f1abcdef" }],
+      unclaimed: [{ sha: "deadbeef1234" }],
+    });
+    assert.match(line, /1 dangling \(5b62f1ab\)/);
+    assert.match(line, /1 unclaimed \(deadbeef\)/);
+  });
+
+  test.test("caps the names, so one bad day cannot wrap the line five times", () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ sha: `sha${i}0000000` }));
+    const line = logLine({ projectCode: "p", window: { read: 50 }, dangling: many });
+    assert.match(line, /\+5/);
+    assert.ok(line.length < 160, `the line is ${line.length} characters: ${line}`);
+  });
+
+  test.test("mentions commits that served nothing only when nothing worse is wrong", () => {
+    const quiet = logLine({ projectCode: "p", window: { read: 20 }, unlinked: [1, 2, 3] });
+    assert.match(quiet, /3 served nothing/);
+    const loud = logLine({
+      projectCode: "p",
+      window: { read: 20 },
+      unlinked: [1, 2, 3],
+      dangling: [{ sha: "aaaaaaaa" }],
+    });
+    assert.doesNotMatch(loud, /served nothing/);
+  });
 });

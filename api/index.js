@@ -3721,13 +3721,19 @@ module.exports = function launchSystemView(port = 3000) {
             resolved[key] = foundIn;
           }
         }
+        const verdict = CommitLinks.audit({ commits, documents, retired, resolved, unreadable, registered: rows.length, project: projectCode });
+        // IT LEAVES A LINE IN THE LOG. His ruling, 2026-11-11: this check is not a surface and not
+        // a gate — *"it's a log… that's how I pick up things, I will start learning what it is if
+        // it was a log and I see it naturally."* Boring on a normal day, by design; see
+        // `commitLinks.logLine` for why `oneWay` is deliberately not in it.
+        console.log(CommitLinks.logLine({ projectCode, window: win, ...verdict }));
         return {
           ok: true,
           projectCode,
           window: win,
           retiredScan: { paths: retiredScanned, found: Object.keys(retired).length, capped: retiredCapped, cap: RETIRED_SCAN_CAP },
           shaScan: { projects: Object.keys(roots).length, asked },
-          ...CommitLinks.audit({ commits, documents, retired, resolved, unreadable, registered: rows.length, project: projectCode }),
+          ...verdict,
         };
       },
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>

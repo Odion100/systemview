@@ -488,4 +488,45 @@ function windowFacts({ requested, commits = [], max = 2000, fallback = 200 } = {
   };
 }
 
-module.exports = { TRAILER, servesOf, strayServes, shasIn, recordsIn, stripFences, sameSha, audit, windowFacts };
+// THE ONE LINE THIS CHECK LEAVES BEHIND.
+//
+// His ruling, 2026-11-11: *"then it's a log, I don't give a fuck… that's how I pick up things.
+// Whoever knows someone's making a mistake — boom, boom, boom. I will start learning what it is if
+// it was a log and I see it naturally."*
+//
+// So this is not a surface and it is not a gate. It is a line in the hub's log, which is where he
+// meets things in passing and learns what they are without anyone explaining them. Two rules fall
+// out of that and neither is decoration:
+//
+//   IT IS BORING WHEN NOTHING IS WRONG. One short line, counts only. A log he scrolls past is the
+//   whole mechanism — the moment it shouts on a normal day he stops reading it, and then it is a
+//   green light nobody looks at.
+//
+//   IT NAMES WHAT IS WRONG, NOT HOW MANY. "2 dangling" teaches nothing in passing; the ids do. The
+//   list is capped because a log line that wraps five times is one he scrolls past for the wrong
+//   reason.
+const NAMES = (xs = [], cap = 4) => {
+  const ids = xs.map((x) => x.sha || x.id || x.serves || "?").map((x) => String(x).slice(0, 8));
+  return ids.length > cap ? `${ids.slice(0, cap).join(", ")} +${ids.length - cap}` : ids.join(", ");
+};
+
+/**
+ * One line for the hub's log, or "" when there is nothing worth a line.
+ *
+ * `oneWay` IS NOT REPORTED HERE, and that is the difference between a log and a dump. A report
+ * cannot carry the sha of the commit that writes it, so the newest commit is one-way on every
+ * finished piece of work — reporting it would mean the line is never boring, which is the one
+ * property it has to have.
+ */
+const logLine = ({ projectCode, window: win, dangling = [], unclaimed = [], unlinked = [] } = {}) => {
+  const read = (win && win.read) || 0;
+  const bad = [];
+  if (dangling.length) bad.push(`${dangling.length} dangling (${NAMES(dangling)})`);
+  if (unclaimed.length) bad.push(`${unclaimed.length} unclaimed (${NAMES(unclaimed)})`);
+  const tail = bad.length ? ` — ${bad.join(" · ")}` : unlinked.length ? ` — ${unlinked.length} served nothing` : "";
+  return `[commitLinks] ${projectCode || "?"}: ${read} commits read${tail}`;
+};
+
+module.exports = {
+  logLine,
+  logLine, TRAILER, servesOf, strayServes, shasIn, recordsIn, stripFences, sameSha, audit, windowFacts };
