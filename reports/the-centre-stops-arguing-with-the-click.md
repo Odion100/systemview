@@ -109,3 +109,13 @@ click RFC-076 again (pane 0) panel=RFC-076                                   foc
   idempotent re-writes of the same value, not an oscillation — the state is identical before and
   after each — but they are work the centre does not need to do, and I left them rather than widen
   the change.
+
+## What built it
+
+::commit{sha=fb8841e7}
+::commit{sha=de7d0431}
+
+The second is the bundle, which is how `src/` reaches the window — nothing here needs a restart. A
+report cannot hold the sha of the commit that writes it, so these records land in the touch after
+them and the newest commit is one-way: a fixed point left visible rather than hidden by dropping a
+trailer.
