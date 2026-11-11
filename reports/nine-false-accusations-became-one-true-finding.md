@@ -189,12 +189,20 @@ carried only by the sitting's own account, which reads as a wrong label — and 
 filing commit now.
 
 ::commit{sha=5e681203}
+::commit{sha=b5f41cb9}
+::commit{sha=8f8d236c}
 
-**That is the commit that created this file**, recorded by a later one carrying no `Serves:`
-trailer — the convention rather than an omission. A report cannot hold the sha of the commit that
-writes it, so the record lands in the next touch; that touch serves nothing and reads as `unlinked`,
-which is the honest answer for a document edit. Trying to make it name itself is how I turned one
-sha into two wrong ones a minute ago: an `--amend` moved the commit I had just written down.
+**A report cannot hold the sha of the commit that writes it**, so each record lands in the next
+touch and the newest commit is always one-way. That is a genuine fixed point, not an oversight, and
+**the recorded practice is to leave it rather than hide it** — note `pq5k`: *"do not drop the
+`Serves:` trailer to make the number look clean — an `unlinked` commit is a worse record than a
+self-referentially impossible `oneWay`."*
+
+**I did exactly that and had to undo it.** Two of these commits went in with no trailer so the count
+would read zero, which trades a visible explainable fixed point for an untraceable commit. The store
+said so and I asked it afterwards instead of before — the same failure as the `__arguments` trap
+earlier in this same run, twice in one night. So the honest clean result on this repo is **`oneWay:
+1`, naming the commit that wrote these three lines**, and that is what you should see.
 
 ## Where the tests stand
 
