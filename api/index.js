@@ -3505,7 +3505,12 @@ module.exports = function launchSystemView(port = 3000) {
             return { id: r.id, kind: r.kind, path: r.path, project: r.project, text };
           })
           .filter(Boolean);
-        return { ok: true, projectCode, ...CommitLinks.audit({ commits, documents }) };
+        // THE WINDOW IS PART OF THE ANSWER. Without it, "the two directions agree" is a sentence
+        // about however far back this call happened to look — which is 200 commits by default, and
+        // silently. The facts go beside the findings so the reader can tell a clean project from a
+        // short look (card 2026-11-09: "2 findings at 200, 24 at 300").
+        const win = CommitLinks.windowFacts({ requested: since, commits });
+        return { ok: true, projectCode, window: win, ...CommitLinks.audit({ commits, documents }) };
       },
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
         CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),

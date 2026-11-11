@@ -223,4 +223,35 @@ function audit({ commits = [], documents = [] } = {}) {
   };
 }
 
-module.exports = { TRAILER, servesOf, strayServes, shasIn, sameSha, audit };
+// WHAT THE WINDOW WAS, AND WHETHER ANYTHING LIES BEHIND IT.
+//
+// `audit` is honest about what it was HANDED; it cannot be honest about what it was not. The
+// commits arrive from `git log --max-count=N`, and a completeness check whose default is a window
+// is a check that reports clean by not looking — its most dangerous output is "the two directions
+// agree", produced by stopping early.
+//
+// THE ONE INFERENCE, and it is the whole mechanism: `git log --max-count=N` answers FEWER than N
+// records when it runs out of history. So `read < window` means the window reached the beginning
+// of the repository and the answer is about EVERYTHING; `read === window` means there are older
+// commits this run never saw, and any "clean" has to be said about the window rather than about
+// the project.
+//
+// `oldest` is the floor the reader can quote — the last commit this run could see — so "raise the
+// window" is a concrete instruction rather than a shrug.
+function windowFacts({ requested, commits = [], max = 2000, fallback = 200 } = {}) {
+  const window = Math.min(Math.max(Number(requested) || fallback, 1), max);
+  const read = commits.length;
+  const exhausted = read < window;
+  const last = read ? commits[read - 1] : null;
+  return {
+    window,
+    read,
+    exhausted,
+    // A WINDOW THAT IS ALREADY THE CAP CANNOT BE RAISED, and saying "raise it" there would be
+    // advice that cannot be taken. The reader is told to narrow the question instead.
+    atCap: !exhausted && window >= max,
+    oldest: last ? { sha: String(last.sha || ""), subject: String(last.subject || "") } : null,
+  };
+}
+
+module.exports = { TRAILER, servesOf, strayServes, shasIn, sameSha, audit, windowFacts };

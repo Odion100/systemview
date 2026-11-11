@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { servesOf, shasIn, sameSha, audit } = require("./commitLinks");
+const { servesOf, shasIn, sameSha, audit, windowFacts } = require("./commitLinks");
 
 // WHAT THESE PIN. The link between a commit and the work it served has to be readable by a machine
 // in BOTH directions or it is decoration — so: the trailer is parsed by git's own rule and not
@@ -241,4 +241,53 @@ test("a misplaced line naming an id nothing registered is still misplaced, not d
   const out = audit({ commits: [{ sha: "cccc3333", subject: "fix: x", message }], documents: [] });
   assert.strictEqual(out.misplaced.length, 1);
   assert.deepStrictEqual(out.dangling, []);
+});
+
+// THE WINDOW IS PART OF THE ANSWER.
+//
+// `audit` is honest about what it was handed and cannot be honest about what it was not. The
+// commits come from `git log --max-count=N`, so the door's default answer — "the two directions
+// agree" — is a statement about however far back one call happened to look. Measured on this repo
+// on 2026-11-09: two findings at a window of 200, twenty-four at 300. A completeness check whose
+// default is a window is a check that reports clean by not looking.
+test("a short log means the window reached the beginning of the repository", () => {
+  const commits = [{ sha: "a1", subject: "one" }, { sha: "a2", subject: "two" }];
+  const w = windowFacts({ requested: 200, commits });
+  assert.strictEqual(w.window, 200);
+  assert.strictEqual(w.read, 2);
+  assert.strictEqual(w.exhausted, true, "fewer records than asked for is git running out of history");
+  assert.deepStrictEqual(w.oldest, { sha: "a2", subject: "two" });
+});
+
+test("a full log means there are older commits this run never saw", () => {
+  const commits = Array.from({ length: 20 }, (_, i) => ({ sha: `s${i}`, subject: `c${i}` }));
+  const w = windowFacts({ requested: 20, commits });
+  assert.strictEqual(w.exhausted, false);
+  assert.strictEqual(w.atCap, false, "20 is not the cap, so raising it is advice that can be taken");
+  assert.deepStrictEqual(w.oldest, { sha: "s19", subject: "c19" }, "the floor a reader can quote");
+});
+
+test("the default and the bounds are the hub's, stated once", () => {
+  assert.strictEqual(windowFacts({ commits: [] }).window, 200, "no `since` is 200");
+  assert.strictEqual(windowFacts({ requested: 0, commits: [] }).window, 200, "0 is not a window");
+  assert.strictEqual(windowFacts({ requested: -5, commits: [] }).window, 1, "a negative one clamps to the floor");
+  assert.strictEqual(windowFacts({ requested: 99999, commits: [] }).window, 2000, "and the cap holds");
+  assert.strictEqual(windowFacts({ requested: "300", commits: [] }).window, 300, "a string from a tool call still counts");
+});
+
+// ADVICE THAT CANNOT BE TAKEN IS WORSE THAN NONE. At the cap there is no larger window to ask for,
+// so the reader has to be told something else — narrow the question, not widen the window.
+test("a full log AT THE CAP says so, because raising it is no longer the answer", () => {
+  const commits = Array.from({ length: 2000 }, (_, i) => ({ sha: `s${i}`, subject: "x" }));
+  const w = windowFacts({ requested: 5000, commits });
+  assert.strictEqual(w.window, 2000);
+  assert.strictEqual(w.exhausted, false);
+  assert.strictEqual(w.atCap, true);
+});
+
+test("an empty log has no floor to quote, and says null rather than inventing one", () => {
+  const w = windowFacts({ requested: 10, commits: [] });
+  assert.strictEqual(w.read, 0);
+  assert.strictEqual(w.exhausted, true);
+  assert.strictEqual(w.oldest, null);
 });
