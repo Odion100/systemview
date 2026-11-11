@@ -87,6 +87,13 @@ The second is the one that matters. Three assertions running proves nothing on i
 that fails when it should is what says they are real. The probe document and its registry row are
 gone.
 
+## What built it
+
+::commit{sha=a0dbf239}
+
+Recorded by a later commit that keeps its trailer, so the one-way link naming it is the visible fixed
+point rather than something hidden by dropping one.
+
 ## Where the tests stand
 
 | suite | ran | says |
