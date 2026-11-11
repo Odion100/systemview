@@ -109,6 +109,16 @@ twelve lines above — a duplicate key in an exports object, which is the *same 
 markdown registry collision I fixed this morning. Before the ratchet, that would have been one more
 warning in a pile of 54 and nobody would have looked. Caught, in the build, within the hour.
 
+## What built it
+
+::commit{sha=29cdec16}
+::commit{sha=f254a6a7}
+
+The second is not this work: the hub restart that armed the fix also ran the janitor, which
+collected a 12-hour account whose window had passed. That is an `account`'s designed end of life
+rather than a loss — the reasoning is one `git show` away — but it landed in the tree because I
+restarted the hub, so it is recorded here rather than left loose.
+
 ## Where the tests stand
 
 | suite | ran | says |
