@@ -176,6 +176,13 @@ half that was broken was the one a reader walks backwards from, and it was the h
 **`oneWay: 29 → 0`**, and `unclaimed` stayed at 0 throughout — which is the check that all 29 shas
 really do point back, rather than me having pasted plausible ones.
 
+**And the card's second half was wrong, which is worth saying so the next run does not re-pick
+it.** It claimed the walk report "names four shas that serve something else, so it is wrong in both
+directions at once." Those four — `b277cb5e`, `7e250584`, `e0fce8ea`, `249ff06c` — carry **no
+`Serves:` trailer at all**. The document names them legitimately, in a paragraph that says what each
+one changed; the commits simply predate the convention. That is `unlinked` on the commit side and
+honest, not a crossing. Nothing was wrong in both directions.
+
 **The one `crossed` label fell out of the same pass.** A commit saying `Serves: G-13` had its sha
 carried only by the sitting's own account, which reads as a wrong label — and the reason was that
 **G-13 held no `::commit` records at all**, not that anything was mislabelled. The gap names its
