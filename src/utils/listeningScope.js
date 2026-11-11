@@ -11,26 +11,34 @@
 // BUApp document while talking to systemview-test should sound like systemview-test, because the
 // reader is the agent in the room, not the repository the file happens to live in.
 //
-// `sv.chat.open.<pc>` is the record of an open chat, written by `AgentChat`.
+// `sv.chat.last` is the chat he was last in, written by `AgentChat` on send and on focus;
+// `sv.chat.open.<pc>` is the weaker fact, kept only for the first read on a fresh machine.
 export const OPEN_KEY = (pc) => `sv.chat.open.${pc}`;
 
 /**
  * The scope to read under.
  *
  * @param open  project codes whose chat is open, in no particular order
+ * @param last  the chat he was last IN — sent to, or focused
  * @param route the project the window is on
  * @param doc   the project the document belongs to
  *
- * ONE OPEN CHAT IS THE WHOLE INTENDED CASE and it needs no tie-break. The other two branches exist
- * because the window genuinely permits them, and each is stated rather than left to fall out:
+ * THE CHAT HE WAS LAST IN WINS, AND NOTHING ELSE COMES CLOSE. His correction, 2026-11-11: *"it has
+ * to be the tab that I was last in, because right now I have all of you guys open on the dock…
+ * everyone is docked and the side panel is minimized on the edge. So in a way, everyone is out."*
  *
- *  - SEVERAL OPEN — the one he is on wins if it is among them; otherwise the FIRST BY NAME, which
- *    is arbitrary but STABLE. An arbitrary-and-stable answer can be noticed and corrected; an
- *    arbitrary-and-varying one sounds like a different bug every time.
- *  - NONE OPEN — fall back to the route, then to the document. With no agent in the room there is
- *    no "agent's voice" to use, and the window's own project is the nearest honest answer.
+ * That sentence kills the first version of this rule. "Is this chat open" is a true fact that stops
+ * discriminating the moment every chat is open — which is his normal state — and the tie-break
+ * underneath it, stable as it was, would have read him a document in whichever agent sorted first.
+ * Openness is presence; what picks an agent is ATTENTION.
+ *
+ * `last` is not required to be open, and that is deliberate rather than an oversight: a chat he
+ * minimised to the dock edge is still the one he was last in, and "everyone is out" is exactly the
+ * state where openness tells you nothing. The fallbacks below only run before anything has ever
+ * been stamped on this machine.
  */
-export function listeningScope(open = [], { route = "", doc = "" } = {}) {
+export function listeningScope(open = [], { last = "", route = "", doc = "" } = {}) {
+  if (last) return last;
   const chats = [...new Set((open || []).filter(Boolean).map(String))].sort();
   if (chats.length === 1) return chats[0];
   if (chats.length > 1) return chats.includes(route) ? route : chats[0];

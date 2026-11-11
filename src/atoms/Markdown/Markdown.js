@@ -24,6 +24,7 @@ import { expectThread } from "./threadFocus";
 import { namespaceOptions, testOptions, fileOptions, menuOffers, TEMPLATES } from "./menuOptions";
 import { spokenForm } from "../../utils/spokenForm";
 import { listeningScope, openChats } from "../../utils/listeningScope";
+import { readLastChat } from "../../utils/lastChat";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "./registry";
 import TaskItem from "./blocks/TaskItem";
@@ -731,7 +732,7 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
           new CustomEvent("sv:read", {
             detail: {
               // WHOSE VOICE — the agent whose chat is open, never the document's project.
-              projectCode: listeningScope(openChats(), { route: docScope, doc: docScope }),
+              projectCode: listeningScope(openChats(), { last: readLastChat(), route: docScope, doc: docScope }),
               items: [{ text }],
               // NEITHER FOLLOWER. readLine's own words for exactly this case: *"a quiet 'read me
               // this while I work' wants neither yanking the scroll nor a bot photobombing the

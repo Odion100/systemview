@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext, useMemo, useCallback } from "react";
+import { markLastChat } from "../../utils/lastChat";
 import useEffectiveProject from "../../utils/effectiveProject";
 import { fillStyle, pctStyle } from "../../atoms/meterWidth";
 import ErrorBoundary from "../../atoms/ErrorBoundary/ErrorBoundary";
@@ -4144,6 +4145,10 @@ const countdown = (str, now = Date.now()) => {
   };
 
   const send = async () => {
+    // THE ROOM HE IS IN, STAMPED. Sending is the unambiguous half of "which agent am I talking to";
+    // the composer's focus below is the half that covers reading. A document read aloud uses this
+    // chat's voice — see utils/listeningScope.
+    markLastChat(projectCode);
     // SEND TAKES WHAT'S VISIBLE — his procedure, after every cleverer version failed him: "the
     // words are showing, meaning they've been captured; the simplest thing is just send whatever
     // words are there." The input holds the committed segments; the buildup line holds the rest,
@@ -8348,6 +8353,9 @@ const countdown = (str, now = Date.now()) => {
               rows={1}
               value={input}
               onPaste={onPasteShots}
+              // READING A CHAT IS BEING IN IT. He docks every agent and minimises the panel —
+              // "everyone is out" — so openness cannot pick one and attention has to.
+              onFocus={() => markLastChat(projectCode)}
               placeholder={p.live ? "the agent is in — talk" : "message (delivered at the agent's next turn)"}
               onChange={(e) => {
                 setInput(e.target.value);
