@@ -3502,12 +3502,36 @@ module.exports = function launchSystemView(port = 3000) {
         // objective whose arc lives in another repo, and scoping the documents to the commit's
         // project would report that correct link as dangling.
         const rows = DocumentsRegistry({});
+        // A REGISTERED DOCUMENT THE HUB CANNOT OPEN IS KEPT, NOT DROPPED. This read used to end in
+        // `.filter(Boolean)`, which made an unreadable row vanish before `audit` ever saw it — and
+        // the consequence was not a quiet undercount, it was a false accusation: `byId` had no
+        // entry, so every commit whose `Serves:` named that document came back `dangling`, "serves
+        // an id nothing registered", about a document that IS registered. A reader following that
+        // finding edits a trailer that was already right.
+        //
+        // So the failure is carried with the reason the read failed, and the two causes are told
+        // apart because the fixes are different places: no folder known for the project (the
+        // shell's registry, or a project on another machine) versus the file not being where the
+        // row says it is (a move the parse has not caught up with).
+        const unreadable = [];
         const documents = rows
           .map((r) => {
             const base = rootOf(r.project);
             const abs = base && r.path ? path.resolve(base, r.path) : r.path;
             let text = "";
-            try { text = fsGit.readFileSync(abs, "utf8"); } catch { return null; }
+            try {
+              text = fsGit.readFileSync(abs, "utf8");
+            } catch {
+              unreadable.push({
+                id: r.id,
+                kind: String(r.kind || ""),
+                path: r.path || "",
+                project: r.project || "",
+                looked: abs || "",
+                why: base ? "the file is not where the registry says it is" : "no folder known for this project",
+              });
+              return null;
+            }
             return { id: r.id, kind: r.kind, path: r.path, project: r.project, text };
           })
           .filter(Boolean);
@@ -3606,7 +3630,7 @@ module.exports = function launchSystemView(port = 3000) {
           window: win,
           retiredScan: { paths: retiredScanned, found: Object.keys(retired).length, capped: retiredCapped, cap: RETIRED_SCAN_CAP },
           shaScan: { projects: Object.keys(roots).length, asked },
-          ...CommitLinks.audit({ commits, documents, retired, resolved }),
+          ...CommitLinks.audit({ commits, documents, retired, resolved, unreadable, registered: rows.length }),
         };
       },
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>

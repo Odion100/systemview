@@ -575,3 +575,119 @@ test("a sha nobody looked up is silence, not a guess in either direction", () =>
   assert.deepStrictEqual(out.unresolvable, []);
   assert.strictEqual(out.agreed, true);
 });
+
+// ============================================================================================
+// REGISTERED, AND THE HUB COULD NOT OPEN IT.
+//
+// The hub's read used to end in `.filter(Boolean)`, so a registry row it failed to read was gone
+// before `audit` saw it. The cost was not a quiet undercount — it was a FALSE ACCUSATION: `byId`
+// had no entry, so every commit whose trailer named that document came back `dangling`, "serves an
+// id nothing registered", about a document that is registered. The reader is then sent to edit a
+// trailer that was already right, and the one artifact that is actually broken — the registration,
+// or the file's location — is never mentioned.
+//
+// Measured 2026-11-11: nothing is unreadable in this installation today (42 rows, 42 resolve), so
+// every assertion here is about the shape rather than a live fault. That is the point of pinning it
+// now: the condition arrives the first time a project leaves `projects.json` or a document moves
+// between parses, and it arrives looking exactly like a dangling trailer.
+
+const shut = (id, over = {}) => ({
+  id,
+  kind: "report",
+  project: "manager",
+  path: `reports/${id}.md`,
+  looked: `/Users/x/manager/reports/${id}.md`,
+  why: "no folder known for this project",
+  ...over,
+});
+
+test("a commit serving a registered-but-unreadable document is not dangling", () => {
+  const r = audit({
+    commits: [{ sha: "aaa1111", subject: "fix: a thing", message: "fix: a thing\n\nServes: R-1" }],
+    documents: [],
+    unreadable: [shut("R-1")],
+  });
+  assert.deepStrictEqual(r.dangling, [], "the trailer is correct — the document is registered");
+  assert.strictEqual(r.unreadable.length, 1);
+  assert.strictEqual(r.unreadable[0].id, "R-1");
+  assert.deepStrictEqual(r.unreadable[0].shas, ["aaa1111"], "the commit is recorded, not accused");
+  assert.strictEqual(r.unreadable[0].why, "no folder known for this project", "the finding carries why the read failed");
+  assert.strictEqual(r.unreadable[0].looked, "/Users/x/manager/reports/R-1.md", "and where it looked");
+});
+
+test("one broken registration is ONE finding however many commits serve it", () => {
+  const msg = (n) => `fix: ${n}\n\nServes: R-1`;
+  const r = audit({
+    commits: [1, 2, 3, 4, 5, 6].map((n) => ({ sha: `sha${n}`, subject: `fix: ${n}`, message: msg(n) })),
+    documents: [],
+    unreadable: [shut("R-1")],
+  });
+  assert.strictEqual(r.unreadable.length, 1, "six echoes of one fault is how a real finding gets buried");
+  assert.strictEqual(r.unreadable[0].shas.length, 6, "and every commit is still named");
+  assert.deepStrictEqual(r.dangling, []);
+});
+
+test("an unreadable registration nothing serves is still reported", () => {
+  const r = audit({ commits: [], documents: [], unreadable: [shut("R-9")] });
+  assert.strictEqual(r.unreadable.length, 1, "a registration pointing at nothing is a fault before any trailer names it");
+  assert.deepStrictEqual(r.unreadable[0].shas, []);
+});
+
+test("the two reasons a read fails are told apart, because the fixes are different places", () => {
+  const r = audit({
+    commits: [],
+    documents: [],
+    unreadable: [
+      shut("R-1"),
+      shut("R-2", { why: "the file is not where the registry says it is", project: "systemview-test" }),
+    ],
+  });
+  assert.deepStrictEqual(
+    r.unreadable.map((u) => u.why),
+    ["no folder known for this project", "the file is not where the registry says it is"],
+  );
+});
+
+test("`documents` is how many are REGISTERED and `read` is how many opened", () => {
+  const r = audit({
+    commits: [],
+    documents: [doc("RFC-1", "x")],
+    unreadable: [shut("R-1"), shut("R-2")],
+    registered: 3,
+  });
+  assert.strictEqual(r.documents, 3, "the count under the word registered has to mean registered");
+  assert.strictEqual(r.read, 1, "and what was actually read sits beside it");
+});
+
+test("with no registered count handed over, `documents` answers exactly as it always did", () => {
+  const r = audit({ commits: [], documents: [doc("RFC-1", "x"), doc("RFC-2", "y")] });
+  assert.strictEqual(r.documents, 2, "an older caller gets the old number rather than undefined");
+  assert.strictEqual(r.read, 2);
+  assert.deepStrictEqual(r.unreadable, []);
+});
+
+// A DELIBERATE DECISION, PINNED SO IT CANNOT DRIFT INTO AN ACCIDENT. `agreed` answers one question
+// — do the two directions DISAGREE — and an unreadable document produces no disagreement, only an
+// absence. It therefore has the same standing as `expired` and `noted`: reported loudly, never
+// holding the verdict down. What makes that honest rather than convenient is that the bucket is in
+// the answer; a clean `agreed` beside an empty `unreadable` is the only clean bill of health.
+test("an unreadable document does not hold `agreed` down — it is an absence, not a disagreement", () => {
+  const r = audit({
+    commits: [{ sha: "aaa1111", subject: "x", message: "x\n\nServes: R-1" }],
+    documents: [],
+    unreadable: [shut("R-1")],
+  });
+  assert.strictEqual(r.agreed, true);
+  assert.strictEqual(r.unreadable.length, 1, "and the caveat is in the answer, which is what keeps that honest");
+});
+
+test("a dangling trailer is still dangling when nothing was unreadable", () => {
+  const r = audit({
+    commits: [{ sha: "aaa1111", subject: "x", message: "x\n\nServes: R-NOPE" }],
+    documents: [],
+    unreadable: [shut("R-1")],
+  });
+  assert.strictEqual(r.dangling.length, 1, "the teeth stay where a mistake can actually be made");
+  assert.strictEqual(r.dangling[0].id, "R-NOPE");
+  assert.strictEqual(r.agreed, false);
+});

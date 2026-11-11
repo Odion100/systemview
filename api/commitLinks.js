@@ -151,10 +151,16 @@ const sameSha = (a, b) => {
 /**
  * Do the two directions agree? `commits` is `[{sha, subject, message}]`, `documents` is
  * `[{id, kind, path, text}]` — both injected, so this is pure and the hub owns the IO.
+ * `unreadable` is the registry rows the caller could NOT open, each carrying why, and `registered`
+ * is how many rows there were before any of them failed — both so a count that reads like full
+ * coverage can say where coverage stopped.
  *
  * Four findings, and each one is a different kind of wrong:
  *   unlinked  — a commit naming nothing. Honest for a typo; a hole for a slice.
  *   dangling  — a commit serving an id no registered document has. A rename, or a guess.
+ *   unreadable — the id IS registered and the hub could not open the file. Not a disagreement and
+ *               not a dangling trailer: one finding per document, carrying where it looked and why
+ *               the read failed, because the fix is in the registry or on disk, never in the commit.
  *   oneWay    — the commit says it served X and X does not carry its sha. The usual case, and the
  *               one that makes a document unable to show what built it.
  *   unclaimed — a document carries a sha whose commit does not point back. Either the commit
@@ -201,8 +207,22 @@ const COMMISSIONS = (kind) => !["report"].includes(String(kind || "").toLowerCas
 // sitting right there.
 const RESOLVED = (resolved, home, sha) => (resolved ? resolved[`${home}:${sha}`] : undefined);
 
-function audit({ commits = [], documents = [], retired = {}, resolved = null } = {}) {
+function audit({ commits = [], documents = [], retired = {}, resolved = null, unreadable = [], registered = null } = {}) {
   const byId = new Map(documents.map((d) => [String(d.id), d]));
+  // REGISTERED AND UNOPENABLE IS ITS OWN ANSWER, and the reason it has to exist is that the
+  // alternative is not silence — it is a lie. A document the caller could not read is absent from
+  // `byId`, so without this map the `!doc` branch below reaches `dangling` and reports "serves an
+  // id nothing registered" about a document that IS registered, sending the reader to edit a
+  // trailer that was already correct.
+  //
+  // One finding per DOCUMENT, never per commit: six commits serving one unreadable document is one
+  // broken registration, and counting it six times is how a real finding gets buried under its own
+  // echoes — the lesson from the burial bucket, applied before it could happen here.
+  const unopenable = new Map(
+    (Array.isArray(unreadable) ? unreadable : [])
+      .filter((u) => u && u.id != null)
+      .map((u) => [String(u.id), { ...u, id: String(u.id), shas: [] }]),
+  );
   // EVERY RECORD WITH THE REPO IT NAMES, and the sha-only view beside it for the agreement checks
   // that only ever ask about this project's own log.
   const docRecords = documents.map((d) => ({ doc: d, records: recordsIn(d.text) }));
@@ -253,6 +273,13 @@ function audit({ commits = [], documents = [], retired = {}, resolved = null } =
         const gone = retired[String(id)];
         if (gone) {
           expired.push({ sha: c.sha, subject: c.subject || "", id, path: gone.path || "", deletedIn: gone.sha || "" });
+          continue;
+        }
+        // IT IS REGISTERED; WE JUST COULD NOT OPEN IT. The trailer is not the fault here, so the
+        // commit is recorded against the document's own finding rather than accused.
+        const shut = unopenable.get(id);
+        if (shut) {
+          shut.shas.push(c.sha);
           continue;
         }
         dangling.push({ sha: c.sha, subject: c.subject || "", id });
@@ -345,7 +372,12 @@ function audit({ commits = [], documents = [], retired = {}, resolved = null } =
 
   return {
     checked: commits.length,
-    documents: documents.length,
+    // `documents` NOW MEANS WHAT IT SAYS. It was `documents.length` — the number the caller could
+    // READ — printed under the word "registered", so a registration the hub could not open made the
+    // count smaller and the sentence no less confident. `read` sits beside it, and the two being
+    // equal is the ordinary case rather than an assumption.
+    documents: registered == null ? documents.length : registered,
+    read: documents.length,
     linked: commits.length - unlinked.length,
     unlinked,
     dangling,
@@ -356,6 +388,13 @@ function audit({ commits = [], documents = [], retired = {}, resolved = null } =
     noted,
     misplaced,
     crossed,
+    // NOT A DISAGREEMENT, AND NOT DROPPED EITHER — the same standing this door gives `noted` and
+    // the window facts. Nothing here says the two directions disagree; it says there are documents
+    // about which this answer has nothing to report, which is a different sentence and has to be
+    // said out loud or the clean bill of health is false. Every unreadable row appears, including
+    // the ones no commit in the window serves: a registration pointing at nothing is a fault on its
+    // own, before any trailer names it.
+    unreadable: [...unopenable.values()],
     // `unresolvable` COUNTS as a disagreement: a record pointing at no commit anywhere is the one
     // finding here that renders as a visible fault in his window.
     agreed:
