@@ -29,3 +29,11 @@ Until one happens, RFC-075's L357 tripwire stays red **on purpose** — it is th
 document whose red is the finding, and re-pinning it to 59 would be erasing the evidence.
 
 ::test[Test.Proofs.leavesInTheOtherRfcsStillParse]{project=systemview-test}
+
+## What filed this
+
+::commit{sha=74731581}
+
+The commit that wrote this document carries `Serves: G-13`, and until now nothing here said it
+back — which read as a **crossed** link, because the sitting's own account carried the sha while
+the gap it names did not. One wrong label, not two faults.

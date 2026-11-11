@@ -18,7 +18,7 @@ the one thing I had got right. That refusal is in three of my accounts as a fact
 |---|---|
 | **fixed** | a registered-but-unreadable document is its own bucket, never a dangling trailer; `documents` means registered with `read` beside it |
 | **and then** | `Agent.armed` — which committed work is newer than the process running it, the thing nothing in this system said |
-| **and then** | **one-way links 29 → 0**. Every one was a document missing a record, not a commit missing a trailer |
+| **and then** | **one-way links 29 → 0** and the one `crossed` label with them. Every single one was a document missing a record, not a commit missing a trailer |
 | **corrected** | three accounts that blamed the hub for a refusal my own request shape caused |
 | **tests** | 2607 window · 416 hub (+17 tonight) · 23 cli · `yarn verify` green including the production build |
 | **arming** | the hub half is **live** — restarted twice from `~/autobot`, cwd confirmed, listener pid 40963. Nothing here rides your shell restart |
@@ -176,6 +176,19 @@ half that was broken was the one a reader walks backwards from, and it was the h
 **`oneWay: 29 → 0`**, and `unclaimed` stayed at 0 throughout — which is the check that all 29 shas
 really do point back, rather than me having pasted plausible ones.
 
+**The one `crossed` label fell out of the same pass.** A commit saying `Serves: G-13` had its sha
+carried only by the sitting's own account, which reads as a wrong label — and the reason was that
+**G-13 held no `::commit` records at all**, not that anything was mislabelled. The gap names its
+filing commit now.
+
+::commit{sha=5e681203}
+
+**That is the commit that created this file**, recorded by a later one carrying no `Serves:`
+trailer — the convention rather than an omission. A report cannot hold the sha of the commit that
+writes it, so the record lands in the next touch; that touch serves nothing and reads as `unlinked`,
+which is the honest answer for a document edit. Trying to make it name itself is how I turned one
+sha into two wrong ones a minute ago: an `--amend` moved the commit I had just written down.
+
 ## Where the tests stand
 
 | suite | ran | says |
@@ -201,8 +214,11 @@ really do point back, rather than me having pasted plausible ones.
   shell knows when it started and nothing asks with it, so that question is still answered by
   reading `ps`. It is a second repo and dead until you restart, so it went back on the board as its
   own card rather than being half-landed here.
-- **The twelve `misplaced` trailers and one `crossed` label.** Fixing those means rewriting commit
-  messages, which is yours. After tonight they are the entire remaining disagreement on this repo.
+- **The twelve `misplaced` trailers.** A `Serves:` line outside the trailer block, which git does
+  not read as a trailer at all — fixing them means rewriting commit messages, which is yours. After
+  tonight they are the entire remaining disagreement on this repo. The one `crossed` label went with
+  the rest: a commit saying `Serves: G-13` whose sha only the sitting's account carried, because
+  **G-13 held no `::commit` records at all**. It names its own filing commit now, and `crossed` is 0.
 - **Whether the nine pre-existing `dangling` findings are wrong.** They are trailers naming ids
   that were renamed afterwards — also a history rewrite. Three more appeared tonight because my own
   commits name this report; writing this file registered the id and they resolved on the spot,
