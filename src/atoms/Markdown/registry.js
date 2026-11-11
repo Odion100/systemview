@@ -13,7 +13,6 @@ import Thread, { Reply } from "./blocks/Thread";
 import Approval from "./blocks/Approval";
 import LogsEmbed from "./blocks/LogsEmbed";
 import { FileEmbed, DiffEmbed } from "./blocks/FileEmbed";
-import ReportLink from "./blocks/ReportLink";
 import ImageEmbed from "./blocks/ImageEmbed";
 import CommitBlock from "./blocks/CommitBlock";
 import BranchBlock from "./blocks/BranchBlock";
@@ -60,7 +59,22 @@ export const BLOCKS = {
   file: { Component: FileBlock },
   diff: { Component: DiffEmbed },
   help: { Component: HelpLink },
-  report: { Component: ReportLink },
+  // NO `report` CHIP HERE, AND THE ABSENCE IS THE FIX. This line read
+  // `report: { Component: ReportLink }` and was overwritten eighty lines down by the registration
+  // LEAF, because an object literal keeps the last key — so one name resolved to two different
+  // components depending on where you read it: the leaf's lifecycle UI in a document, the real
+  // chip in the chat, which imports `ReportLink` directly. One fact, two answers.
+  //
+  // The leaf owns the name. `::report{id=…}` is what makes a document a report, and the doctrine
+  // is already that nothing should write a `:report[…]` chip at all — `agents/markdown.md`,
+  // `agents/chat.md` and `docs/interactive-markdown.md` each say *never* — because a report is a
+  // FILE and `:file[…]` reads as one without navigating anywhere. `ReportLink` stays on disk
+  // because AgentChat still uses it as its unknown-ref fallback; what a `:report[…]` in a document
+  // SHOULD draw is his open question, and removing a line that could never be reached does not
+  // answer it either way.
+  //
+  // `registry.dupes.test.js` reads this source and fails on any repeated key, so the next one
+  // cannot hide in a warning class nobody reads.
   // embeds — live things inside prose
   chart: { Component: ChartEmbed },
   test: { Component: TestEmbed },
