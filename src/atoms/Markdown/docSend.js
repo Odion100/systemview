@@ -2,9 +2,21 @@
 // ambient `document.updated` (see autobot's files-host.cjs), which is what reaches the members'
 // sessions. Nothing in the window announces anything itself.
 //
-// It lives alone because three controls make this call now — the document's block, a thread's row,
-// and the pinned update row that carries both — and a second copy of the payload is a second
-// answer to "what does a landing look like".
+// IT LIVES ALONE BECAUSE SEVERAL BLOCKS MAKE THIS CALL and a second copy of the payload would be a
+// second answer to "what does a landing look like". The callers are the block-FAULT channel
+// (`blockFailure`), a result block's `subscribe=` (`routeResult`, just below), and `CommitBlock`.
+//
+// THE PIN IS NOT ONE OF THEM, AND THAT DISTINCTION IS LOAD-BEARING. `MembersPin` releases held
+// fires through the HOST (`releaseFires` → `releaseDocumentFires`), which stamps `told=` for
+// exactly who was delivered. This call stamps NOTHING — it announces and returns. So a control
+// that tells a document's members by coming through here would deliver without recording that it
+// had, and every later press would send again: the "send all threads re-sends the ones with
+// nothing new" fault, rebuilt. A thread's row and the pin both used to call this and were retired
+// for that reason on 2026-11-06 ("a second send from the window was the same decision delivered
+// twice"), so a comment still naming them is a map to the mistake.
+//
+// If you are adding something that tells a document's MEMBERS about the document, you want the
+// pin's path, not this one.
 // `decision` RIDES THE PAYLOAD rather than being inferred from the summary's wording. The host
 // picks the headline, and a host that had to pattern-match prose to know what kind of event this
 // was would be guessing at the one thing the sender already knows for certain.
