@@ -29,6 +29,7 @@ import ReportsTab from "../Reports/ReportsTab";
 import Board from "../Board/Board";
 import CenterTabs, { useOpenByPath } from "../CenterTabs/CenterTabs";
 import PaneDivider from "../CenterTabs/PaneDivider";
+import KeptScope from "../../atoms/KeptPane/KeptScope";
 import { bodyDropPlan } from "../CenterTabs/paneDrag";
 import { buildRoute, tabForUrl, floorTab, seedable } from "../../pages/SystemView/tabRoutes";
 import HowWeWork from "../HowWeWork/HowWeWork";
@@ -565,21 +566,41 @@ export default function Documentation({
         {!hidden &&
           (pn.tabs || [])
             .filter((t) => t.kind === "report" && t.report && t.report.path)
-            .map((t) => (
-              <div
-                key={t.key}
-                className={`doc-kept-doc${showsKey(pn, i, t.key, tab === "reports" && reportPath === t.report.path) ? "" : " doc-kept-away"}`}
-              >
-                <ReportsTab
-                  projectCode={fileLens ? codeFile.projectCode : sProject}
-                  serviceId={fileLens ? undefined : sService}
-                  moduleName={fileLens ? undefined : sModule}
-                  methodName={fileLens ? undefined : sMethod}
-                  openName={t.report.path}
-                  onOpen={openReport}
-                />
-              </div>
-            ))}
+            .map((t) => {
+              const showing = showsKey(pn, i, t.key, tab === "reports" && reportPath === t.report.path);
+              return (
+                <div key={t.key} className={`doc-kept-doc${showing ? "" : " doc-kept-away"}`}>
+                  {/* A HIDDEN DOCUMENT IS NOT TOLD WHERE HE IS STANDING. These panels used to be
+                      handed the LIVE scope, so walking the service tree re-fired the listing
+                      effects of every document open behind the one he was looking at — wasted
+                      work, bounded only by how many he has open. A document's identity is its
+                      path; the tree position is not a fact about it. KeptScope holds the last
+                      scope this panel was SHOWN with and generates no element, which is the half
+                      of KeptPane the centre can use (`display: contents` breaks the height
+                      chain). */}
+                  <KeptScope
+                    showing={showing}
+                    scope={{
+                      projectCode: fileLens ? codeFile.projectCode : sProject,
+                      serviceId: fileLens ? undefined : sService,
+                      moduleName: fileLens ? undefined : sModule,
+                      methodName: fileLens ? undefined : sMethod,
+                    }}
+                  >
+                    {(sc) => (
+                      <ReportsTab
+                        projectCode={sc.projectCode}
+                        serviceId={sc.serviceId}
+                        moduleName={sc.moduleName}
+                        methodName={sc.methodName}
+                        openName={t.report.path}
+                        onOpen={openReport}
+                      />
+                    )}
+                  </KeptScope>
+                </div>
+              );
+            })}
         {!hidden && i === focus && (tab === "links" || tab === "cmds") && (
           <div id={`sv-dock-slot-${tabsPc}-${tab}`} className="doc-dockslot">
             {/* the docked AgentChat portals the live panel in here; an empty slot means the chat
