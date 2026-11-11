@@ -5,6 +5,7 @@ import MultiTestSection from "../MultiTestSection/MultiTestSection";
 import TestController from "../TestPanel/components/TestController.class";
 import FullTestController from "../TestPanel/components/FullTestController";
 import { initializeSavedTests, getActionMap } from "../SavedTests/transformTests";
+import { listActions, actionKey } from "../SavedTests/actionList";
 import loadServiceWithHeaders from "../../utils/loadService";
 import { TestAction } from "../Stage/TestStory";
 import Title from "../../atoms/Title/Title";
@@ -65,7 +66,12 @@ const ActionsPanel = ({ projectCode, serviceId, moduleName, methodName }) => {
     if (!serviceId) {
       try {
         const map = await getActionMap(projectServices);
-        return setSaved(Object.values(map));
+        // LISTED, NOT READ. The map holds every action under TWO keys — qualified and bare — so a
+        // lookup never has to know which form a `{ use: … }` reference is in. Reading its values
+        // as a list therefore answers with each action twice, and the count below said eight when
+        // there were four. `listActions` dedupes by reference, which is exact: the two entries are
+        // one object, while two genuinely different same-named actions are two.
+        return setSaved(listActions(map));
       } catch {
         return setSaved([]);
       }
@@ -221,7 +227,11 @@ const ActionsPanel = ({ projectCode, serviceId, moduleName, methodName }) => {
           </div>
           {saved.map((a) => (
             <ActionCard
-              key={a.name}
+              // SERVICE AND NAME, never name alone: two services in one project may each hold a
+              // `seedSum` — which is why `ownerPlugin` exists — and duplicate keys among siblings
+              // make React reuse the first card's DOM and state for the second. Silent in a built
+              // window, because React's duplicate-key warning is development-only.
+              key={actionKey(a)}
               action={a}
               connectedServices={projectServices}
               onEdit={() => load(a)}
