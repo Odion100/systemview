@@ -1,34 +1,38 @@
-# The board was unreachable from any window that is not the shell
+# A guard asked the shell for permission to use the hub
 
 ::report{id="The board was unreachable outside the shell" as=account retain=24h}
 
-**A use-pass found it, not a read.** I opened the board in the centre in a plain browser tab on the
-hub and it sat on **"opening…"** forever, under the line *"no live service for this project — the
-board can't be saved from here"* — while the code pane beside it was reading files perfectly well.
-Both halves of that line were untrue.
+**`hasHostFiles()` tested for the shell bridge (`window.systemview.files`) to decide whether the
+hub could be written to.** `hostFiles` had stopped routing through that bridge — every verb it has
+asks the hub — so the guard had become a question about a mechanism that is no longer the
+mechanism. It was deleted, at both remaining call sites, along with a dead import.
 
-**The cause, read after the symptom:** `hasHostFiles()` tests for the **shell bridge**
-(`window.systemview.files`). `hostFiles` stopped routing through that bridge — every verb it has
-asks the hub, which knows the shell's registry. So the guard had become a question about a
-mechanism that is no longer the mechanism, and it answers *no* in any window that is not the
-Electron shell.
-
-**It had already been caught once.** `AgentChat.js` carries an explicit note where the same guard
-was removed from the report picker, for the same reason, with the same symptom — *"the guard made
-the picker permanently empty in any tab where the shell bridge was absent, while the nav happily
-listed reports beside it."* Two instances were left standing, plus a dead import.
-
-::image[reports/the-board-in-a-plain-tab.png]{caption="the same plain tab afterwards — 138 cards, the counts, the OWES pills, and 'saved' in the header"}
+**THE SYMPTOM I REPORTED WAS NOT ONE HE CAN HAVE, and the original headline of this report was
+wrong.** I found it in a plain browser tab of my own, where the board sat on *"opening…"* forever.
+SystemView runs in the Electron shell and nowhere else — his words, 2026-11-11: *"this application
+shouldn't run in any browser besides this; this is a special application."* `window.systemview.files`
+is present there, so the guard passed and the board worked. **Nothing he uses was broken.**
 
 | | |
 |---|---|
-| **what landed** | the guard is **deleted**, not merely unused · the board, the TV's reader and the report editor reach the hub from any window · the invented note replaced by a real refusal |
+| **the real value, stated honestly** | a false gate is removed. The guard was dormant rather than harmless: the day the preload stops exposing `files`, the board dies in his shell under a line nothing had tried |
+| **the precedent** | `AgentChat.js` carries a note where the same guard was removed from the report picker for the same reason. Two instances were left standing |
+| **and one line that WAS invented** | the board printed *"no live service for this project — the board can't be saved from here"* from the guard rather than from anything attempted. It now says nothing until a write actually fails, and then says what came back |
+| **what this did NOT fix** | any behaviour in his window. There was none to fix |
 | **tests** | 2601 window · 369 hub · 15 cli · `yarn verify` green including the production build |
-| **the real check** | the board drawn in a plain browser tab of my own, never your window |
-| **also settled** | one board card closed by USE without a line of code — it already works |
-| **lane** | none. The tree was clean, so it is committed in place |
 
 ---
+
+## The lesson, which is worth more than the fix
+
+**My headless browser is an instrument, not the product's environment.** A fault that only appears
+in the instrument is first a question about the instrument's fidelity, and only then a finding. I
+ran a use-pass in a plain tab, hit a real stale guard, and wrote it up as though the surface he uses
+had been down — "the board was unreachable" reads as an outage he lived through.
+
+The finding was true and the headline was a lie about who it happened to. A report whose title
+overstates the blast radius costs exactly what a wrong report costs: he read it, did not recognise
+his own system in it, and had to come and ask.
 
 ## The evaluation, written before the work
 
@@ -41,11 +45,6 @@ by an actual failed write.
 is deleted. The failure mode here is not a bug in the guard — it is somebody reaching for it a third
 time, and the first two times cost a surface each. A door nobody can open cannot be opened by
 accident.
-
-**And the line the board printed deserved its own decision.** What stood there was printed from a
-guard rather than from anything that had been tried, so a window that could save perfectly well said
-it could not. It now says nothing until a write actually fails, and then says what the write came
-back with.
 
 ::commit{sha=dc03a2b1}
 ::commit{sha=31cc9a17}
