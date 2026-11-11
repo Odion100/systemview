@@ -128,7 +128,7 @@ in the hub. **Teeth proven** by restoring the old filter and watching two of the
 those four is the opposite guarantee, that a record naming another repo is *still* excluded from this
 project's `unclaimed`, which is what the original filter was protecting.
 
-## I took his hub down, and the thing that did it is already on the board
+## I took his hub down, and I got the reason wrong first
 
 **`systemview stop` worked and `systemview start 3000` refused**, eleven-times-in-two-minutes style:
 *"SystemView's hub is not running on port 3000. The IDE hosts it — open SystemView and the hub comes
@@ -164,6 +164,15 @@ and it also arms the autobot half above.
 - **I could not establish which of the two bit you on RFC-078** — whether the pin appeared and was
   tucked, or never appeared. That needs an approval pressed in a live window with members on it. I
   will not drive yours, and my own instance would not navigate tonight.
+- **My first account of the hub incident was wrong and is corrected above.** I blamed "the stale
+  global CLI" and the node-14 card, and wrote on the board that the shell's own launcher could not
+  bring the hub up. `which -a` says otherwise: two installs, the stale 2.40.1 is the nvm one on an
+  agent's PATH, and the shell launches the absolute `/usr/local/bin` link at 2.40.3. The board reply
+  and the note carry the correction; I am recording that I got there second rather than quietly
+  rewriting it.
+- **I never verified that `/usr/local/bin/systemview start 3000` hosts correctly.** By the time I
+  knew to ask, the hub was up — and anything run against a live port ATTACHES rather than hosts, so
+  the two outcomes are indistinguishable. Its version says it should work. I have not watched it.
 - **I got a `Serves:` trailer wrong and corrected it before it could lie.** The first version named
   the board card's id — and a board card has no leaf, so nothing registers it and `commitLinks` would
   have read it as `dangling`: a link that looks real until somebody checks. Amended to this report's
