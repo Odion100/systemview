@@ -83,7 +83,25 @@ hub's answer produces no line, no crash, and no invented zero.
   strictly better than before the classification for the `oneWay` count and strictly worse for
   knowing what happened to the rest — which is exactly why this was worth doing the same night
   rather than carding.
-- **I followed the practice late again.** Note `xci5` says to write the report FILE before the first
+- **AND THE DOOR CAUGHT A FOURTH ONE WHILE I WAS CLOSING THIS.** Running `commitLinks` on autobot
+  after the commit above:
+
+  > CROSSED — `5b62f1ab` *"the row carries the contract half"* says **A door that answered a wider
+  > question than it was asked**, but **The row said met and could not say undefended** accounts for
+  > it — the trailer is the wrong label.
+
+  That is the same copying mistake, two sittings old, found only because the `crossed` finding
+  exists. The document is RIGHT and the trailer is wrong, which is the harder direction to repair:
+  note `xci5`'s remedy is "make the DOCUMENT true rather than the trailer", and here the correct
+  document is already true — making the *named* one absorb an unrelated commit would turn a correct
+  account into a false one.
+
+  **So I have not touched it.** `5b62f1ab` is two commits back, so changing its trailer means a
+  rebase, and rewriting history is yours. It is recorded here, it is accurate, and the door will
+  keep saying so until you decide whether it is worth a rewrite — which, for a label on work that
+  is correctly accounted for elsewhere, it very likely is not.
+
+- **I followed the practice late again.**- **I followed the practice late again.** Note `xci5` says to write the report FILE before the first
   commit so the id exists in the tree rather than in my head. I wrote the trailer first and the file
   second — the id is at least this sitting's own rather than the previous one's, which is the part
   that had gone wrong three times today, but the practice itself is still being read rather than
