@@ -5,8 +5,9 @@
 **Right-click in a document → 🎧 Listen to this, or 🎧 Listen to the whole document.** It reads
 aloud in the voice of the chat he was LAST IN — not the document's project — because the voice is
 already per chat and the reader is the agent in the room, not the repository the file lives in.
-**The block being read wears a blue edge and a 🎧 while it is read**, and the mark clears when the
-reading stops.
+**The block being read wears a blue edge and a 🎧 while it is read** — raised when the queue
+reaches that item and taken down the moment it moves on, so it can never point at a paragraph
+something else is reading.
 
 | | |
 |---|---|
@@ -81,6 +82,13 @@ his, so they stand mislabelled and this paragraph is the correction.
   the kind of pass that hides a bug, and it is why the rule changed rather than being left alone.
 - **The stamp has never been read from a cold machine.** Before anything is stamped, listening falls
   through to the openness branches — correct by assertion, unseen in a window.
+- **THE MARK IS TIED TO ITS OWN QUEUE ITEM, which took a second pass.** It first watched for
+  SILENCE, and his correction was immediate: *"it should clear as soon as it moves on to the next
+  item in the queue, not just when the recorder stops."* Silence was wrong in both directions — a
+  reply beginning the instant his selection ended left the old block lit, and a selection queued
+  behind something else was marked before it was being read at all. `sv:read` items can now carry
+  a caller's key, which is what lets a caller tell "my item is playing" from "something is
+  playing"; before this the key was private to `readLine`.
 - **THE MARK AND ITS CLEARING ARE UNSEEN BY ME.** The highlight is a class applied to the DOM and
   swept on "nothing is playing"; jest has no speech synthesis, so no assertion in the suite watches
   a real reading start and stop. The doubled highlight he reported should be impossible now — the

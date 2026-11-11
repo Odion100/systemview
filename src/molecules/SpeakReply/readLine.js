@@ -4,6 +4,11 @@
 // `sv:read` is the door. Its detail:
 //   { projectCode?, items: [ {selector, say?} | {text} | "selector" ], follow?: { scroll, avatar } }
 //
+// An item may carry `key` — a name the CALLER chooses, suffixed here so it is still unique. That is
+// what lets an enqueuer watch the queue for its own item specifically: the document's listen mark
+// goes up when its item starts and comes down the moment the queue moves on, rather than waiting
+// for the whole line to fall silent.
+//
 // Each item joins the same line his replies wait in — so reads, replies and selections share one
 // order, one transport, one forward-click. THE NOW-PLAYING ITEM IS THE CURSOR AND EVERYTHING ELSE
 // FOLLOWS IT: when a selector item starts speaking, the page scrolls to it and the bot walks over
@@ -32,7 +37,12 @@ function onRead(e) {
   items.forEach((raw) => {
     const it = typeof raw === "string" ? { selector: raw } : raw || {};
     if (!it.selector && !it.text) return;
-    const key = `read:${(seq += 1)}`;
+    // A CALLER MAY NAME ITS OWN ITEM. Without this the key is private to this module, so an
+    // enqueuer cannot tell "my item is the one being read" from "something is being read" — and a
+    // caller that draws a mark while its item plays has no way to take it down when the queue
+    // moves on to the next one. The counter still rides along, so two items under one tag cannot
+    // collide and a caller cannot accidentally reuse a key the queue is still holding.
+    const key = it.key ? `${it.key}:${(seq += 1)}` : `read:${(seq += 1)}`;
     enqueue({
       key,
       scope: d.projectCode || "",

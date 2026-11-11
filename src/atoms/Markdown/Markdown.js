@@ -518,6 +518,9 @@ export function insertAfterLine(source, line, text) {
 
 export { normalizeFences, wrapLines, wrapLinesInThread };
 
+// One counter per window, so two documents listening cannot name the same item.
+let listenSeq = 0;
+
 const Markdown = ({ children, dark = false, scope = null, onSourceChange = null, commentKey = null }) => {
   const source = typeof children === "string" ? children : "";
   const editable = typeof onSourceChange === "function";
@@ -764,10 +767,43 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     },
     [clearListening],
   );
-  // THE QUEUE SAYS WHEN IT IS OVER — nothing else can. The reading may end by finishing, by him
-  // pressing forward, or by the queue being cleared from outside the window; all three arrive here
-  // as "nothing is playing", which is the one condition worth watching.
-  useEffect(() => subscribeSpeech(() => { if (!speechView().playing) clearListening(); }), [clearListening]);
+  // THE MARK BELONGS TO ONE ITEM IN THE QUEUE, NOT TO "SOMETHING IS PLAYING".
+  //
+  // His correction, 2026-11-11: *"it should clear as soon as it moves on to the next item in the
+  // queue, not just when the recorder stops."* Watching for silence was wrong in both directions
+  // and the first one is the lie: a reply that begins the moment his selection ends leaves the old
+  // block lit while something else is read, so the document points at the wrong paragraph. And a
+  // selection queued BEHIND something else was marked before it was being read at all.
+  //
+  // So the condition is identity: this is up exactly while the queue is playing MY item. It
+  // arrives when his selection's turn comes and leaves when the queue moves on, which is the same
+  // sentence read forwards and backwards.
+  const listenItem = useRef(null);
+  const markedKey = useRef(null);
+  useEffect(() => {
+    const read = () => {
+      const want = listenItem.current;
+      const p = speechView().playing;
+      const mine = want && p && String(p.key).startsWith(`${want.key}:`);
+      if (mine) {
+        if (markedKey.current !== p.key) {
+          markListening(want.from, want.to);
+          markedKey.current = p.key;
+        }
+        return;
+      }
+      if (markedKey.current) {
+        // It HAD the floor and lost it — finished, skipped forward, or cleared from outside the
+        // window. All three are "not mine any more", and the item is dropped so a later unrelated
+        // reading cannot raise this mark again.
+        clearListening();
+        markedKey.current = null;
+        listenItem.current = null;
+      }
+    };
+    read();
+    return subscribeSpeech(read);
+  }, [markListening, clearListening]);
   useEffect(() => clearListening, [clearListening]);
 
   const pickMenu = (choice) => {
@@ -790,14 +826,18 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
       const to = whole ? src.split("\n").length : menu.end || menu.start || 1;
       const lines = src.split("\n").slice(from - 1, to);
       const text = spokenForm(lines.join("\n"));
-      if (text && !whole) markListening(from, to);
+      // NAMED, so the effect above can tell this item apart from everything else in the queue. The
+      // mark is NOT raised here — it goes up when the queue reaches this item, which is the only
+      // moment at which "this is what is being read" is a true sentence.
+      const listenKey = `listen:${(listenSeq += 1)}`;
+      listenItem.current = whole || !text ? null : { key: listenKey, from, to };
       if (text)
         window.dispatchEvent(
           new CustomEvent("sv:read", {
             detail: {
               // WHOSE VOICE — the agent whose chat is open, never the document's project.
               projectCode: listeningScope(openChats(), { last: readLastChat(), route: docScope, doc: docScope }),
-              items: [{ text }],
+              items: [{ text, key: listenKey }],
               // NEITHER FOLLOWER. readLine's own words for exactly this case: *"a quiet 'read me
               // this while I work' wants neither yanking the scroll nor a bot photobombing the
               // pane."* He is looking at the thing already — he asked to hear it, not to be taken

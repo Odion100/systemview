@@ -92,3 +92,42 @@ describe("the read line", () => {
     expect(view().playing).toBeNull();
   });
 });
+
+// A CALLER MAY NAME ITS OWN ITEM, and that is what lets it watch the queue for ITSELF.
+//
+// His correction, 2026-11-11, about the document's listen mark: *"it should clear as soon as it
+// moves on to the next item in the queue, not just when the recorder stops."* Watching for silence
+// cannot do that — a reply starting the instant his selection ends leaves the old block lit while
+// something else is read. Telling "my item is playing" apart from "something is playing" needs the
+// key, and before this the key was private to this module.
+describe("an item can carry a caller's name", () => {
+  it("wears the caller's key, so the caller can recognise its own item", () => {
+    window.dispatchEvent(
+      new CustomEvent("sv:read", { detail: { items: [{ text: "the paragraph he picked", key: "listen:7" }] } }),
+    );
+    const playing = view().playing;
+    expect(playing).toBeTruthy();
+    expect(String(playing.key).startsWith("listen:7:")).toBe(true);
+  });
+
+  it("is still UNIQUE under one name, so two listens cannot collide in the queue", () => {
+    window.dispatchEvent(
+      new CustomEvent("sv:read", {
+        detail: {
+          items: [
+            { text: "first", key: "listen:9" },
+            { text: "second", key: "listen:9" },
+          ],
+        },
+      }),
+    );
+    const v = view();
+    const keys = [v.playing.key, ...v.waiting.map((w) => w.key)];
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("falls back to its own name when the caller gives none", () => {
+    window.dispatchEvent(new CustomEvent("sv:read", { detail: { items: [{ text: "anonymous" }] } }));
+    expect(String(view().playing.key).startsWith("read:")).toBe(true);
+  });
+});
