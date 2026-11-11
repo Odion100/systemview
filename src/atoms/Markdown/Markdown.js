@@ -25,6 +25,7 @@ import { namespaceOptions, testOptions, fileOptions, menuOffers, TEMPLATES } fro
 import { spokenForm } from "../../utils/spokenForm";
 import { listeningScope, openChats } from "../../utils/listeningScope";
 import { readLastChat } from "../../utils/lastChat";
+import { subscribe as subscribeSpeech, view as speechView } from "../../molecules/SpeakReply/speechQueue";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "./registry";
 import TaskItem from "./blocks/TaskItem";
@@ -294,9 +295,18 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
           block whose host cannot save. His ask: *"I want to be able to just listen."* */}
       {offers.listen && (
         <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "listen" })}>
-          🎧 Listen to this <span className="md-menu__hint">in the open agent's voice</span>
+          🎧 Listen to this <span className="md-menu__hint">in the agent's voice</span>
         </button>
       )}
+      {/* THE WHOLE DOCUMENT, offered everywhere — including off every block, which is the gap the
+          per-block item leaves and the one place there is nothing else to pick. */}
+      <button
+        type="button"
+        className="md-menu__item md-menu__item--lead"
+        onClick={() => onPick({ kind: "listen", whole: true })}
+      >
+        🎧 Listen to the whole document
+      </button>
       {/* What you can do depends on WHAT YOU HIT. Inside a thread, the useful verb is removing it;
           on a plain block, starting one; on empty space, there's nothing to wrap — you can still
           insert, which lands at the end of the document. */}
@@ -713,6 +723,53 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
     setMenu({ x: e.clientX, y: e.clientY, start, end, label, thread, block });
   };
 
+  // WHAT IS BEING READ WEARS A MARK, AND THE MARK CLEARS ITSELF.
+  //
+  // His ask, 2026-11-11: *"It needs to select what's being read. Maybe with an icon… you kinda
+  // gotta see what you selected."* And in the same breath the other half, from watching it:
+  // *"these two highlights was being read — that means it has to clear properly as well too."*
+  //
+  // IT IS A CLASS ON THE DOM, not state — the same decision the chat's karaoke made and for the
+  // same reason: re-rendering a long document to move a highlight costs more than the voice. It
+  // marks the BLOCK he chose rather than following the sentence, which is what he asked for: the
+  // question this answers is "what did I select", and that does not move while it is read.
+  const docRef = useRef(null);
+  const listeningEls = useRef([]);
+  const clearListening = useCallback(() => {
+    for (const el of listeningEls.current) el.classList.remove("md-listening");
+    listeningEls.current = [];
+    // AND ANY STRAY ONE IN THIS DOCUMENT, which is the half he caught. A mark belongs to a reading;
+    // if one outlived its reading — a re-render between the mark and the stop, a second listen
+    // before the first ended — the only honest state is none, so the sweep is of the DOM and not
+    // of what this component happens to remember marking.
+    const root = docRef.current;
+    if (root) root.querySelectorAll(".md-listening").forEach((el) => el.classList.remove("md-listening"));
+  }, []);
+  const markListening = useCallback(
+    (from, to) => {
+      clearListening();
+      const root = docRef.current;
+      if (!root) return;
+      const all = [...root.querySelectorAll("[data-md-start]")].map((b) => ({
+        b,
+        s: Number(b.getAttribute("data-md-start")),
+        e: Number(b.getAttribute("data-md-end") || b.getAttribute("data-md-start")),
+      }));
+      const hit = all.filter((x) => x.s <= to && x.e >= from).map((x) => x.b);
+      // The innermost ones only — lighting a container AND the paragraph inside it draws the box
+      // twice, which is the doubled highlight read as a bug rather than as nesting.
+      const inner = hit.filter((b) => !hit.some((o) => o !== b && b.contains(o)));
+      for (const el of inner) el.classList.add("md-listening");
+      listeningEls.current = inner;
+    },
+    [clearListening],
+  );
+  // THE QUEUE SAYS WHEN IT IS OVER — nothing else can. The reading may end by finishing, by him
+  // pressing forward, or by the queue being cleared from outside the window; all three arrive here
+  // as "nothing is playing", which is the one condition worth watching.
+  useEffect(() => subscribeSpeech(() => { if (!speechView().playing) clearListening(); }), [clearListening]);
+  useEffect(() => clearListening, [clearListening]);
+
   const pickMenu = (choice) => {
     const { source: src, onSourceChange: save } = live.current;
     if (!menu) return;
@@ -725,8 +782,15 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
       // text carries chrome a reader never said: a claim's state pills, a fold's summary, the
       // word "unproved". `spokenForm` is the same converter the chat already reads replies with,
       // so a document sounds like the agent reading it rather than like a screen being described.
-      const lines = src.split("\n").slice(Math.max(0, menu.start - 1), menu.end || menu.start);
+      // THE WHOLE DOCUMENT IS ITS OWN ITEM — his ask: *"you also need an option to read the entire
+      // document."* It marks nothing, deliberately: "what did I select" has the answer "all of it",
+      // and lighting every block says that less clearly than the menu item he just pressed did.
+      const whole = choice.whole;
+      const from = whole ? 1 : Math.max(1, menu.start || 1);
+      const to = whole ? src.split("\n").length : menu.end || menu.start || 1;
+      const lines = src.split("\n").slice(from - 1, to);
       const text = spokenForm(lines.join("\n"));
+      if (text && !whole) markListening(from, to);
       if (text)
         window.dispatchEvent(
           new CustomEvent("sv:read", {
@@ -891,7 +955,7 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
       <MarkdownWriteProvider value={writeApi}>
       <MarkdownMembersProvider value={docMembers}>
       <MarkdownCommentsProvider value={comments}>
-      <div className={`markdown${dark ? " markdown--dark" : ""}`} onContextMenu={openMenu}>
+      <div ref={docRef} className={`markdown${dark ? " markdown--dark" : ""}`} onContextMenu={openMenu}>
         {/* THE JAM, SAID OUT LOUD (RFC-075 round two). One orphan fence disables fence self-healing
             for every later write — by design, and silently was the defect: his thread wraps came out
             as raw colons with nothing saying why. Shown only where the document can be written. */}

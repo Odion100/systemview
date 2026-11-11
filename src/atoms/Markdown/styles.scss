@@ -2165,6 +2165,32 @@
   // KARAOKE (RFC-074): the block the voice is reading. A blue edge and a faint tint, the same
   // vocabulary as an enabled hook's edge — not a highlighter pen. It moves every few seconds, so it
   // fades rather than flashes.
+  // WHAT IS BEING LISTENED TO — his ask: "you kinda gotta see what you selected."
+  //
+  // A BAR AND AN ICON, NOT A WASH. The chat's karaoke tints the block because the mark MOVES every
+  // few seconds and a moving tint reads as a cursor. This one does not move — it says "this is the
+  // piece you chose" for as long as it is read — so it wants an edge and a glyph, which can sit
+  // over a claim, a table or a fence without arguing with whatever colour that block already has.
+  .md-listening {
+    position: relative;
+    border-radius: 4px;
+    box-shadow: inset 3px 0 0 0 var(--accent, #6ea8fe);
+    background: color-mix(in srgb, var(--accent, #6ea8fe) 7%, transparent);
+
+    &::after {
+      content: "🎧";
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      font-size: 0.78rem;
+      line-height: 1;
+      opacity: 0.85;
+      // The glyph is a label on the block, never a control — it must not eat a click meant for the
+      // text underneath it.
+      pointer-events: none;
+    }
+  }
+
   .md-karaoke {
     box-shadow: inset 3px 0 0 var(--sv-blue, #4a7bd0);
     background: color-mix(in srgb, var(--sv-blue, #4a7bd0) 7%, transparent);

@@ -2,17 +2,20 @@
 
 ::report{id="A document can be listened to" as=account retain=24h}
 
-**Right-click any block in a document → 🎧 Listen to this.** It reads that block aloud in the voice
-of the agent whose chat is open — not the document's project — because the voice is already per
-chat and the reader is the agent you are talking to, not the repository the file lives in.
+**Right-click in a document → 🎧 Listen to this, or 🎧 Listen to the whole document.** It reads
+aloud in the voice of the chat he was LAST IN — not the document's project — because the voice is
+already per chat and the reader is the agent in the room, not the repository the file lives in.
+**The block being read wears a blue edge and a 🎧 while it is read**, and the mark clears when the
+reading stops.
 
 | | |
 |---|---|
 | **built** | one menu item, the only one in that menu that writes nothing |
 | **reads the SOURCE, not the rendered node** | `spokenForm` — the same converter the chat reads replies with — so state pills, badges and fold summaries a reader never said are not spoken |
-| **offered where editing is not** | a read-only document, another project's repo, a block whose host cannot save. Listening is not an edit, so it is not gated like one |
+| **not gated like an edit** | offered on a block whose host cannot save replies, and on another project's file. **The menu itself still requires an editable document** — `openMenu` returns early otherwise — so "offered on a read-only document" is a claim I made and should not have |
 | **follows neither the scroll nor the bot** | `readLine`'s own prescription for this exact case: *"a quiet 'read me this while I work' wants neither yanking the scroll nor a bot photobombing the pane"* |
-| **tests** | 2666 window (+16) · 448 hub · 23 cli · `yarn verify` green bare, including the ratchet and the production build |
+| **you can see what you picked** | his ask, *"you kinda gotta see what you selected"* — and the other half from watching it, *"these two highlights was being read, that means it has to clear properly"* |
+| **tests** | 2666 window · 448 hub · 23 cli · `yarn verify` green bare, including the ratchet and the production build |
 | **arming** | `src/` only — the bundle is rebuilt and swapped. Nothing to press |
 
 ---
@@ -78,3 +81,11 @@ his, so they stand mislabelled and this paragraph is the correction.
   the kind of pass that hides a bug, and it is why the rule changed rather than being left alone.
 - **The stamp has never been read from a cold machine.** Before anything is stamped, listening falls
   through to the openness branches — correct by assertion, unseen in a window.
+- **THE MARK AND ITS CLEARING ARE UNSEEN BY ME.** The highlight is a class applied to the DOM and
+  swept on "nothing is playing"; jest has no speech synthesis, so no assertion in the suite watches
+  a real reading start and stop. The doubled highlight he reported should be impossible now — the
+  sweep is of the DOM rather than of what the component remembers marking — but the only proof that
+  exists is his eye.
+- **The mark does not follow the sentence.** It marks what he CHOSE and holds still, which is what
+  he asked for over "the needle". Per-sentence karaoke in a document is a different feature and
+  `spokenMap` already returns the lines it would need.
