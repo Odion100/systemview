@@ -3705,7 +3705,7 @@ module.exports = function launchSystemView(port = 3000) {
           window: win,
           retiredScan: { paths: retiredScanned, found: Object.keys(retired).length, capped: retiredCapped, cap: RETIRED_SCAN_CAP },
           shaScan: { projects: Object.keys(roots).length, asked },
-          ...CommitLinks.audit({ commits, documents, retired, resolved, unreadable, registered: rows.length }),
+          ...CommitLinks.audit({ commits, documents, retired, resolved, unreadable, registered: rows.length, project: projectCode }),
         };
       },
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>

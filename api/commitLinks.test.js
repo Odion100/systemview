@@ -691,3 +691,65 @@ test("a dangling trailer is still dangling when nothing was unreadable", () => {
   assert.strictEqual(r.dangling[0].id, "R-NOPE");
   assert.strictEqual(r.agreed, false);
 });
+
+// A CROSS-REPO RECORD IS THE SHAPE report-authoring PRESCRIBES, AND THIS DOOR COULD NOT SEE IT.
+//
+// A commit in autobot serves a report that lives in systemview, so the record carries `project=` —
+// "a cross-repo commit needs project=", in as many words. The question this door then has to ask is
+// whether the record names THE LOG BEING READ. It asked whether the record named the DOCUMENT's own
+// repo instead, which is the same question only while a commit and its document share a repo.
+//
+// So "autobot" was compared against the document's "systemview-test", the record was dropped, and
+// the commit reported oneWay — advice to add an edit that was already in the file. Found by using
+// this door on my own cross-repo commit, 2026-11-11.
+const xdoc = (id, text, project) => ({ id, kind: "report", path: `reports/${id}.md`, project, text });
+
+test("a cross-repo record counts for the log it NAMES, not the document's own repo", () => {
+  const r = audit({
+    project: "autobot",
+    commits: [{ sha: "40f8a9c7", subject: "refactor", message: "refactor\n\nServes: A door" }],
+    documents: [xdoc("A door", "body\n\n::commit{sha=40f8a9c7 project=autobot}", "systemview-test")],
+  });
+  assert.deepStrictEqual(r.oneWay, [], "the document carries the sha for THIS log — there is nothing one-way about it");
+  assert.strictEqual(r.agreed, true);
+  assert.strictEqual(r.linked, 1);
+});
+
+test("…and the same record is still not this project's business when the log is the other one", () => {
+  // Reading SYSTEMVIEW's log, the autobot-flagged record must stay excluded: it cannot point back
+  // here, so counting it would accuse a correct record of being unclaimed. That exclusion is what
+  // the original filter was protecting and it has to survive the fix.
+  const r = audit({
+    project: "systemview-test",
+    commits: [],
+    documents: [xdoc("A door", "body\n\n::commit{sha=40f8a9c7 project=autobot}", "systemview-test")],
+  });
+  assert.deepStrictEqual(r.unclaimed, [], "a record naming another repo is not this log's to judge");
+});
+
+test("a record with NO project= still means the document's own repo", () => {
+  const same = audit({
+    project: "systemview-test",
+    commits: [{ sha: "bbb2222", subject: "feat", message: "feat\n\nServes: R1" }],
+    documents: [xdoc("R1", "body\n\n::commit{sha=bbb2222}", "systemview-test")],
+  });
+  assert.deepStrictEqual(same.oneWay, [], "the plain form is unchanged by the fix");
+  assert.strictEqual(same.agreed, true);
+
+  // AND A BARE RECORD IN A FOREIGN DOCUMENT IS NOT THIS LOG'S — absent project= means "my own
+  // repo", so a document living elsewhere is not claiming anything about the log being read.
+  const foreign = audit({
+    project: "autobot",
+    commits: [{ sha: "ccc3333", subject: "feat", message: "feat\n\nServes: R2" }],
+    documents: [xdoc("R2", "body\n\n::commit{sha=ccc3333}", "systemview-test")],
+  });
+  assert.strictEqual(foreign.oneWay.length, 1, "a bare sha in another repo's document does not satisfy this log");
+});
+
+test("with no project passed, the audit behaves exactly as it did before", () => {
+  const r = audit({
+    commits: [{ sha: "ddd4444", subject: "feat", message: "feat\n\nServes: R3" }],
+    documents: [xdoc("R3", "body\n\n::commit{sha=ddd4444}", "systemview-test")],
+  });
+  assert.deepStrictEqual(r.oneWay, [], "a caller that does not say which log it reads loses nothing");
+});

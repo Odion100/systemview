@@ -207,7 +207,7 @@ const COMMISSIONS = (kind) => !["report"].includes(String(kind || "").toLowerCas
 // sitting right there.
 const RESOLVED = (resolved, home, sha) => (resolved ? resolved[`${home}:${sha}`] : undefined);
 
-function audit({ commits = [], documents = [], retired = {}, resolved = null, unreadable = [], registered = null } = {}) {
+function audit({ commits = [], documents = [], retired = {}, resolved = null, unreadable = [], registered = null, project = "" } = {}) {
   const byId = new Map(documents.map((d) => [String(d.id), d]));
   // REGISTERED AND UNOPENABLE IS ITS OWN ANSWER, and the reason it has to exist is that the
   // alternative is not silence — it is a lie. A document the caller could not read is absent from
@@ -226,11 +226,30 @@ function audit({ commits = [], documents = [], retired = {}, resolved = null, un
   // EVERY RECORD WITH THE REPO IT NAMES, and the sha-only view beside it for the agreement checks
   // that only ever ask about this project's own log.
   const docRecords = documents.map((d) => ({ doc: d, records: recordsIn(d.text) }));
+  // WHICH RECORDS BELONG TO THE LOG THIS CALL IS READING — and the question is about the LOG, never
+  // about the document's own repo. Those are the same thing only while a commit and the document it
+  // serves live in one repo, which is why this was wrong for a year without showing: it needs the
+  // CROSS-REPO case, which is exactly the shape `report-authoring` prescribes.
+  //
+  // What it used to ask was `!r.project || r.project === doc.project`. That is right for `unclaimed`
+  // — a record naming another repo cannot point back into this log, so counting it there would
+  // accuse a correct record of being wrong — and the same list also feeds `oneWay`, where the
+  // question inverts. A commit in autobot serving a report that lives in systemview, with the
+  // record correctly written `::commit{sha=… project=autobot}`, compared "autobot" against the
+  // DOCUMENT's "systemview-test", dropped the record, and reported oneWay: advice to make an edit
+  // that was already there. Found by using this door on my own cross-repo commit (2026-11-11).
+  //
+  // So a record counts for this log when it NAMES this log, or when it names nothing and the
+  // document itself lives here — because an absent `project=` means "this document's own repo".
+  // With no project passed, `home` falls back to the document's own and the behaviour is what it
+  // always was, so a caller that does not say which log it is reading loses nothing.
+  const belongsHere = (r, doc) => {
+    const home = project || doc.project;
+    return r.project ? r.project === home : doc.project === home;
+  };
   const docShas = docRecords.map(({ doc, records }) => ({
     doc,
-    // A RECORD THAT NAMES ANOTHER REPO IS NOT THIS LOG'S BUSINESS. It cannot point back here, so
-    // counting it as `unclaimed` would accuse a correct record of being wrong.
-    shas: records.filter((r) => !r.project || r.project === doc.project).map((r) => r.sha),
+    shas: records.filter((r) => belongsHere(r, doc)).map((r) => r.sha),
   }));
   const unlinked = [];
   const dangling = [];
