@@ -1,7 +1,24 @@
 // THE OPEN SET. The center is a tab strip of open documents; this is the one writer for
-// what is open, per project, cached, shaped for the split-pane work he has already named as next:
+// what is open, per project, cached:
 //
-//   { panes: [ { tabs: [tab], active: key } ] }     // v1 holds exactly one pane
+//   { panes: [ { tabs: [tab], active: key } ], focus: 0, sizes: [1] }
+//
+// PANES ARE PLURAL NOW — his ask, 2026-11-10: *"a feature where you can split into two and you can
+// drag documents across and resize between them. Close all the tabs on one side and it goes back to
+// regular."* The shape was written for this from the first version; what was missing is that every
+// verb reached for `panes[0]` by hand.
+//
+//   `focus`  — WHICH pane the verbs act on. A click, an open and a close all need a current side,
+//              and an index is the honest address: a pane has no identity beyond its position, and
+//              inventing an id for it would be a second thing to keep in step with the array.
+//   `sizes`  — one fraction per pane, summing to 1. This is the divider. It lives in the store
+//              rather than in the component because it survives a reload, and because the pane
+//              count and the sizes are one fact: a size array that disagrees with the pane count is
+//              the bug this shape makes unrepresentable (see `normalize`).
+//
+// EVERY EXISTING VERB KEEPS ITS SIGNATURE and acts on the FOCUSED pane. That is what let this land
+// without touching eight callers: an unsplit project has one pane, focus is 0, and every one of
+// them behaves exactly as before.
 //
 // A tab is an open document — his rule: "everything is a sort of document, even a namespace":
 //
@@ -39,15 +56,113 @@ export function fileOpenPlan(present, key, lastKey) {
 // the stale cache produced exactly the bug he replicated: a leftover "Stage" tab written under the
 // old meaning, wearing the new code's clothes. A cache that outlives its shape lies; on mismatch we
 // start fresh (the open set is a convenience, losing it once is cheap — believing it wrongly isn't).
-const V = 5; // v5: doc tabs are PER NAMESPACE (doc:<svc>.<mod>.<meth>) — a link from content opens a tab, never navigates the page you are on
+const V = 6; // v6: panes are plural — `focus` says which one the verbs act on, `sizes` is the divider
+const EMPTY = () => ({ v: V, panes: [{ tabs: [], active: null }], focus: 0, sizes: [1] });
+
+// THE NARROWEST A PANE MAY BE — a fraction of the centre, not pixels, because the store knows
+// nothing about the viewport. At 12% a pane is still a visible strip with a grabbable tab on it,
+// which is the only property that matters: a pane he cannot grab is a pane he cannot get back.
+const MIN_PANE = 0.12;
+
+// A V5 CACHE IS MIGRATED, NOT DROPPED — and that is a departure from the rule above it, so here is
+// the reason. The rule exists because a cache that outlives its MEANING lies: v5 kept a "Stage" tab
+// written under an older sense of the word and the new code wore it as if it meant the new thing.
+// This change adds fields and changes no existing one — a v5 state IS a v6 state with one pane, so
+// migrating it cannot produce a tab whose meaning shifted. Dropping it would throw away his open
+// documents for nothing, which is the cost the rule was never meant to impose.
+const migrate = (raw) => {
+  if (!raw || !Array.isArray(raw.panes) || !raw.panes[0] || !Array.isArray(raw.panes[0].tabs)) return null;
+  if (raw.v === V) return raw;
+  if (raw.v === 5) return { ...raw, v: V, focus: 0, sizes: raw.panes.map(() => 1 / raw.panes.length) };
+  return null; // older than v5 — the shapes really did change meaning, so start fresh
+};
+
 const load = (pc) => {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY(pc)));
-    if (raw && raw.v === V && Array.isArray(raw.panes) && raw.panes[0] && Array.isArray(raw.panes[0].tabs))
-      return raw;
+    const got = migrate(JSON.parse(localStorage.getItem(KEY(pc))));
+    if (got) return normalize(got);
   } catch {}
-  return { v: V, panes: [{ tabs: [], active: null }] };
+  return EMPTY();
 };
+
+// THE INVARIANTS, IN ONE PLACE, APPLIED ON EVERY WRITE.
+//
+// His *"close all the tabs on one side and it goes back to regular"* is here and nowhere else, and
+// that is the whole design decision in this slice. A rule like "prune the pane when its last tab
+// closes" written at each call site is a rule with five chances to be forgotten — and the call
+// sites that would forget it are the bulk closes, which are exactly where a side empties. So no
+// verb prunes: they write whatever they write, and this makes the result legal.
+//
+// Four invariants:
+//   1. An EMPTY pane does not exist — except the last one, because "nothing open" is a legal state
+//      and the honest one (the centre shows the project's own doc).
+//   2. `focus` names a pane that exists.
+//   3. `sizes` has one entry per pane, each > 0, summing to 1.
+//   4. A pane's `active` names one of its own tabs, or is null.
+function normalize(next) {
+  const panes = (next.panes || []).map((p) => ({
+    tabs: Array.isArray(p.tabs) ? p.tabs : [],
+    active: p.active || null,
+  }));
+  // 1 · prune the empty ones, remembering where focus was pointing so it can follow its pane.
+  const keep = [];
+  const kept = [];
+  panes.forEach((p, i) => {
+    if (p.tabs.length) {
+      keep.push(p);
+      kept.push(i);
+    }
+  });
+  const live = keep.length ? keep : [panes[0] || { tabs: [], active: null }];
+  const liveFrom = keep.length ? kept : [0];
+
+  // 2 · focus follows its own pane through the prune; if its pane went, the nearest survivor takes
+  // it. "Nearest" and not 0, because closing the right-hand side should leave you on the left and
+  // closing the left should not fling you across the screen.
+  const want = Number.isInteger(next.focus) ? next.focus : 0;
+  let focus = liveFrom.indexOf(want);
+  if (focus === -1) {
+    let best = 0;
+    liveFrom.forEach((from, i) => {
+      if (Math.abs(from - want) < Math.abs(liveFrom[best] - want)) best = i;
+    });
+    focus = best;
+  }
+
+  // 3 · sizes, one per pane, summing to 1, and NONE OF THEM INVISIBLE.
+  //
+  // A size array carried over from a different pane count is re-spread proportionally rather than
+  // reset, so a divider survives a pane being pruned.
+  //
+  // THE FLOOR IS THE INTERESTING PART. Dragging the divider to the very edge is a thing he will do,
+  // and the two obvious answers are both wrong: honouring it leaves a pane 0px wide — still holding
+  // documents, with no strip to grab and no way back — and rejecting it snaps the divider to the
+  // middle, which is a window arguing with his hand. So a pane has a MINIMUM and the drag stops
+  // there: he gets the smallest pane rather than either a lost one or a fight.
+  //
+  // Clamped AFTER normalizing, and the remainder re-spread over the others, because clamping first
+  // and then normalizing pushes the clamped pane straight back under the floor.
+  let sizes = Array.isArray(next.sizes) ? liveFrom.map((from) => Number(next.sizes[from])) : [];
+  const usable = sizes.length === live.length && sizes.every((n) => Number.isFinite(n));
+  const sum = usable ? sizes.reduce((a, n) => a + Math.max(n, 0), 0) : 0;
+  sizes = usable && sum > 0 ? sizes.map((n) => Math.max(n, 0) / sum) : live.map(() => 1 / live.length);
+  if (live.length > 1 && MIN_PANE * live.length <= 1) {
+    const under = sizes.map((n) => n < MIN_PANE);
+    if (under.some(Boolean)) {
+      const held = under.filter(Boolean).length * MIN_PANE;
+      const rest = sizes.reduce((a, n, i) => a + (under[i] ? 0 : n), 0);
+      sizes = sizes.map((n, i) => (under[i] ? MIN_PANE : rest > 0 ? (n / rest) * (1 - held) : (1 - held) / (live.length - under.filter(Boolean).length)));
+    }
+  }
+
+  // 4 · a pane cannot point at a tab it does not hold.
+  const panesOut = live.map((p) => ({
+    tabs: p.tabs,
+    active: p.tabs.some((t) => t.key === p.active) ? p.active : p.tabs.length ? p.tabs[p.tabs.length - 1].key : null,
+  }));
+
+  return { v: V, panes: panesOut, focus, sizes };
+}
 
 function storeOf(pc) {
   if (!stores.has(pc)) stores.set(pc, { state: load(pc), subs: new Set() });
@@ -56,12 +171,13 @@ function storeOf(pc) {
 
 function write(pc, next) {
   const s = storeOf(pc);
-  next.v = V;
-  s.state = next;
+  // NORMALIZED ON THE WAY IN, so no reader ever has to defend itself against an empty pane, a
+  // focus pointing past the end, or sizes that do not add up.
+  s.state = normalize(next);
   try {
-    localStorage.setItem(KEY(pc), JSON.stringify(next));
+    localStorage.setItem(KEY(pc), JSON.stringify(s.state));
   } catch {}
-  s.subs.forEach((f) => f(next));
+  s.subs.forEach((f) => f(s.state));
 }
 
 export function getTabs(pc) {
@@ -72,6 +188,42 @@ export function subscribeTabs(pc, fn) {
   const s = storeOf(pc);
   s.subs.add(fn);
   return () => s.subs.delete(fn);
+}
+
+// THE FOCUSED PANE — what every verb below means by "the pane", and what a consumer should read
+// instead of reaching for `panes[0]`. With one pane the two are the same thing, which is why the
+// older callers kept working; with two they are not, and `panes[0]` would silently mean "the left
+// one" at every site that happened to be written before the split existed.
+export function focusedPane(pc) {
+  const s = storeOf(pc).state;
+  return s.panes[s.focus] || s.panes[0];
+}
+
+export function paneCount(pc) {
+  return storeOf(pc).state.panes.length;
+}
+
+export function paneSizes(pc) {
+  return storeOf(pc).state.sizes.slice();
+}
+
+// WHICH PANE HOLDS A TAB — the question the split creates. Returns -1 when nothing does.
+export function paneOf(pc, key) {
+  return storeOf(pc).state.panes.findIndex((p) => p.tabs.some((t) => t.key === key));
+}
+
+// Replace one pane and write. `at` defaults to the focused one, which is what makes every verb
+// below read the same as it did when there was only ever one.
+function onPane(pc, at, fn, focus) {
+  const s = storeOf(pc).state;
+  const i = Number.isInteger(at) ? at : s.focus;
+  const pane = s.panes[i];
+  if (!pane) return null;
+  const nextPane = fn(pane);
+  if (!nextPane) return null;
+  const panes = s.panes.map((p, j) => (j === i ? nextPane : p));
+  write(pc, { ...s, panes, focus: Number.isInteger(focus) ? focus : s.focus });
+  return nextPane;
 }
 
 // OPEN OR FOCUS — his rule, and the dedupe he called out: "existing navigation calls need to open
@@ -93,70 +245,157 @@ export function subscribeTabs(pc, fn) {
  * This is what *"just add the tab next door"* means, and it is only honoured when something is
  * already open: with an empty strip there is nothing to stay on, and a tab nobody is looking at
  * over an empty centre is just a hidden file.
+ *
+ * `opts.pane` — which side. Omitted means the focused one.
+ *
+ * OPENING A DOCUMENT THAT IS ALREADY OPEN ON THE OTHER SIDE FOCUSES IT WHERE IT IS, rather than
+ * making a second copy of it. Two panes showing one document would be two editors over one file,
+ * and the question "which one is the real one" has no good answer — so a document lives on exactly
+ * one side, and asking for it again takes you to it.
  */
 export function openTab(pc, tab, opts = {}) {
   const s = storeOf(pc).state;
-  const pane = s.panes[0];
-  const found = pane.tabs.find((t) => t.key === tab.key);
-  let tabs;
-  if (found) {
-    // Same document, possibly a fresher address (new line range, a side) — the tab updates in
-    // place rather than pretending the old address is still what you asked for.
-    const updated = pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t));
-    if (opts.move && opts.beside && opts.beside !== tab.key) {
-      // NAVIGATED TO AN ALREADY-OPEN FILE — carry it over to sit right of where you are, rather
-      // than leaving it wherever it happened to land the first time it was opened.
-      const moving = updated.find((t) => t.key === tab.key);
-      const without = updated.filter((t) => t.key !== tab.key);
-      const at = without.findIndex((t) => t.key === opts.beside);
-      tabs = at < 0 ? [...without, moving] : [...without.slice(0, at + 1), moving, ...without.slice(at + 1)];
-    } else {
-      tabs = updated;
-    }
-  } else if (opts.beside) {
-    const at = pane.tabs.findIndex((t) => t.key === opts.beside);
-    tabs = at < 0 ? [...pane.tabs, tab] : [...pane.tabs.slice(0, at + 1), tab, ...pane.tabs.slice(at + 1)];
-  } else {
-    tabs = [...pane.tabs, tab];
+  const already = paneOf(pc, tab.key);
+  const want = Number.isInteger(opts.pane) ? opts.pane : s.focus;
+  if (already !== -1 && already !== want) {
+    onPane(pc, already, (pane) => ({ tabs: pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t)), active: tab.key }), already);
+    return;
   }
-  const stay = opts.focus === false && pane.tabs.length > 0 && pane.active;
-  write(pc, { panes: [{ tabs, active: stay || tab.key }] });
+  onPane(
+    pc,
+    want,
+    (pane) => {
+      const found = pane.tabs.find((t) => t.key === tab.key);
+      let tabs;
+      if (found) {
+        // Same document, possibly a fresher address (new line range, a side) — the tab updates in
+        // place rather than pretending the old address is still what you asked for.
+        const updated = pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t));
+        if (opts.move && opts.beside && opts.beside !== tab.key) {
+          // NAVIGATED TO AN ALREADY-OPEN FILE — carry it over to sit right of where you are, rather
+          // than leaving it wherever it happened to land the first time it was opened.
+          const moving = updated.find((t) => t.key === tab.key);
+          const without = updated.filter((t) => t.key !== tab.key);
+          const at = without.findIndex((t) => t.key === opts.beside);
+          tabs = at < 0 ? [...without, moving] : [...without.slice(0, at + 1), moving, ...without.slice(at + 1)];
+        } else {
+          tabs = updated;
+        }
+      } else if (opts.beside) {
+        const at = pane.tabs.findIndex((t) => t.key === opts.beside);
+        tabs = at < 0 ? [...pane.tabs, tab] : [...pane.tabs.slice(0, at + 1), tab, ...pane.tabs.slice(at + 1)];
+      } else {
+        tabs = [...pane.tabs, tab];
+      }
+      const stay = opts.focus === false && pane.tabs.length > 0 && pane.active;
+      return { tabs, active: stay || tab.key };
+    },
+    want,
+  );
 }
 
+// FOCUSING A TAB FOCUSES ITS PANE TOO. Clicking a tab on the right-hand side makes that side the
+// one the next open lands in — otherwise a click on the right followed by a navigation would open
+// the new document on the left, which reads as the window ignoring where you are working.
 export function focusTab(pc, key) {
+  const at = paneOf(pc, key);
+  if (at === -1) return;
   const s = storeOf(pc).state;
-  const pane = s.panes[0];
-  if (!pane.tabs.some((t) => t.key === key)) return;
-  if (pane.active === key) return;
-  write(pc, { panes: [{ tabs: pane.tabs, active: key }] });
+  if (s.panes[at].active === key && s.focus === at) return;
+  onPane(pc, at, (pane) => ({ tabs: pane.tabs, active: key }), at);
+}
+
+export function focusPane(pc, at) {
+  const s = storeOf(pc).state;
+  if (!s.panes[at] || s.focus === at) return;
+  write(pc, { ...s, focus: at });
+}
+
+// THE DIVIDER. Fractions, in pane order; `normalize` is what makes them legal, so a caller can hand
+// over pixel ratios mid-drag without arithmetic of its own.
+export function setPaneSizes(pc, sizes) {
+  const s = storeOf(pc).state;
+  if (s.panes.length < 2) return;
+  write(pc, { ...s, sizes });
+}
+
+// SPLIT — take this tab to a side of its own. His *"you can split into two"*.
+//
+// The tab MOVES rather than being copied, for the reason openTab gives: one document, one side.
+// A second split is a no-op that focuses the existing other side instead of making a third pane —
+// two is what he asked for, and the shape allows more only so that the verbs did not have to assume
+// otherwise.
+export function splitTab(pc, key) {
+  const s = storeOf(pc).state;
+  const from = paneOf(pc, key);
+  if (from === -1) return null;
+  const tab = s.panes[from].tabs.find((t) => t.key === key);
+  if (s.panes.length > 1) {
+    const to = from === 0 ? 1 : 0;
+    moveTabToPane(pc, key, to);
+    return to;
+  }
+  // The only tab on the only pane cannot be split off — there would be nothing left behind, and a
+  // split that empties its own origin is just a focus change with extra steps.
+  if (s.panes[from].tabs.length < 2) return null;
+  const panes = s.panes.map((p, j) => (j === from ? { tabs: p.tabs.filter((t) => t.key !== key), active: p.active } : p));
+  panes.push({ tabs: [tab], active: key });
+  write(pc, { ...s, panes, focus: panes.length - 1, sizes: panes.map(() => 1 / panes.length) });
+  return panes.length - 1;
+}
+
+// DRAG ACROSS THE DIVIDER — his *"drag documents across"*. `beforeKey` places it, exactly as a
+// reorder inside one strip does, so dropping onto the far side is as precise as dropping onto this
+// one. A drop that empties the source side collapses it, which is `normalize`'s job, not this one's.
+export function moveTabToPane(pc, key, to, beforeKey) {
+  const s = storeOf(pc).state;
+  const from = paneOf(pc, key);
+  if (from === -1 || !s.panes[to] || from === to) return;
+  const tab = s.panes[from].tabs.find((t) => t.key === key);
+  const panes = s.panes.map((p, j) => {
+    if (j === from) return { tabs: p.tabs.filter((t) => t.key !== key), active: p.active };
+    if (j === to) {
+      const tabs = p.tabs.filter((t) => t.key !== key);
+      const at = beforeKey ? tabs.findIndex((t) => t.key === beforeKey) : -1;
+      const next = at < 0 ? [...tabs, tab] : [...tabs.slice(0, at), tab, ...tabs.slice(at)];
+      return { tabs: next, active: key };
+    }
+    return p;
+  });
+  write(pc, { ...s, panes, focus: to });
 }
 
 // Closing the active tab focuses its NEIGHBOR (the one that took its place, else the last one) —
 // the strip never leaves you nowhere. An empty strip is legal: the center shows the project's own
-// doc, the honest "nothing open".
+// doc, the honest "nothing open". With two panes, emptying one collapses the split (`normalize`).
 export function closeTab(pc, key) {
+  const at = paneOf(pc, key);
+  if (at === -1) return null;
   const s = storeOf(pc).state;
-  const pane = s.panes[0];
+  const pane = s.panes[at];
   const idx = pane.tabs.findIndex((t) => t.key === key);
-  if (idx === -1) return null;
   const tabs = pane.tabs.filter((t) => t.key !== key);
   let active = pane.active;
   if (pane.active === key) active = tabs.length ? tabs[Math.min(idx, tabs.length - 1)].key : null;
-  write(pc, { panes: [{ tabs, active }] });
-  return active;
+  onPane(pc, at, () => ({ tabs, active }), at);
+  return focusedPane(pc).active;
 }
 
 // DRAG REORDER — his ask: the strip is his desk, so the order is his. Move the tab to sit where
 // the one he dropped it on sits; everything else shifts. Active never changes on a reorder.
+//
+// WITHIN ONE PANE. A drop on the other side's strip is `moveTabToPane`, because crossing changes
+// which pane holds the document and reordering never does.
 export function moveTab(pc, key, beforeKey) {
-  const s = storeOf(pc).state;
-  const pane = s.panes[0];
-  const from = pane.tabs.findIndex((t) => t.key === key);
-  if (from === -1 || key === beforeKey) return;
-  const tabs = pane.tabs.filter((t) => t.key !== key);
-  const to = beforeKey ? tabs.findIndex((t) => t.key === beforeKey) : tabs.length;
-  tabs.splice(to === -1 ? tabs.length : to, 0, pane.tabs[from]);
-  write(pc, { panes: [{ tabs, active: pane.active }] });
+  const at = paneOf(pc, key);
+  if (at === -1 || key === beforeKey) return;
+  onPane(pc, at, (pane) => {
+    const from = pane.tabs.findIndex((t) => t.key === key);
+    const tabs = pane.tabs.filter((t) => t.key !== key);
+    const to = beforeKey ? tabs.findIndex((t) => t.key === beforeKey) : tabs.length;
+    tabs.splice(to === -1 ? tabs.length : to, 0, pane.tabs[from]);
+    return { tabs, active: pane.active };
+  });
 }
 
 // BULK CLOSE — the right-click verbs. One writer, so they cannot disagree with closeTab about
@@ -167,10 +406,15 @@ export function moveTab(pc, key, beforeKey) {
 // instead — closeTab's rule for a single close — would be wrong here: the neighbor may be one of
 // the tabs he just asked to be rid of.
 //
+// SCOPED TO ONE PANE. "Close the others" means the others on this side: a verb pressed on the left
+// strip that silently emptied the right one would be the most surprising thing in the window.
+// `closeAll` keeps the same scope for the same reason.
+//
 // Returns the key now active (null when nothing is left), so the caller knows whether to navigate.
-function closeMany(pc, keep, anchorKey) {
+function closeMany(pc, at, keep, anchorKey) {
   const s = storeOf(pc).state;
-  const pane = s.panes[0];
+  const pane = s.panes[at];
+  if (!pane) return null;
   const tabs = pane.tabs.filter(keep);
   if (tabs.length === pane.tabs.length) return pane.active;
   const active = tabs.some((t) => t.key === pane.active)
@@ -180,35 +424,42 @@ function closeMany(pc, keep, anchorKey) {
     : tabs.length
     ? tabs[tabs.length - 1].key
     : null;
-  write(pc, { panes: [{ tabs, active }] });
-  return active;
+  onPane(pc, at, () => ({ tabs, active }), at);
+  return focusedPane(pc).active;
 }
 
 export function closeRight(pc, key) {
-  const pane = storeOf(pc).state.panes[0];
-  const idx = pane.tabs.findIndex((t) => t.key === key);
-  if (idx === -1) return pane.active;
-  return closeMany(pc, (_t, i) => i <= idx, key);
+  const at = paneOf(pc, key);
+  if (at === -1) return focusedPane(pc).active;
+  const idx = storeOf(pc).state.panes[at].tabs.findIndex((t) => t.key === key);
+  return closeMany(pc, at, (_t, i) => i <= idx, key);
 }
 
 export function closeOthers(pc, key) {
-  return closeMany(pc, (t) => t.key === key, key);
+  const at = paneOf(pc, key);
+  if (at === -1) return focusedPane(pc).active;
+  return closeMany(pc, at, (t) => t.key === key, key);
 }
 
-export function closeAll(pc) {
-  return closeMany(pc, () => false, null);
+// CLOSE ALL — the focused side. With a split standing, that is his *"close all the tabs on one side
+// and it goes back to regular"* in one press.
+export function closeAll(pc, pane) {
+  const s = storeOf(pc).state;
+  const at = Number.isInteger(pane) ? pane : s.focus;
+  return closeMany(pc, at, () => false, null);
 }
 
 // How many would each verb remove — so the menu can hide a verb that would do nothing rather than
 // offering a dead item.
 export function countRight(pc, key) {
-  const tabs = storeOf(pc).state.panes[0].tabs;
+  const at = paneOf(pc, key);
+  if (at === -1) return 0;
+  const tabs = storeOf(pc).state.panes[at].tabs;
   const idx = tabs.findIndex((t) => t.key === key);
   return idx === -1 ? 0 : tabs.length - idx - 1;
 }
 
 export function activeTab(pc) {
-  const s = storeOf(pc).state;
-  const pane = s.panes[0];
+  const pane = focusedPane(pc);
   return pane.tabs.find((t) => t.key === pane.active) || null;
 }

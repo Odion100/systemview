@@ -1,4 +1,4 @@
-import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan } from "./tabsStore";
+import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes } from "./tabsStore";
 
 // the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
@@ -240,5 +240,194 @@ describe("a closed file stays closed — fileOpenPlan", () => {
     // the reopen effect fires again on a URL that still says file=b:
     expect(fileOpenPlan(present, "b", lastKey)).toBe("skip"); // so it is NOT re-added at the tail
     expect(getTabs(pc).panes[0].tabs.map((t) => t.key)).toEqual(["a"]);
+  });
+});
+
+// ─── THE SPLIT ────────────────────────────────────────────────────────────────────────────────
+//
+// His ask, 2026-11-10: *"a feature where you can split into two and you can drag documents across
+// and resize between them. Close all the tabs on one side and it goes back to regular."*
+//
+// The rules worth pinning are the ones that are invariants rather than behaviours — a pane that
+// empties cannot survive, a document cannot be on both sides, and sizes cannot disagree with the
+// pane count. Those are asserted here because `normalize` is the only thing enforcing them, and a
+// verb added later that forgets to call it must go red.
+describe("splitting the centre into two sides", () => {
+  it("starts as one pane, full width — an unsplit project is indistinguishable from before", () => {
+    openTab(PC, file("a.js"));
+    expect(paneCount(PC)).toBe(1);
+    expect(paneSizes(PC)).toEqual([1]);
+    expect(focusedPane(PC)).toBe(getTabs(PC).panes[0]);
+  });
+
+  it("splits a tab onto its own side, MOVING it rather than copying — one document, one side", () => {
+    openTab(PC, file("a.js"));
+    openTab(PC, file("b.js"));
+    const to = splitTab(PC, fileKey({ projectCode: PC, path: "b.js" }));
+    expect(to).toBe(1);
+    expect(paneCount(PC)).toBe(2);
+    expect(getTabs(PC).panes[0].tabs.map((t) => t.file.path)).toEqual(["a.js"]);
+    expect(getTabs(PC).panes[1].tabs.map((t) => t.file.path)).toEqual(["b.js"]);
+    // and the new side is where you are, because you just asked for it
+    expect(getTabs(PC).focus).toBe(1);
+    expect(paneSizes(PC)).toEqual([0.5, 0.5]);
+  });
+
+  it("refuses to split the only tab — a split that empties its own origin is a focus change with extra steps", () => {
+    openTab(PC, file("only.js"));
+    expect(splitTab(PC, fileKey({ projectCode: PC, path: "only.js" }))).toBe(null);
+    expect(paneCount(PC)).toBe(1);
+  });
+
+  it("a second split does not make a THIRD pane — it sends the tab to the other side", () => {
+    openTab(PC, file("a.js"));
+    openTab(PC, file("b.js"));
+    openTab(PC, file("c.js"));
+    splitTab(PC, fileKey({ projectCode: PC, path: "c.js" }));
+    expect(paneCount(PC)).toBe(2);
+    splitTab(PC, fileKey({ projectCode: PC, path: "b.js" }));
+    expect(paneCount(PC)).toBe(2);
+    expect(getTabs(PC).panes[1].tabs.map((t) => t.file.path).sort()).toEqual(["b.js", "c.js"]);
+  });
+
+  it("drags a document across the divider, landing exactly where it was dropped", () => {
+    ["a.js", "b.js", "c.js", "d.js"].forEach((f) => openTab(PC, file(f)));
+    splitTab(PC, fileKey({ projectCode: PC, path: "d.js" }));
+    moveTabToPane(PC, fileKey({ projectCode: PC, path: "a.js" }), 1, fileKey({ projectCode: PC, path: "d.js" }));
+    // dropped BEFORE d.js, so it is first on the right-hand side — not appended
+    expect(getTabs(PC).panes[1].tabs.map((t) => t.file.path)).toEqual(["a.js", "d.js"]);
+    expect(getTabs(PC).panes[0].tabs.map((t) => t.file.path)).toEqual(["b.js", "c.js"]);
+  });
+
+  // HIS SENTENCE, LITERALLY.
+  it("closing the last tab on one side goes back to regular — one pane, full width", () => {
+    openTab(PC, file("a.js"));
+    openTab(PC, file("b.js"));
+    splitTab(PC, fileKey({ projectCode: PC, path: "b.js" }));
+    expect(paneCount(PC)).toBe(2);
+    closeTab(PC, fileKey({ projectCode: PC, path: "b.js" }));
+    expect(paneCount(PC)).toBe(1);
+    expect(paneSizes(PC)).toEqual([1]);
+    expect(getTabs(PC).panes[0].tabs.map((t) => t.file.path)).toEqual(["a.js"]);
+    expect(getTabs(PC).focus).toBe(0);
+  });
+
+  it("`close all` on one side collapses the split in one press, and leaves the other side untouched", () => {
+    ["a.js", "b.js", "c.js"].forEach((f) => openTab(PC, file(f)));
+    splitTab(PC, fileKey({ projectCode: PC, path: "c.js" }));
+    moveTabToPane(PC, fileKey({ projectCode: PC, path: "b.js" }), 1);
+    expect(getTabs(PC).panes[1].tabs).toHaveLength(2);
+    closeAll(PC, 1);
+    expect(paneCount(PC)).toBe(1);
+    expect(getTabs(PC).panes[0].tabs.map((t) => t.file.path)).toEqual(["a.js"]);
+  });
+
+  it("`close all` is scoped to ONE side — pressing it on the left never empties the right", () => {
+    ["a.js", "b.js"].forEach((f) => openTab(PC, file(f)));
+    splitTab(PC, fileKey({ projectCode: PC, path: "b.js" }));
+    closeAll(PC, 0);
+    expect(paneCount(PC)).toBe(1);
+    expect(getTabs(PC).panes[0].tabs.map((t) => t.file.path)).toEqual(["b.js"]);
+  });
+
+  it("closing the RIGHT side leaves you on the left, not flung across the screen", () => {
+    ["a.js", "b.js", "c.js"].forEach((f) => openTab(PC, file(f)));
+    splitTab(PC, fileKey({ projectCode: PC, path: "c.js" }));
+    expect(getTabs(PC).focus).toBe(1);
+    closeTab(PC, fileKey({ projectCode: PC, path: "c.js" }));
+    expect(getTabs(PC).focus).toBe(0);
+  });
+
+  it("opening a document already open on the OTHER side focuses it there instead of copying it", () => {
+    openTab(PC, file("a.js"));
+    openTab(PC, file("b.js"));
+    splitTab(PC, fileKey({ projectCode: PC, path: "b.js" }));
+    focusPane(PC, 0);
+    openTab(PC, file("b.js")); // asked for again from the left
+    expect(paneCount(PC)).toBe(2);
+    expect(getTabs(PC).panes[0].tabs.map((t) => t.file.path)).toEqual(["a.js"]);
+    expect(getTabs(PC).focus).toBe(1);
+    expect(activeTab(PC).file.path).toBe("b.js");
+  });
+
+  it("clicking a tab focuses its PANE too, so the next document opens where you are working", () => {
+    ["a.js", "b.js", "c.js"].forEach((f) => openTab(PC, file(f)));
+    splitTab(PC, fileKey({ projectCode: PC, path: "c.js" }));
+    focusTab(PC, fileKey({ projectCode: PC, path: "a.js" }));
+    expect(getTabs(PC).focus).toBe(0);
+    openTab(PC, file("new.js"));
+    expect(paneOf(PC, fileKey({ projectCode: PC, path: "new.js" }))).toBe(0);
+  });
+
+  it("a reorder stays inside its own pane — crossing is a different verb", () => {
+    ["a.js", "b.js", "c.js"].forEach((f) => openTab(PC, file(f)));
+    splitTab(PC, fileKey({ projectCode: PC, path: "c.js" }));
+    moveTab(PC, fileKey({ projectCode: PC, path: "b.js" }), fileKey({ projectCode: PC, path: "a.js" }));
+    expect(getTabs(PC).panes[0].tabs.map((t) => t.file.path)).toEqual(["b.js", "a.js"]);
+    expect(getTabs(PC).panes[1].tabs.map((t) => t.file.path)).toEqual(["c.js"]);
+  });
+});
+
+// ─── THE DIVIDER ──────────────────────────────────────────────────────────────────────────────
+//
+// *"resize between them"* — and he said it twice, so it is not a detail of the split, it is part of
+// it. The sizes live in the store so the position survives a reload; `normalize` is what keeps them
+// legal, which is why a caller may hand over raw ratios mid-drag.
+describe("resizing between the panes", () => {
+  const split = () => {
+    openTab(PC, file("a.js"));
+    openTab(PC, file("b.js"));
+    splitTab(PC, fileKey({ projectCode: PC, path: "b.js" }));
+  };
+
+  it("takes a dragged position and normalizes it to fractions that sum to 1", () => {
+    split();
+    setPaneSizes(PC, [0.7, 0.3]);
+    expect(paneSizes(PC)).toEqual([0.7, 0.3]);
+    // raw pixel-ish ratios are legal input — the store does the arithmetic
+    setPaneSizes(PC, [900, 300]);
+    expect(paneSizes(PC)).toEqual([0.75, 0.25]);
+  });
+
+  it("survives a reload, because the divider is state and not a component's memory", () => {
+    split();
+    setPaneSizes(PC, [0.6, 0.4]);
+    const raw = JSON.parse(localStorage.getItem(`sv.tabs.${PC}`));
+    expect(raw.sizes).toEqual([0.6, 0.4]);
+    expect(raw.panes).toHaveLength(2);
+  });
+
+  // DRAGGED TO THE EDGE, he gets the SMALLEST pane — not a lost one, and not a divider that snaps
+  // back to the middle and argues with his hand.
+  it("clamps a pane to a floor instead of letting it vanish or snapping back to even", () => {
+    split();
+    setPaneSizes(PC, [1, 0]);
+    expect(paneSizes(PC)).toEqual([0.88, 0.12]);
+    setPaneSizes(PC, [0, 1]);
+    expect(paneSizes(PC)).toEqual([0.12, 0.88]);
+    // nonsense is clamped by the same one rule rather than by a second special case
+    setPaneSizes(PC, [-2, 3]);
+    expect(paneSizes(PC)).toEqual([0.12, 0.88]);
+    // and a size array that cannot mean anything falls back to even
+    setPaneSizes(PC, [Number.NaN, 1]);
+    expect(paneSizes(PC)).toEqual([0.5, 0.5]);
+  });
+
+  it("does nothing while there is only one pane — there is no divider to move", () => {
+    openTab(PC, file("a.js"));
+    setPaneSizes(PC, [0.3, 0.7]);
+    expect(paneSizes(PC)).toEqual([1]);
+  });
+
+  it("a divider he dragged is remembered through the other side closing and reopening", () => {
+    split();
+    setPaneSizes(PC, [0.25, 0.75]);
+    closeTab(PC, fileKey({ projectCode: PC, path: "b.js" }));
+    expect(paneSizes(PC)).toEqual([1]);
+    openTab(PC, file("c.js"));
+    splitTab(PC, fileKey({ projectCode: PC, path: "c.js" }));
+    // a fresh split is even — the remembered drag is not resurrected from a pane that no longer
+    // existed, which would put the divider somewhere he did not leave it for THIS pair
+    expect(paneSizes(PC)).toEqual([0.5, 0.5]);
   });
 });
