@@ -86,6 +86,13 @@ identity in one room in one project**, and fifteen minutes on the door is open a
 **gone** rather than merely ignored. The refusal itself is pinned at its callsite — including that
 the bounce is read BEFORE arrival is marked — because requiring `api/index.js` stands a hub up.
 
+## What built it
+
+::commit{sha=5034c489}
+
+A report cannot hold the sha of the commit that writes it, so this lands in the next touch and the
+newest commit is one-way — a fixed point left visible rather than hidden by dropping a trailer.
+
 ## Where the tests stand
 
 | suite | ran | says |
