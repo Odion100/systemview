@@ -17,7 +17,7 @@ import { raiseError } from "../../atoms/Banner/bannerStore";
 import ReportsTab from "../Reports/ReportsTab";
 import Board from "../Board/Board";
 import CenterTabs, { useOpenByPath } from "../CenterTabs/CenterTabs";
-import { buildRoute } from "../../pages/SystemView/tabRoutes";
+import { buildRoute, tabForUrl, floorTab, seedable } from "../../pages/SystemView/tabRoutes";
 import HowWeWork from "../HowWeWork/HowWeWork";
 import DashboardSwitch from "../DashboardSwitch/DashboardSwitch";
 
@@ -107,6 +107,9 @@ export default function Documentation({
   // `lastFileKey` is the last file this effect opened a tab for — the one fact that tells a genuine
   // navigation apart from a stale URL left behind by a close (see fileOpenPlan).
   const lastFileKey = useRef(null);
+  // WHICH PROJECT HAS ALREADY HAD ITS FLOOR SEEDED. One per project, so an empty strip gets
+  // How-we-work once rather than every time a render happens to find it empty.
+  const seeded = useRef(null);
   useEffect(() => {
     if (codeFile && codeFile.path) {
       const key = fileKey(codeFile);
@@ -131,74 +134,52 @@ export default function Documentation({
       return;
     }
     lastFileKey.current = null;
-    if (urlTab === "logs")
-      // LOGS ACCUMULATE PER SCOPE — his correction: "logs here and logs there" are two different
-      // things you're watching, and one tab silently switching between them is the old model
-      // wearing the new clothes. The key IS the place; the tab remembers it.
-      openTab(tabsPc, {
-        key: `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`,
-        kind: "logs",
-        logs: { serviceId: sService, moduleName: sModule, methodName: sMethod },
-      });
-    else if (urlTab === "links" || urlTab === "cmds")
-      // THE CHAT'S OWN SURFACES AS DOCUMENTS (his ruling, 2026-10-14: nothing pops beside a docked
-      // chat). These tabs render a SLOT; the docked AgentChat portals the real panel into it —
-      // one component, no second implementation, the same trick the nav dock itself uses.
-      openTab(tabsPc, { key: `${urlTab}:${tabsPc}`, kind: urlTab });
-    else if (urlTab === "dash")
-      // ONE PER PROJECT, like the board and How-we-work — but the page itself is cross-project,
-      // so which project's tab you opened it from only decides where the tab lives.
-      openTab(tabsPc, { key: `dash:${tabsPc}`, kind: "dash" });
-    else if (urlTab === "how" || onFloor)
-      // ONE PER PROJECT, like the board — the page is the same page whatever is open behind it.
-      // `onFloor` rides the same branch because the floor IS this tab: landing there must leave a
-      // real, selected, closable tab rather than a page nobody can address.
-      openTab(tabsPc, { key: `how:${tabsPc}`, kind: "how" });
-    else if (urlTab === "board")
-      // THE BOARD IS ONE TAB PER PROJECT, like stats — it is a view OF the project's one board
-      // file, so a second tab would be the same board twice. His ruling, 2026-10-14: *"I don't
-      // want the board to show up on the side with the chat — I want it to pop up like a
-      // document."* The docked chat's 📋 routes here.
-      openTab(tabsPc, { key: `board:${tabsPc}`, kind: "board" });
-    else if (urlTab === "stats")
-      // STATS IS ONE TAB PER PROJECT, unlike logs. Logs key per service/module/method because
-      // "logs here and logs there" are two different things you are watching; stats is a view OF a
-      // system, and the service filter lives inside it — so a second tab would be the same tab with
-      // a different dropdown position.
-      openTab(tabsPc, { key: `stats:${tabsPc}`, kind: "stats" });
-    else if (urlTab === "reports")
-      // STAGE IS JUST REPORTS (his correction, mid-build): a report OPEN gets its OWN tab, keyed by
-      // its path — multiple reports showing at once, exactly like files. The bare Stage (no rdoc)
-      // is the PICKER, one tab, labeled Stage.
-      if (reportPath) {
-        // A REPORT TAB IS ALWAYS A DOCUMENT. There is NO picker tab — his ruling, loudly: nothing
-        // opens until an actual report is selected, and selection lives in the NAV's reports fold.
-        // (closeTab("report") clears any cached picker tab from the hours this shape existed.)
-        closeTab(tabsPc, "report");
-        openTab(tabsPc, { key: `report:${reportPath}`, kind: "report", report: { path: reportPath } });
-      } else {
-        // Bare tab=reports (old links, old cache) opens nothing — same rule as docs below.
-        closeTab(tabsPc, "report");
-        if (sService)
-          openTab(tabsPc, {
-            key: `doc:${sService}.${sModule || ""}.${sMethod || ""}`,
-            kind: "doc",
-            doc: { serviceId: sService, moduleName: sModule, methodName: sMethod },
-          });
-      }
-    // DOC TABS ACCUMULATE PER NAMESPACE — his rule from day one ("everything is a document, even a
-    // namespace; they all show"), finally honored after two half-versions: reports accumulate,
-    // logs accumulate, and now docs do too. A link inside a page OPENS A TAB instead of navigating
-    // the page you're reading — the single follow-along doc tab was what made an :ns link feel
-    // like theft. Project level or nothing = no tab; the landing is BACKGROUND.
-    else if (sService)
-      openTab(tabsPc, {
-        key: `doc:${sService}.${sModule || ""}.${sMethod || ""}`,
-        kind: "doc",
-        doc: { serviceId: sService, moduleName: sModule, methodName: sMethod },
-      });
+    // BARE tab=reports CARRIES A LEGACY CLEAR — there was a picker tab for a few hours and some
+    // caches still hold it. His ruling: nothing opens until an actual report is selected.
+    if (urlTab === "reports") closeTab(tabsPc, "report");
+
+    // THE ONE TAB THIS URL WANTS — planned by `tabForUrl`, which reads the URL and the scope and
+    // NOTHING FROM THE STORE. That purity is the fix, not a tidy-up: see below.
+    const want = tabForUrl({ urlTab, sService, sModule, sMethod, reportPath, projectCode: tabsPc });
+    if (want) {
+      openTab(tabsPc, want);
+      return;
+    }
+
+    // THE FLOOR, AND THE BUG THAT LIVED HERE.
+    //
+    // His report, 2026-11-10: *"restart, land on how-we-work because everything else is loading.
+    // And then if you close a tab, or you open another document, a bunch of other tabs open."*
+    //
+    // `onFloor` used to be in this effect's dependency array, and it is computed from
+    // `pane.tabs.length === 0` — a value THIS EFFECT CHANGES by calling `openTab`. So one close ran
+    // two opens: the strip emptied → onFloor true → `how:` opened → the strip had one tab →
+    // onFloor false → the effect fired again and opened `doc:`. Every further transition added
+    // another. An effect whose trigger depends on what it writes.
+    //
+    // Two halves to the fix, and the first is the one that matters:
+    //
+    //   1. `onFloor` IS OUT OF THE DEPS. Every dependency left is URL- or scope-derived, so this
+    //      effect now fires on real navigation and on nothing else. No guard ref is needed — and
+    //      deliberately none is used: a `lastOpened` guard would also block a legitimate re-open
+    //      and leave no way to get the tab back, which is the trap the FILE branch above has to
+    //      work around with `onCloseFile`.
+    //   2. THE EMPTINESS IS READ IMPERATIVELY, HERE, at the moment the decision is made — never
+    //      subscribed to. A write cannot re-trigger a read that was never a dependency.
+    //
+    // And ONE-SHOT PER PROJECT, because of the other half of his report. `tabsPc` is
+    // `projectCode || "@none"`, so before the project resolves on a cold start the floor was seeded
+    // into `@none` — a real cached store with its own localStorage key that no surface will ever
+    // show again. That is the "cache somehow" he suspected: there genuinely is one, and it was
+    // invisible. `seedable` refuses it.
+    if (!seedable(tabsPc) || seeded.current === tabsPc) return;
+    const open = getTabs(tabsPc);
+    if (open.panes.every((pn) => pn.tabs.length === 0)) {
+      seeded.current = tabsPc;
+      openTab(tabsPc, floorTab(tabsPc));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabsPc, urlTab, onFloor, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
+  }, [tabsPc, urlTab, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
   // store → URL, on a strip click: the active tab writes the params that MEAN it — which is exactly
   // what keeps every deep link, chip and agent command working unchanged.
   // THE MAP LIVES IN tabRoutes.buildRoute NOW — the Agents page routes the

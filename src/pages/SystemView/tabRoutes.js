@@ -90,3 +90,67 @@ export function labelOfTab(t, pc) {
   }
   return (t.doc && (t.doc.methodName || t.doc.moduleName || t.doc.serviceId)) || "Documentation";
 }
+
+// ─── THE OTHER DIRECTION: WHICH TAB A URL WANTS ───────────────────────────────────────────────
+//
+// `buildRoute` is tab → URL. This is URL → tab, and it lives here because the two directions are
+// one map: split across two files they drift, which is the exact drift `buildRoute`'s own extraction
+// was done to kill.
+//
+// WHY IT IS PURE, AND WHY THAT IS THE FIX RATHER THAN A TIDY-UP.
+//
+// His bug, 2026-11-10: *"restart, land on how-we-work because everything else is loading. And then
+// if you close a tab, or you open another document, a bunch of other tabs open."*
+//
+// The cause was a FEEDBACK LOOP, not a cache. The centre's URL→store effect had `onFloor` in its
+// dependency array, and `onFloor` was computed from `pane.tabs.length === 0` — a value the effect
+// itself changes by calling `openTab`. So closing the last tab ran this:
+//
+//   1. strip empties            → onFloor true   → effect fires → opens `how:<pc>`
+//   2. strip now has one tab    → onFloor false  → effect fires → opens `doc:<ns>`
+//
+// One close, two tabs, and every further transition added another. The same dance ran twice on a
+// cold start, because `tabsPc` is `projectCode || "@none"` and `@none` is a real cached store with
+// its own localStorage key — so before the project resolved, the floor was seeded into a phantom
+// project nobody can see. That is the "cache somehow" he suspected: there really is one, and
+// nothing ever shows it.
+//
+// So the planner takes the URL and the scope and NOTHING FROM THE STORE. A function that cannot
+// read what it writes cannot feed back into itself, and the floor decision — the one thing that
+// genuinely needs to know whether the strip is empty — is left to the caller as a ONE-SHOT, read
+// imperatively at the moment it is made rather than subscribed to.
+//
+// Returns the ONE tab this URL state wants, or null for "this state opens nothing" — which is a
+// real answer (project level with no service selected opens no document; the landing is background).
+export function tabForUrl({ urlTab, sService, sModule, sMethod, reportPath, projectCode } = {}) {
+  const ns = `${sService || ""}.${sModule || ""}.${sMethod || ""}`;
+  const docTab = () =>
+    sService
+      ? { key: `doc:${ns}`, kind: "doc", doc: { serviceId: sService, moduleName: sModule, methodName: sMethod } }
+      : null;
+
+  if (urlTab === "logs")
+    // LOGS ACCUMULATE PER SCOPE — "logs here and logs there" are two different things you are
+    // watching, so the key IS the place.
+    return { key: `logs:${ns}`, kind: "logs", logs: { serviceId: sService, moduleName: sModule, methodName: sMethod } };
+  if (urlTab === "links" || urlTab === "cmds") return { key: `${urlTab}:${projectCode}`, kind: urlTab };
+  if (urlTab === "dash") return { key: `dash:${projectCode}`, kind: "dash" };
+  if (urlTab === "how") return { key: `how:${projectCode}`, kind: "how" };
+  if (urlTab === "board") return { key: `board:${projectCode}`, kind: "board" };
+  if (urlTab === "stats") return { key: `stats:${projectCode}`, kind: "stats" };
+  if (urlTab === "reports")
+    // A report OPEN gets its own tab, keyed by its path. Bare `tab=reports` is not a picker — his
+    // ruling, loudly — so it falls back to whatever the scope would have shown.
+    return reportPath ? { key: `report:${reportPath}`, kind: "report", report: { path: reportPath } } : docTab();
+  return docTab();
+}
+
+// THE FLOOR — How-we-work as a real, selected, closable tab rather than a page nobody can address.
+// Separate from `tabForUrl` on purpose: this is the only decision that needs to know the strip is
+// EMPTY, and keeping it out of the planner is what keeps the planner unable to feed back.
+export const floorTab = (projectCode) => ({ key: `how:${projectCode}`, kind: "how" });
+
+// IS THIS A PROJECT WORTH SEEDING A FLOOR INTO? `@none` is the placeholder `tabsPc` wears before
+// the project resolves on a cold start, and seeding it wrote a tab into a store no surface will
+// ever show again. A floor belongs to a real project or to nothing.
+export const seedable = (projectCode) => !!projectCode && projectCode !== "@none";
