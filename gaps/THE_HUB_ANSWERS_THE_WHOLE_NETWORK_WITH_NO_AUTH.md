@@ -65,6 +65,25 @@ These two are each other's mirror image and that is exactly why neither was noti
 reachable from the network but tells every client it is not, so nothing ever accidentally connected
 from another machine and nobody found out it could.**
 
+## HIS DECISION, 2026-11-10 — recorded, and it moves where this closes
+
+His words: *"let's run with the whole local network being unauthenticated."* That is a decision
+about ARCHITECTURE, not a dismissal of this gap: **network position is not a trust boundary**, so
+the system is designed for an untrusted LAN and a caller is trusted for proving who it is. He also
+ruled that this is **not a separate RFC** — it belongs inside the connect arc
+(`meetings/2026-11-10-the-platform-connects.md` §7), because that arc has to put identity on a
+service call anyway.
+
+So option 1 below is no longer "the one I would do now" for the LAN half — that half is carried by
+the arc, deliberately, with the gate arriving before the door widens.
+
+**What his decision does NOT cover, and this gap stays open on it:** the browser half. The hub
+accepts `content-type: text/plain`, which makes a POST a CORS-simple request needing no preflight,
+and `Access-Control-Allow-Origin: *` lets the page read the answer. So any page in any browser on
+this machine can read and write arbitrary files — **and a loopback bind does not fix that, because
+the browser is already on localhost.** That is a same-machine exposure, live today, independent of
+whether a second node ever exists. It is the one item here that is not arc-shaped.
+
 ## What resolves it — one of these, on the record
 
 1. **Bind loopback and mean it.** Pass the address through to `listen` in SystemLynx so `host`

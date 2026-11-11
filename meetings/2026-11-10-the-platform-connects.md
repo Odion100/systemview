@@ -105,13 +105,40 @@ For telling the room when the definition of the goal itself moves. Nothing else 
 
 ## 1 · Identity — "people log in as themselves", and "log in to organizations"
 
-**Where the project is.** Being read right now — a reader is out on exactly this question: whether
-any notion of a logged-in *person* exists in the shell today, how an agent session is identified and
-addressed, and what in `~/.autobot` would be meaningless on another machine. I am not going to
-assert it before the citations land; this section gets rewritten from them rather than from my
-memory. What I can say without a reader: **nothing in this system has ever had a user.** Every
-identity it holds today is a *project code* and a *session*, both of which are local by
-construction, and a project code is bound to a directory on this disk.
+**Where the project is — READ.** **Nothing in this system has ever had a user, and it is worse than
+that: it has no concept of a MACHINE either.** A grep for `os.hostname`, `machineId` or `HOSTNAME`
+across `api/`, `cli/`, `src/` and `electron/` returns **exactly two lines**, both in the terminal
+verbs (`api/index.js:1976` and `:2023`), where the hub stamps `$HOSTNAME` into a command so the
+answer can say which box replied. That is the only place in either repo where machine identity is
+captured at all.
+
+What it has instead is two things, both local by construction:
+
+- **A project code**, bound to a directory in `~/.autobot/projects.json` — a flat `{code:
+  absoluteDir}` map written only by the shell (`electron/apps/files-host.cjs:46-57`, `:65-96`),
+  read by the hub read-only (`api/shellProjects.js:23-48`). "A code means ONE folder" is enforced
+  **only against the local map** (`files-host.cjs:50-54`), so two machines binding the same code to
+  different directories is a state nothing notices.
+- **A session**, which lives in the Electron main process's memory (`electron/agents/sessions.cjs:62`,
+  a plain `Map`) and is persisted to `~/.autobot/sessions.json` keyed `projectCode:sessionId`
+  (`:87-106`).
+
+**And the cross-machine case is already leaking in, by accident.** The live `projects.json` on this
+Mac contains `"bu1": "/root/buAPI"` — a Linux droplet's path. The code knows: `api/shellProjects.js:43-44`
+and `api/index.js:800-802` name the foreign-machine case as the reason every shell row is filtered
+through `fsGit.existsSync` (`api/index.js:831`) before it reaches the root map. So a code naming a
+project that is not on this disk does not refuse — **it silently vanishes from the map**, and the
+shell's own `rootOf` throws `unknown project` (`files-host.cjs:25-29`).
+
+**One finding that constrains §2 hard:** the window reaches sessions **only** through the Electron
+IPC bridge — `window.systemview.agent.sessions()` → `src/utils/hostAgents.js:122-129` →
+`ipcRenderer.invoke("agent:list")` (`electron/apps/svPreload.cjs:127`). Every door degrades to
+`[]`/`null` when the bridge is absent (`hostAgents.js:8`, `:123-128`). **So a window served over the
+network to an ordinary browser has no agent surface at all.** Whatever "pop up in their screen"
+becomes, it is not a remote browser pointed at somebody's hub.
+
+Agent definitions live at `~/.autobot/agents` (`electron/agents/definitions.cjs:28`) — files on
+this disk, addressable by nothing but a local path.
 
 **How it might work — my opening proposal, blunt enough to cut.**
 
@@ -161,11 +188,27 @@ For telling the room when the identity section moves. Nothing else goes in here.
 
 This is the heart of the arc, and it contains the single biggest unanswered question in it.
 
-**Where the project is.** Being read. What matters for this section: how a session is created and
-addressed today, what composes an agent's definition (presence, system context, agent docs, skills,
-the store), and whether any of it is addressable by anything other than a local path. Also being
-read: how the window learns what sessions exist and their state, because "pop up in their screen"
-is that path with a stranger in it.
+**Where the project is — READ.** A session is created and driven over Electron IPC: the verb list
+is `agent:open/send/permission/interrupt/kill/...` (`electron/preload.cjs:41-64`,
+`electron/apps/svPreload.cjs:124-160`) and each session's events arrive on an IPC channel
+`agent:event:${key}` (`preload.cjs:45-49`). **There is no network path to any of it** — see §1, the
+bridge is the only door and it exists only inside the shell on the same machine.
+
+**The state the strip reads is a DOM event, not a transport.** `sv:agentState` is a
+`window.dispatchEvent(new CustomEvent(...))` fired by each chat (`src/organisms/AgentChat/AgentChat.js:2531-2535`)
+and heard by the tab strip (`src/organisms/SystemNavigator/SystemNavigator.js:148-149`) — same
+document only, crossing no process, let alone a machine. The whole `sv:*` family is like this. Plus
+an 8-second poll of the live set (`SystemNavigator.js:100-108`). **So "it appears in their window
+while it works" has no existing mechanism at either end** — not the session, not the state.
+
+**What an agent is made of, and how portable each part is.** The context store is better news than I
+expected: notes are plain `.md` files with frontmatter under `~/.autobot/context`
+(`electron/agents/context.cjs:52`, `:82-106`), a note's identity is `(scope, slug)` (`:78-79`), and
+the embeddings are **declared derived and rebuildable** (`electron/apps/vectors.cjs:14-18`, `:40-46`).
+So the notes themselves travel. What does not travel is the **scope vocabulary** — `project:<code>`
+and `agent:<slot>` only mean anything against this machine's project map and `~/.autobot/agents`.
+A clone that arrives carrying notes scoped to a project the host does not have is carrying notes
+addressed to nowhere, and that is a real design constraint on the clone format rather than a detail.
 
 **THE QUESTION EVERYTHING ELSE DEPENDS ON: where does the visitor RUN?**
 
@@ -228,10 +271,41 @@ For telling the room when the visiting-agent section moves. Nothing else goes in
 
 ## 3 · Files and data crossing
 
-**Where the project is.** Being read, and the specific thing I want cited is **how a document is
-identified** — because today a document's identity is partly its path, and the registry's rows
-carry absolute paths. A row written on machine A may mean nothing on machine B, and if that is true
-it is the central fact of this section rather than a detail.
+**Where the project is — READ, and it is worse than "a row might not mean anything".**
+
+A registry row's identity **is its `id` alone** — no machine field exists, and the allowed fields are
+fixed at `electron/markdown/registry.cjs:37`. The comment at `:82-108` is explicit: *"THE ID IS THE
+IDENTITY: a document that moved updates its row's `path`; it is never a second row."* And `path` is
+project-relative when the file sits inside a known root, **a bare absolute path otherwise**
+(`registry.cjs:69-78`).
+
+**So two nodes sharing a registry would eat each other's documents.** The hub only stats
+project-relative rows (`api/documentsRegistry.js:58-67`); a stat failure sets `row.missing = true`
+(`:68`), and the janitor reaps on exactly that basis (`api/janitor.js:39`, `api/index.js:877-878`
+`sweepDeadPointers`). A machine-B hub reading a machine-A registry would mark A's rows missing and
+**sweep them**. That is not a compatibility wrinkle, it is a destructive one, and it is the single
+most important constraint on §3.
+
+Everything else is path-keyed the same way: reports at `.systemview/report.<pc>.<slug>.md` plus a
+whole-file index (`api/reports.js:20-21`, `:198-215`); boards as markdown in the repo where **a card
+has no id beyond its position in the file** (`api/board.js:7-8`, `:55+`); code comments as sidecars
+keyed by project-relative path (`api/codeComments.js:11,19`); corpora rows carrying absolute roots
+(`~/.autobot/corpora.json`, read at `electron/agents/docs.cjs:17`). **A lane is not a record of a
+branch — it IS a local git branch plus a local worktree** (`api/index.js:1819-1823`, `:1841-1846`).
+
+**And the shared-state pattern is read-modify-write-whole-file, nearly everywhere.** `projects.json`,
+`sessions.json`, `documents.json`, `documents-opened.json`, `terminal-grants.json`,
+`api/connections.json`, `api/comments.json`, the reports index, every board. Two of them have
+already been bitten and say so in their own source: `documents.json` has **two writers** — the shell
+and the hub — acknowledged at `api/documentsRegistry.js:72-79` as interleaving "on different
+documents in practice"; and `electron/apps/vectors.cjs:194-205` records that a full-replace
+`index()` clobbered other writers, which is why `replaceWhere` exists at `:206-222`.
+
+**Why that matters for this section and not just hygiene:** every one of those is a lost-update race
+that is *currently* bounded by all writers sharing one disk. A second node removes that bound. So
+"files and data can be transferred" cannot be built on top of these files as they stand — the unit
+that crosses has to be something with an identity that survives the trip, which is the first
+question below.
 
 **How it might work.** Two different problems are hiding in "files and data", and I would not solve
 them with one mechanism:
@@ -315,8 +389,25 @@ For telling the room when the updates section moves. Nothing else goes in here.
 
 ## 5 · The transport — peer-to-peer, a hub, IRC, WebRTC
 
-**Where the project is.** Still being read for autobot and systemview. But one piece is already
-answered and it lands here: **SystemLynx already has a discovery service, and it is already
+**Where the project is — READ.** Three things in this repo assume there is one hub and it is on
+this machine, and each would mis-aim rather than refuse:
+
+- **The window's hub address is a hardcoded literal** — `src/index.js:32` is
+  `"http://localhost:3000/systemview/api"`, not derived from `window.location.origin`. A window
+  served from any other host calls back to **the viewer's own** localhost:3000.
+- **The MCP's and the CLI's are fixed the same way** (`electron/agents/systemview.cjs:16`,
+  `cli/index.js:35,67,183`).
+- **Hosting is gated purely on "is the port free"** (`cli/launchApp.js:14-22,33-49`), so a *remote*
+  hub answering on 3000 would be adopted as **the** hub, and a second node would see something
+  already serving and decline to host.
+
+Two hard couplings worth knowing before anything is designed: the hub reaches into the shell by
+absolute path to write lane status (`api/index.js:1614`, `:1656` require
+`~/autobot/electron/agents/worklist.cjs`), and `api/index.js:2844` hardcodes a
+`darwin-arm64` binary path under `~/autobot`. A node is not portable to another OS today, let alone
+another person.
+
+**And one piece of the transport question is already answered, which lands here:** **SystemLynx already has a discovery service, and it is already
 discovery-only by design** — §6.3 has the addresses. A node joins by registering with it, it holds a
 member list with heartbeats, and RFC 006 explicitly refuses it as a data-path proxy so clients talk
 directly to each other. That is the "something small in the middle" shape below, already built — the
@@ -504,13 +595,75 @@ For telling the room when the SystemLynx section moves. Nothing else goes in her
 
 ---
 
-## 7 · What I think the first arc is — the shape, for you to cut
+## 7 · The hub's own door — and two decisions already on the record
+
+**DECIDED, 2026-11-10, your words:** *"let's run with the whole local network being
+unauthenticated."*
+
+Read as architecture rather than as a shrug, that is a real decision and it aims the whole arc:
+**network position is not a trust boundary.** A caller is trusted because it proved who it is, not
+because of where its packet came from. So the arc designs for an untrusted LAN instead of trying to
+restore a safe interior — no "it came from inside the network so it's fine", anywhere, ever. That
+is the assumption every corporate network is soft because of, and we are not making it.
+
+**DECIDED, same conversation:** this does not become its own RFC off to the side — **it fits in this
+arc.** Which is right, and the reason is §6.2: the arc has to put identity on a service call
+anyway. Gating the hub's own door is not a detour from the arc, it is the arc's first objective
+wearing work clothes.
+
+**The measured state of that door today**, filed in full with the commands at
+`gaps/THE_HUB_ANSWERS_THE_WHOLE_NETWORK_WITH_NO_AUTH.md` (G-16): the hub binds every interface
+(`ServerManager.js:116` listens with no address; `api/index.js:225`'s `host = "localhost"` only
+builds the advertised URL), CORS is `*`, nothing checks a caller, and around ninety methods are
+behind it including `readPath`/`writePath`, the git verbs, and the terminal typing verbs. Called
+over this machine's LAN address with no credential, `readPath` returned `/etc/hosts` and
+`writePath` landed a file on disk.
+
+**So the ORDER is the finding, and it is the one thing I want this section to fix in advance:** the
+hub is already reachable and is not yet able to say who is calling. That is backwards, and the arc
+is what rights it — **the lock gets fitted before the door is widened on purpose**, not after.
+Every later section assumes a call can carry an identity; this is where that becomes true.
+
+**THE HALF THIS DECISION DOES NOT COVER, and it has to be said plainly.** The untrusted-LAN position
+is about *other machines*. It does nothing about the browser, and the browser is the bigger half:
+
+- The preflight passes with `Access-Control-Allow-Origin: *` (`Server.js:48-57`), and the hub accepts
+  `content-type: text/plain`, which makes a POST a **CORS-simple request** — so **no preflight is
+  needed at all**.
+- Therefore any page open in any browser on the machine can POST to the hub. Reads come back
+  because CORS is `*`; a **write needs no CORS cooperation whatsoever.**
+- **A loopback bind does not fix this**, because the browser is already on localhost. "It only
+  listens locally" is the exact false comfort here.
+
+This one is a same-machine problem, it is open today, and no node has to exist for it to be open.
+It is the one piece of G-16 that is not arc-shaped.
+
+**DECIDE HERE:**
+1. **Does the hub's door become an objective in this arc, and is it FIRST?** My position: yes and
+   yes — every other piece of the arc calls through it, so it is the objective the others need
+   done.
+2. **The browser half** — close it ahead of the arc with an `Origin` allow-list on the hub, or carry
+   it inside the arc? My position: ahead of it. It is small, it is independent of every open
+   question above, and it is the only item in G-16 that is live without a second node existing.
+3. Does the gate live **in SystemLynx** (so every service on every node inherits it, §6.3) or **in
+   the hub** (so it ships without touching the framework)? My position: the framework — a check
+   every service re-implements is the hand-rolled-`fetch` failure in a worse place.
+
+::::thread{id=hub-door members=systemview-test}
+For telling the room when the hub-door section moves. Nothing else goes in here.
+::::
+
+---
+
+## 8 · What I think the first arc is — the shape, for you to cut
 
 Stated so you have something concrete to disagree with. My position in one sentence: **the first arc
 ends when one agent can cross to another person's node with approval and come home, and nothing
 more.**
 
 In:
+- **the hub's own door gated on identity** (§7) — decided today, and first, because the rest calls
+  through it
 - identity as a keypair, and an organization as a signed membership
 - an invite-based first connection (no directory, no infrastructure)
 - an agent definition that is a portable artifact
