@@ -57,3 +57,11 @@ keys — and that is what a fault actually is. `fault` only chooses which senten
 - **Nothing was watched live.** The fix is pinned by assertion and by the key being byte-identical
   to what is already on his disk; I did not re-render those documents in a browser to watch the
   silence.
+
+## What built it
+
+::commit{sha=c8ad4110}
+::commit{sha=b5348b90}
+
+The second is the bundle. A report cannot hold the sha of the commit that writes it, so these land
+in the touch after them and the newest commit is one-way.
