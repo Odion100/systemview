@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { fillStyle } from "../../atoms/meterWidth";
 import "./styles.scss";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";

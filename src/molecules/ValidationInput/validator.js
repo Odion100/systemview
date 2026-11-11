@@ -5,7 +5,6 @@ import {
   parseIndex,
   replaceLastIndex,
   switchArrayIndices,
-  isTargetValueFn,
   resolveTargetValue,
   resolveValueString,
 } from "../../organisms/TestPanel/components/test-helpers";

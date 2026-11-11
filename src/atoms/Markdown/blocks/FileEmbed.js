@@ -1,7 +1,5 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCapability, useCapabilityState } from "../capabilities";
-import ServiceContext from "../../../ServiceContext";
-import loadServiceWithHeaders from "../../../utils/loadService";
 import { useMarkdownScope } from "../context";
 import { openAddress } from "../openRef";
 import { useInDocument, InEmbedProvider } from "../context";
@@ -12,7 +10,6 @@ import RowMenu from "../../RowMenu/RowMenu";
 import { changeMarksOf, hunksOf, stagedContentFor, fileGitState } from "../../CodeView/gitLines";
 import { useCodeComments } from "../../CodeView/codeComments";
 import { useEditorDark } from "../../CodeView/editorTheme";
-import { canGit, hasPlugin, pickHost } from "../../../utils/pluginHost";
 import { machineFiles, isMachineAddress } from "../../../utils/hostFiles";
 import Markdown from "../Markdown";
 import { passageKey } from "../../../utils/readAloud";

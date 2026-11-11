@@ -1,5 +1,4 @@
 import { hostFiles } from "../../utils/hostFiles";
-import loadServiceWithHeaders from "../../utils/loadService";
 import { isSystemModule } from "../../systemModules";
 
 // What the document menu's DRAWERS offer. Inserting `::logs` and getting every log in the project,

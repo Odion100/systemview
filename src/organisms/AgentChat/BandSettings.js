@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { listDefs } from "../../utils/hostAgents";
-import { FIELDS, SOURCE_CHOICES, sourceChoices, UNITS, patchFor, summaryOf, toggleSource, toggleMember, usable } from "./nudgeSettings";
+import { FIELDS, sourceChoices, UNITS, patchFor, summaryOf, toggleSource, toggleMember, usable } from "./nudgeSettings";
 import {
   FIELDS as COMPACTION_FIELDS,
   UNITS as COMPACTION_UNITS,

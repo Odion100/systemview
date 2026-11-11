@@ -4,15 +4,13 @@ import Trail from "../../Trail/Trail";
 import { useDocMembers, useMarkdownWrite } from "../context";
 import DocProofs from "./DocProofs";
 import {
-  TRAILS,
   stateOf,
   pressTo,
   declaredOn,
   DERIVED_FROM,
   reasonsFor,
   reasonOf,
-  stepsFor,
-} from "./lifecycleState";
+  stepsFor } from "./lifecycleState";
 import { facilitate, rfcCurrent, arcSettledLine, arcUnplannedLine } from "./facilitation";
 import { plansByObjective, parseObjectives } from "../objectives";
 

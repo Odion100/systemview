@@ -2931,6 +2931,11 @@ const shutdown = () => process.exit(0);
 // open window at once; both surfaces re-read from the same truth in the same second.
 const fsWatch = require("fs");
 const gitWatchers = new Map(); // root → { pc, watchers: [] }
+// NEVER CALLED, DELIBERATELY — the reason is at `launchSystemView` below: armed, this watcher fed
+// itself to a load average of 546. The shape is kept so it is not rebuilt from scratch, which makes
+// this the one unused binding in the repo that is load-bearing, and it says so rather than sitting
+// in a warning class as if nobody had noticed.
+// eslint-disable-next-line no-unused-vars
 function watchGitRoots() {
   const roots = projectRoots();
   try {

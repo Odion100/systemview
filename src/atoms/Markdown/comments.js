@@ -1,6 +1,5 @@
 import { hostFiles } from "../../utils/hostFiles";
 import { useCallback, useContext, useEffect, useState } from "react";
-import loadServiceWithHeaders from "../../utils/loadService";
 import ServiceContext from "../../ServiceContext";
 import { raiseError } from "../Banner/bannerStore";
 

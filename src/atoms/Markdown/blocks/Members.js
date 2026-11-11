@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import ServiceContext from "../../../ServiceContext";
-import { useMarkdownWrite, useDocMembers } from "../context";
+import { useMarkdownWrite } from "../context";
 import { splitWho } from "../docMembers";
 import useMembership from "../useMembership";
 import MemberAdd from "./MemberAdd";

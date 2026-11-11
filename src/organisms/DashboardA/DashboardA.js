@@ -6,7 +6,7 @@ import { fillStyle } from "../../atoms/meterWidth";
 import { openAddress } from "../../atoms/Markdown/openRef";
 import { tickFor } from "../../atoms/Markdown/blocks/retention";
 import { skippedLine, groupOwed } from "../AgentChat/owed";
-import dashboard, { PHASES, readingLine, foldLanes, holdLanes, kindsIn } from "./dashboardA.data";
+import dashboard, { PHASES, readingLine, foldLanes, holdLanes } from "./dashboardA.data";
 
 // ─── THE DASHBOARD — EVERY PROJECT, EVERY KIND, AND WHAT NEEDS HIM ─────────────────────────────
 //

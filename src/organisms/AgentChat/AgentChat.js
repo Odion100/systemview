@@ -32,11 +32,11 @@ import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
 import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
 // A BOX SELECTION SPEAKS THROUGH THE SAME DOORS A REPLY DOES — one engine, one queue, one
 // microphone mute. A second path to the speaker would drift the first time either changed.
-import { spokenPositions, spokenPassageMap, AIMED_AT_YOU } from "../../utils/spokenForm";
+import { spokenPassageMap, AIMED_AT_YOU } from "../../utils/spokenForm";
 import { recitalSegments, passageKey, claimRead } from "../../utils/readAloud";
 import { speak, ready as engineReady, available as voiceAvailable } from "../../utils/voice";
 import { readVoicePref, readVoiceSettings, elsewhereAction } from "../../utils/voicePref";
-import { playFirst, enqueue as queueEnqueue, done as queueDone, setWarming as queueWarming, setPosition as queuePosition, view as speechView, subscribe as speechSubscribe } from "../../molecules/SpeakReply/speechQueue";
+import { enqueue as queueEnqueue, done as queueDone, setWarming as queueWarming, setPosition as queuePosition, view as speechView, subscribe as speechSubscribe } from "../../molecules/SpeakReply/speechQueue";
 import { announce, claim as claimSpeaker, nextSpeakerId } from "../../molecules/SpeakReply/speaker";
 import { takeIfNew } from "../../molecules/SpeakReply/autoSpeak";
 import Feed, { timeOf } from "../AgentWorkbench/Feed";
@@ -51,7 +51,6 @@ import { readImagesFrom, readImageFile, hasImages } from "../../utils/imageAttac
 import { canListTranscripts, listAgents, listTranscripts, transcriptTail } from "../../utils/hostAgent";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
-import loadServiceWithHeaders from "../../utils/loadService";
 import { hostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";

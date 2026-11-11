@@ -8,15 +8,13 @@ import {
   hostProjects,
   HOST_MARK,
   removeHostProject,
-  isHostProject,
   canPickThenName,
   pickFolderOnly,
   putHostProject,
   renameHostProject,
   migrateConnectedProjects,
   hostFileProviders,
-  hostProjectEntry,
-} from "../../utils/hostProject";
+  hostProjectEntry } from "../../utils/hostProject";
 import { listHusks, addHusk, removeHusk, reconcileHusks, huskEntry } from "../../utils/husks";
 import { tabOrder, used as rankUsed, ran as rankRan, prune, dropAt, readRanks, writeRanks } from "../AgentChat/tabOrder";
 import CodebaseNav from "../CodebaseNav/CodebaseNav";

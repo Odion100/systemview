@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import useEffectiveProject from "../../utils/effectiveProject";
 import { pctStyle } from "../../atoms/meterWidth";
 import { useHistory, useParams, useLocation } from "react-router-dom";
@@ -12,7 +12,7 @@ import { isSystemModule } from "../../systemModules";
 import LineChart from "../../organisms/Charts/LineChart";
 import LoadColumns from "../../organisms/Charts/LoadColumns";
 import TopologyGraph from "../../organisms/Charts/TopologyGraph";
-import { MAP_HUES, buildHueMap } from "../../organisms/Charts/hues";
+import { buildHueMap } from "../../organisms/Charts/hues";
 import "./styles.scss";
 
 // ---- formatting helpers ----

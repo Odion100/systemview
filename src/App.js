@@ -4,7 +4,6 @@ import AgentChat from "./organisms/AgentChat/AgentChat";
 import SystemView from "./pages/SystemView/SystemView";
 import Reports from "./pages/Reports/Reports";
 import Context from "./pages/Context/Context";
-import Agents from "./pages/Agents/Agents";
 import ServiceContext from "./ServiceContext";
 import { MarkdownCapabilitiesProvider } from "./atoms/Markdown/capabilities";
 import { systemviewCapabilities } from "./markdownCapabilities";
@@ -161,6 +160,12 @@ function App({ SystemViewService }) {
                 <Context />
               </ErrorBoundary>
             </Route>
+            {/* `/agents` RENDERS CONTEXT, and that is not a mistake: the agent-management view —
+                open an agent, see and change everything feeding it — landed INSIDE the Context
+                page, which mounts `<AgentProfile />` itself. `pages/Agents/Agents.js` was the
+                twenty-line wrapper it superseded, and it sat in the tree reachable from nothing,
+                kept alive only by an unused import here that eslint had been flagging for weeks.
+                Deleted 2026-11-11; the profile is live at this route through Context. */}
             <Route path="/agents/:projectCode?" exact>
               <ErrorBoundary label="The agents page">
                 <Context />

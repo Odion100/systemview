@@ -1,5 +1,5 @@
 import { summarise, pathTouchedBy, isWrite } from "../../utils/hostAgent";
-import { parseSvCommand, svFromMcp, svStatus, svRoomLine } from "./svCommand";
+import { parseSvCommand, svFromMcp, svStatus } from "./svCommand";
 
 // EVENTS IN, ROWS OUT. Kept pure and away from the component for the reason the rest of
 // this codebase keeps its rules out of render: the same fold has to run over `history()` when a view

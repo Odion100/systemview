@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./styles.scss";
-import { setHelpTopic } from "../../atoms/Help/helpStore";
 import Trail from "../../atoms/Trail/Trail";
 import { stateOf, objectiveComplete } from "../../atoms/Markdown/blocks/lifecycleState";
 import { richParts } from "./rich";
