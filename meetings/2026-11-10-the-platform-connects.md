@@ -476,6 +476,56 @@ For telling the room when the transfer section moves. Nothing else goes in here.
 This is the one you said the least about and I think it is the most dangerous, so I am going to be
 blunt about why.
 
+**HIS FRAME, 2026-11-10 — and it is better than the table I had written below it.** His words:
+
+> "there's just two different kinds of updates that the system will share. And one is the **core
+> updates** — of, I'm thinking of the autobot and the built-in applications like SystemView. And
+> then the **other applications, packages that are downloaded and get their own updates**, based on
+> some of the things you were saying about security — which is, have a **protocol of approving
+> them**."
+
+**That splits the problem on AUTHORSHIP rather than on artifact kind, which is the right axis and
+not the one I reached for.** My table below sorts updates by *what* is being updated and asks who
+may send each; his split asks *whose it is* first, and the answer to "may it cross automatically"
+falls out of that:
+
+| | **CORE** | **PACKAGES** |
+|---|---|---|
+| what | autobot itself, and the built-in applications — SystemView among them | applications and packages a node downloaded, each with its own update stream |
+| whose | **ours** — one author, one origin | somebody else's, many authors |
+| how it arrives | the platform updating itself | fetched, then **approved by protocol** |
+| the trust question | is this really ours and really intact | do I accept this author's instructions on my machine |
+| what answers it | a signature over a release, checked by the node | the approval protocol — read it before it is live |
+
+**And this resolves the hardest question in the section.** My table asked "which of six kinds may
+cross and which never may", and that framing had no clean answer because a *skill* could be
+either — ours shipped with the platform, or a stranger's downloaded. Split on authorship and it is
+clean: **a skill that ships with the core rides the core's signature; a skill that arrives in a
+package rides the package's approval.** Same artifact, two paths, decided by where it came from
+rather than by what it is.
+
+**What it means for the feedback loop you want** — *"a feedback system that continually improves
+because multiple nodes are improving"*. That loop lives in the PACKAGE tier, not the core, because
+improvements made on another person's node are by definition not ours. So the loop is: a node makes
+something better → it becomes a package or a package update → other nodes fetch it and **approve
+it** → it is live there. The approval protocol is therefore not a safety fence bolted onto the
+feedback system; **it IS the feedback system's transport.** That is a real design consequence of
+your split and it changes what the first objective here would be.
+
+**What still has to be settled under his frame:**
+- **Core:** what signs a release, and what a node does with one that fails the check. And whether a
+  node may decline a core update at all, or core is take-it-or-leave-the-platform.
+- **Packages:** what the approval protocol actually approves — the package, the author, or each
+  version. Whether approving an author once means accepting their updates forever (which is the
+  convenience everyone wants and the hole everyone regrets).
+- **The boundary itself:** SystemView is named as core *today*. Is "built-in" a permanent property
+  or a packaging decision — could SystemView become a package later, and does anything depend on
+  the answer?
+
+**The table below is kept because it is still the right second question** — once a package is
+approved, what it is allowed to contain is a separate matter from who sent it, and a skill and a
+hook do not have the same blast radius even from a trusted author.
+
 **"An update" is at least six different things, and they do not share a blast radius:**
 
 | what | if a bad one lands | who should be allowed to send it |
@@ -506,12 +556,19 @@ the finding.
 
 **DECIDE HERE:**
 1. **Is this in the first arc at all?** My position: no — it is arc two, and the first arc stops at
-   two nodes identifying each other and one agent crossing. Reason in §5.
-2. Which of the six kinds above may cross between nodes, and which never may?
-3. **Offered-and-pressed, or automatic?** Does a trusted colleague's skill install itself?
-4. When two nodes improve the same thing differently, what resolves it — **git's merge**, a
+   two nodes identifying each other and one agent crossing. Reason in §5. **His two-tier frame does
+   not change that**, but it does mean arc two has a clean shape rather than an open question.
+2. **Core: may a node decline a core update**, or is core take-it-or-leave-the-platform?
+3. **Packages: does the approval bind to the AUTHOR, the PACKAGE, or each VERSION?** This is the one
+   I would most want settled before anything is built — approving an author once is what everybody
+   wants and what everybody later regrets.
+4. **Is "built-in" permanent?** SystemView is core today; could it become a package, and does
+   anything depend on the answer?
+5. Which of the six kinds above may cross between nodes, and which never may?
+6. **Offered-and-pressed, or automatic?** Does a trusted colleague's skill install itself?
+7. When two nodes improve the same thing differently, what resolves it — **git's merge**, a
    **vote**, **ownership**, or a **human**?
-5. Is there a notion of a node being **more authoritative** than another (yours, as the origin), or
+8. Is there a notion of a node being **more authoritative** than another (yours, as the origin), or
    are all nodes peers in this too?
 
 ::::thread{id=updates members=systemview-test}
