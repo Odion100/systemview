@@ -17,7 +17,8 @@ updating them.
 | **still true** | 3 — and one of them undercounted by a module |
 | **partly** | 3 — a half landed, a surface moved, a fault narrowed to latent |
 | **built this sitting** | 1 |
-| outstanding | 2 readers still running |
+| **a misdiagnosis** | 1 — real observation, wrong cause, disproven from the transcript |
+| outstanding | 1 reader still running |
 
 ---
 
@@ -66,6 +67,24 @@ path"* is **not a user-visible drop** — `shelvesFrom` partitions by project be
 (`dashboardC.data.js:327`), so every shelf is correct today. `cardsFor` alone is unsafe for a future
 caller, which is a different and much smaller thing.
 
+## The misdiagnosis — the most expensive kind of wrong card
+
+*"the skill listing shrank mid-session — invocation refused for skills on disk."* The observation was
+real; **both conclusions drawn from it were false**, and as written the card sends somebody hunting a
+harness bug that does not exist.
+
+A one-skill listing is the **CLI re-announcing a skill whose file just changed**. From the session's
+own transcript, the same skill 78 minutes apart with DIFFERENT description text — a re-announce after
+an edit, not a replacement. The pattern holds across the session: every single-skill listing names
+the skill being edited at that moment, interleaved with full listings of 29–37.
+
+**And invocation was never restricted.** Two recorded calls succeeded under a one-skill listing that
+named something else — `Skill{assignment}` and `Skill{context-maintenance}`, neither erroring — and
+`Skill(rfc-execution)`, the one the card says was refused, ran three times in the same session.
+
+Nothing harness-side prunes anything: the only gate is `sessions.cjs:484`, and **no agent definition
+sets `skills` at all**.
+
 ## The two that are now the best-specified work on the board
 
 Both were `open` with no declaration; both now carry a reproduction and a named fix.
@@ -93,7 +112,7 @@ Both were `open` with no declaration; both now carry a reproduction and a named 
   unflagged and succeeds. The fix rests on the package's own exports map and on a measurement from
   2026-10-27 that I am repeating rather than re-deriving — said plainly because "we fixed it" and "we
   saw it fail" are different claims.
-- **Two readers were still running when this was written**, so eight cards were checked and six
+- **One reader was still running when this was written**, so eight cards were checked and seven
   verdicts applied. Their cards are untouched and still `open`, which is the honest state.
 - **Every verdict here is a READER's, verified by its address rather than by me re-running it.** I
   applied them because each one carries a file:line or a command output I can follow; I did not
