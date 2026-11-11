@@ -87,14 +87,56 @@ function strayServes(message) {
 }
 
 /** The shas a DOCUMENT claims, off its `::commit{sha=…}` blocks — the other direction. */
-function shasIn(text) {
+// A FENCED BLOCK IS AN EXAMPLE, NOT A RECORD.
+//
+// `RFC-033` and `docs/interactive-markdown.md` teach this syntax, so they carry `::commit{sha=…}`
+// with made-up shas on purpose. That cost nothing while an unknown sha was simply skipped — but the
+// moment a document's records are checked for resolving at all, a teaching example becomes a false
+// finding, and a check that cries wolf about documentation is one nobody runs twice.
+//
+// So the fences are stripped first. Three backticks or more, the way CommonMark closes them, and
+// the opening run has to be matched by at least as long a run — a four-tick fence containing a
+// three-tick one is how you show a fence inside a fence, and that is in the markdown guide too.
+function stripFences(text) {
+  const lines = String(text || "").split("\n");
+  const out = [];
+  let fence = null;
+  for (const line of lines) {
+    const m = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fence) {
+      if (m && m[1][0] === fence[0] && m[1].length >= fence.length) fence = null;
+      continue;
+    }
+    if (m) { fence = m[1]; continue; }
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
+// A RECORD IS A SHA AND THE REPO IT IS IN. `project=` is not decoration: a commit from another
+// repo is only addressable with it, and a reader that drops it asks the wrong git log — which is
+// how the check written to catch exactly this fault reported ten of my own CORRECT records as
+// broken the first time it ran against real documents.
+function recordsIn(text) {
   const out = [];
   const re = /::+commit\{([^}]*)\}/g;
   let m;
-  while ((m = re.exec(String(text || "")))) {
-    const sha = (m[1].match(/\bsha=("?)([0-9a-fA-F]{4,40})\1/) || [])[2];
-    if (sha && !out.includes(sha)) out.push(sha);
+  const body = stripFences(text);
+  while ((m = re.exec(body))) {
+    const attrs = m[1];
+    const sha = (attrs.match(/\bsha=("?)([0-9a-fA-F]{4,40})\1/) || [])[2];
+    if (!sha) continue;
+    const project = (attrs.match(/\bproject=("?)([A-Za-z0-9_.\-]+)\1/) || [])[2] || "";
+    if (out.some((r) => r.sha === sha && r.project === project)) continue;
+    out.push({ sha, project });
   }
+  return out;
+}
+
+/** The sha-only view, which is what the agreement checks compare. */
+function shasIn(text) {
+  const out = [];
+  for (const { sha } of recordsIn(text)) if (!out.includes(sha)) out.push(sha);
   return out;
 }
 
@@ -144,9 +186,32 @@ const COMMISSIONS = (kind) => !["report"].includes(String(kind || "").toLowerCas
 // `retired` — ids this repository ONCE held and no longer does, each with the path it lived at and
 // the commit that deleted it. Supplied by the caller because gathering it means reading git; the
 // rule for what to DO with it is here, where it can be checked.
-function audit({ commits = [], documents = [], retired = {} } = {}) {
+// WHERE A RECORD'S COMMIT ACTUALLY IS — answered by the caller, because answering it means asking
+// git, and keyed `"<project>:<sha>"` for exactly the records the rule needs to ask about:
+//
+//   true          — it is in the repo the record names. Nothing to report.
+//   "<project>"   — it is not there, but it IS in that one. The finding carries the exact edit.
+//   false         — no repo this hub knows holds it.
+//   (absent)      — nobody looked, so nothing is claimed. Absence of evidence, as before.
+//
+// IT IS NOT A LIST OF REACHABLE SHAS, and that distinction is not academic: the first version asked
+// `git log --format=%H` and reported forty-five records in RFC-078 as pointing nowhere. Every one
+// of them is a real commit — on the branch `before-rfc078-rollback`, which HEAD cannot see. A check
+// that calls a reachability question an existence question manufactures findings about work that is
+// sitting right there.
+const RESOLVED = (resolved, home, sha) => (resolved ? resolved[`${home}:${sha}`] : undefined);
+
+function audit({ commits = [], documents = [], retired = {}, resolved = null } = {}) {
   const byId = new Map(documents.map((d) => [String(d.id), d]));
-  const docShas = documents.map((d) => ({ doc: d, shas: shasIn(d.text) }));
+  // EVERY RECORD WITH THE REPO IT NAMES, and the sha-only view beside it for the agreement checks
+  // that only ever ask about this project's own log.
+  const docRecords = documents.map((d) => ({ doc: d, records: recordsIn(d.text) }));
+  const docShas = docRecords.map(({ doc, records }) => ({
+    doc,
+    // A RECORD THAT NAMES ANOTHER REPO IS NOT THIS LOG'S BUSINESS. It cannot point back here, so
+    // counting it as `unclaimed` would accuse a correct record of being wrong.
+    shas: records.filter((r) => !r.project || r.project === doc.project).map((r) => r.sha),
+  }));
   const unlinked = [];
   const dangling = [];
   // SERVED SOMETHING THIS REPO ONCE HELD — a finding with an address rather than an accusation.
@@ -201,15 +266,39 @@ function audit({ commits = [], documents = [], retired = {} } = {}) {
   }
 
   const unclaimed = [];
+  // A RECORD THAT POINTS AT NOTHING — the fault that renders as "no such commit" in his window and
+  // was only ever caught AFTER it was written and read. A `::commit{sha=…}` naming a commit from
+  // ANOTHER repo needs `project=`; without it the sha is looked for in the document's own project
+  // and is not there. Three store notes said the rule and it still happened twice in two days,
+  // which makes it a missing CHECK rather than a knowledge gap.
+  const unresolvable = [];
   // NOT A FINDING, AND NOT DROPPED EITHER. Records carried by a document that commissioned nothing
   // are counted and named here, so the door can say what it did not check instead of going quiet
   // about it — the same rule the window facts answer to. A check that narrows itself in silence is
   // the thing it was built to catch.
   const noted = [];
-  for (const { doc, shas } of docShas) {
-    for (const sha of shas) {
-      const c = commits.find((x) => sameSha(x.sha, sha));
-      if (!c) continue; // not in the window we were handed — absence here is not evidence
+  for (const { doc, records } of docRecords) {
+    for (const { sha, project } of records) {
+      // THE REPO THE RECORD NAMES, not the document's — that is the whole point of `project=`.
+      const home = project || doc.project;
+      const c = home === doc.project ? commits.find((x) => sameSha(x.sha, sha)) : null;
+      if (!c) {
+        // NOT IN THE WINDOW IS NOT THE SAME AS NOT REAL, and until the caller hands over the repo's
+        // own sha list there is no way to tell them apart — so without one, absence stays silence.
+        const where = RESOLVED(resolved, home, sha);
+        if (where === undefined) continue; // nobody looked — absence here is not evidence
+        if (where === true) continue; // real, just not in the window we were handed
+        unresolvable.push({
+          sha,
+          id: doc.id,
+          path: doc.path || "",
+          project: home || "",
+          // The repo that actually holds it, when there is one — which turns "no such commit" into
+          // the exact edit rather than a report of a fault.
+          foundIn: typeof where === "string" ? where : "",
+        });
+        continue;
+      }
       if (!COMMISSIONS(doc.kind)) {
         // Still only counted when the commit is in the window, so this number means the same thing
         // the findings do: records this run could actually see.
@@ -262,11 +351,15 @@ function audit({ commits = [], documents = [], retired = {} } = {}) {
     dangling,
     oneWay,
     expired,
+    unresolvable,
     unclaimed,
     noted,
     misplaced,
     crossed,
-    agreed: !dangling.length && !oneWay.length && !unclaimed.length && !crossed.length && !misplaced.length,
+    // `unresolvable` COUNTS as a disagreement: a record pointing at no commit anywhere is the one
+    // finding here that renders as a visible fault in his window.
+    agreed:
+      !dangling.length && !oneWay.length && !unclaimed.length && !crossed.length && !misplaced.length && !unresolvable.length,
   };
 }
 
@@ -301,4 +394,4 @@ function windowFacts({ requested, commits = [], max = 2000, fallback = 200 } = {
   };
 }
 
-module.exports = { TRAILER, servesOf, strayServes, shasIn, sameSha, audit, windowFacts };
+module.exports = { TRAILER, servesOf, strayServes, shasIn, recordsIn, stripFences, sameSha, audit, windowFacts };

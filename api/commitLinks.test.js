@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert");
-const { servesOf, shasIn, sameSha, audit, windowFacts } = require("./commitLinks");
+const { servesOf, shasIn, recordsIn, sameSha, audit, windowFacts } = require("./commitLinks");
 
 // WHAT THESE PIN. The link between a commit and the work it served has to be readable by a machine
 // in BOTH directions or it is decoration — so: the trailer is parsed by git's own rule and not
@@ -440,4 +440,138 @@ test("with no retired map at all, nothing changes — every unknown id is dangli
   });
   assert.strictEqual(out.dangling.length, 1);
   assert.deepStrictEqual(out.expired, []);
+});
+
+// A RECORD THAT POINTS AT NOTHING — the fault that renders "no such commit" in his window.
+//
+// A `::commit{sha=…}` naming a commit from ANOTHER repo needs `project=`; without it the sha is
+// looked for in the document's own project and is not there. Three store notes said the rule and it
+// still happened twice in two days, which makes it a missing CHECK rather than a knowledge gap —
+// and the check could not exist while "not in the window" and "not real" were the same answer.
+// WHERE EACH RECORD'S COMMIT IS, as the caller answers it: true = in the repo it names,
+// "<project>" = in that one instead, false = nowhere this hub knows.
+const KNOWN = {
+  "systemview-test:9999ffff": false,
+  "systemview-test:4362de5": "autobot",
+  "systemview-test:2222bbbb": true,
+  "autobot:4362de5": true,
+  "autobot:1111aaaa": "systemview-test",
+  "systemview-test:deadbeef": false,
+};
+const record = (text, over = {}) => ({ id: "R", kind: "report", project: "systemview-test", path: "r.md", text, ...over });
+
+test("a sha that is in no repo at all is unresolvable, and says so", () => {
+  const out = audit({ commits: [], documents: [record("::commit{sha=9999ffff}")], resolved: KNOWN });
+  assert.strictEqual(out.unresolvable.length, 1);
+  assert.strictEqual(out.unresolvable[0].sha, "9999ffff");
+  assert.strictEqual(out.unresolvable[0].foundIn, "", "nowhere to point at is an honest empty, not a guess");
+  assert.strictEqual(out.agreed, false, "a record rendering as a fault in his window is a disagreement");
+});
+
+// THE WHOLE POINT: naming the repo turns "no such commit" into the exact edit.
+test("a cross-repo sha names the project it actually belongs to", () => {
+  const out = audit({ commits: [], documents: [record("::commit{sha=4362de5}")], resolved: KNOWN });
+  assert.strictEqual(out.unresolvable.length, 1);
+  assert.strictEqual(out.unresolvable[0].foundIn, "autobot", "the fix is project=autobot, and the finding should say it");
+});
+
+test("a sha older than the window but real in its own repo is silence, not a finding", () => {
+  const out = audit({ commits: [], documents: [record("::commit{sha=2222bbbb}")], resolved: KNOWN });
+  assert.deepStrictEqual(out.unresolvable, []);
+  assert.strictEqual(out.agreed, true);
+});
+
+// WITHOUT THE LISTS, NOTHING CHANGES. Absence of evidence stays absence: an older caller that sends
+// no sha lists must get exactly the answer it got before.
+test("with no sha lists, an unknown sha is silence exactly as it always was", () => {
+  const out = audit({ commits: [], documents: [record("::commit{sha=9999ffff}")] });
+  assert.deepStrictEqual(out.unresolvable, []);
+  assert.strictEqual(out.agreed, true);
+});
+
+test("a document whose project has no list is skipped, never flooded", () => {
+  const out = audit({
+    commits: [],
+    documents: [record("::commit{sha=9999ffff}", { project: "a-project-with-no-folder" })],
+    resolved: KNOWN,
+  });
+  assert.deepStrictEqual(out.unresolvable, [], "a folder that is gone produces silence, not a page of findings");
+});
+
+// A FENCED BLOCK IS AN EXAMPLE, NOT A RECORD — and this check is what makes that distinction
+// load-bearing: RFC-033 and the markdown guide carry made-up shas on purpose, and a check that
+// cries wolf about documentation is one nobody runs twice.
+test("shas inside a fence are teaching examples and are not read as records", () => {
+  const text = ["Real: ::commit{sha=1111aaaa}", "", "```markdown", "::commit{sha=deadbeef}", "```", "", "::commit{sha=2222bbbb}"].join("\n");
+  assert.deepStrictEqual(shasIn(text), ["1111aaaa", "2222bbbb"]);
+  const out = audit({ commits: [], documents: [record(text)], resolved: KNOWN });
+  assert.deepStrictEqual(out.unresolvable, [], "the fake sha never became a finding");
+});
+
+test("a longer fence can hold a shorter one, which is how the guide shows a fence", () => {
+  const text = ["````markdown", "```", "::commit{sha=cafe1234}", "```", "````", "::commit{sha=1111aaaa}"].join("\n");
+  assert.deepStrictEqual(shasIn(text), ["1111aaaa"]);
+});
+
+test("a tilde fence closes a tilde fence, and does not close a backtick one", () => {
+  assert.deepStrictEqual(shasIn(["~~~", "::commit{sha=deadbeef}", "~~~", "::commit{sha=1111aaaa}"].join("\n")), ["1111aaaa"]);
+  assert.deepStrictEqual(shasIn(["```", "~~~", "::commit{sha=deadbeef}", "```", "::commit{sha=1111aaaa}"].join("\n")), ["1111aaaa"]);
+});
+
+// `project=` IS NOT DECORATION, and this is the assertion that would have saved the check from
+// itself: the first time it ran against real documents it reported ten of my OWN correct records
+// as broken, because it read the sha and dropped the repo the record names.
+test("a record that names its repo is checked against THAT repo", () => {
+  const text = "::commit{sha=4362de5 project=autobot}";
+  assert.deepStrictEqual(recordsIn(text), [{ sha: "4362de5", project: "autobot" }]);
+  const out = audit({ commits: [], documents: [record(text)], resolved: KNOWN });
+  assert.deepStrictEqual(out.unresolvable, [], "it resolves in autobot, which is where it says it is");
+  assert.strictEqual(out.agreed, true);
+});
+
+test("a record naming a repo that does not hold it is still caught", () => {
+  const out = audit({ commits: [], documents: [record("::commit{sha=1111aaaa project=autobot}")], resolved: KNOWN });
+  assert.strictEqual(out.unresolvable.length, 1);
+  assert.strictEqual(out.unresolvable[0].project, "autobot", "the repo it NAMED is the one it failed in");
+  assert.strictEqual(out.unresolvable[0].foundIn, "systemview-test", "and the one that actually holds it");
+});
+
+// A CROSS-REPO RECORD CANNOT POINT BACK HERE, so it must never be read as unclaimed — that would
+// accuse a correct record of being wrong, in the other direction.
+test("a record naming another repo is not this log's business", () => {
+  const out = audit({
+    commits: [{ sha: "1111aaaa1111aaaa", subject: "x", message: "x" }],
+    documents: [record("::commit{sha=4362de5 project=autobot}", { kind: "rfc" })],
+    resolved: KNOWN,
+  });
+  assert.deepStrictEqual(out.unclaimed, []);
+  assert.deepStrictEqual(out.unresolvable, []);
+});
+
+test("quoted and bare project values both read", () => {
+  assert.deepStrictEqual(recordsIn('::commit{sha=aaaa1111 project="autobot"}'), [{ sha: "aaaa1111", project: "autobot" }]);
+  assert.deepStrictEqual(recordsIn("::commit{sha=aaaa1111}"), [{ sha: "aaaa1111", project: "" }]);
+});
+
+// THE FAULT THE CHECK COMMITTED AGAINST ITSELF, pinned so it cannot come back.
+//
+// The first version asked `git log --format=%H` — commits reachable from HEAD — and reported 45
+// records in RFC-078 as pointing nowhere. Every one is a real commit, on a branch HEAD cannot see.
+// Reachability is not existence, and a check that confuses them manufactures findings about work
+// sitting right there.
+test("a commit that exists but is not reachable from HEAD is not a finding", () => {
+  const out = audit({
+    commits: [],
+    documents: [record("::commit{sha=0ffabranch}")],
+    // The caller looked and found it — on a branch, in a tag, wherever. That is `true`.
+    resolved: { "systemview-test:0ffabranch": true },
+  });
+  assert.deepStrictEqual(out.unresolvable, []);
+  assert.strictEqual(out.agreed, true);
+});
+
+test("a sha nobody looked up is silence, not a guess in either direction", () => {
+  const out = audit({ commits: [], documents: [record("::commit{sha=0000cafe}")], resolved: {} });
+  assert.deepStrictEqual(out.unresolvable, []);
+  assert.strictEqual(out.agreed, true);
 });

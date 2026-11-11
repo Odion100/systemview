@@ -3555,12 +3555,58 @@ module.exports = function launchSystemView(port = 3000) {
             if (!retired[id]) retired[id] = { path: rel, sha: dsha };
           }
         }
+        // WHERE EVERY RECORD'S COMMIT ACTUALLY IS — asked only of the records the rule cannot
+        // already answer from the window, and asked as an EXISTENCE question rather than a
+        // reachability one.
+        //
+        // The first version of this built one `git log --format=%H` per project and matched against
+        // it. That is reachability from HEAD, and it reported 45 records in RFC-078 as pointing
+        // nowhere — every one a real commit on `before-rfc078-rollback`, a branch HEAD cannot see.
+        // So the fast list is `--all` (every ref, 0.02s on a 900-commit repo) and anything it
+        // misses is confirmed with `cat-file`, which is what the window itself resolves through.
+        // A finding here is never a guess.
+        const roots = {};
+        const refShas = {};
+        for (const pc of [...new Set([projectCode, ...documents.map((d) => d.project)].filter(Boolean))]) {
+          const dir = rootOf(pc);
+          if (!dir) continue;
+          roots[pc] = dir;
+          const all = await git(dir, ["log", "--all", "--format=%H"]);
+          refShas[pc] = all.ok ? String(all.out || "").split("\n").map((x) => x.trim()).filter(Boolean) : null;
+        }
+        const inRefs = (pc, sha) => Array.isArray(refShas[pc]) && refShas[pc].some((full) => CommitLinks.sameSha(full, sha));
+        const exists = async (pc, sha) => {
+          if (!roots[pc]) return false;
+          if (inRefs(pc, sha)) return true;
+          const r = await git(roots[pc], ["cat-file", "-e", `${sha}^{commit}`]);
+          return r.ok;
+        };
+        const resolved = {};
+        let asked = 0;
+        for (const d of documents) {
+          for (const rec of CommitLinks.recordsIn(d.text)) {
+            const home = rec.project || d.project;
+            if (!home || !roots[home]) continue; // a repo this hub cannot see is not a finding
+            const key = `${home}:${rec.sha}`;
+            if (key in resolved) continue;
+            if (home === projectCode && commits.some((c) => CommitLinks.sameSha(c.sha, rec.sha))) continue; // in the window
+            asked += 1;
+            if (await exists(home, rec.sha)) { resolved[key] = true; continue; }
+            let foundIn = false;
+            for (const other of Object.keys(roots)) {
+              if (other === home) continue;
+              if (await exists(other, rec.sha)) { foundIn = other; break; }
+            }
+            resolved[key] = foundIn;
+          }
+        }
         return {
           ok: true,
           projectCode,
           window: win,
           retiredScan: { paths: retiredScanned, found: Object.keys(retired).length, capped: retiredCapped, cap: RETIRED_SCAN_CAP },
-          ...CommitLinks.audit({ commits, documents, retired }),
+          shaScan: { projects: Object.keys(roots).length, asked },
+          ...CommitLinks.audit({ commits, documents, retired, resolved }),
         };
       },
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
