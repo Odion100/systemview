@@ -551,6 +551,17 @@ function resolveSpeaker(projectCode, chat, as) {
     throw new Error(
       `"${as}" is not a connected project — identities ARE project codes. Speak as your own project (--as <yourProjectCode>), or drop --as to speak as ${projectCode}'s own agent.`,
     );
+  // AND THE BOUNCE IS HONOURED HERE, where a refusal has a voice. `kick()` has written to a
+  // `kicked` map since it was built and nothing ever read it, so the cooldown the visiting
+  // etiquette rests on did not exist — a kicked identity could speak again in the next second.
+  // This is the gate because this is where a refusal reaches the caller as a sentence: the
+  // identity check above already throws one carrying its own fix, and a kick that does not stop
+  // the messages is worse than no kick, which the kick's own comments say three ways.
+  const bounced = Chats.kickedOut(projectCode, chat || Chats.DEFAULT_CHAT, as);
+  if (bounced)
+    throw new Error(
+      `"${as}" was kicked from this room and cannot speak in it for another ${Math.ceil(bounced.remaining / 60000)} minute(s). The cooldown lapses on its own — nothing needs to be undone.`,
+    );
   // Arriving IS entering. The pre-entry gate was a proof-of-presence built on holds, and holds are
   // what this replaced; the identity check above is the proof that survives. The visit is still
   // recorded, so presence and the "who jumped into whose chat" display stay honest.

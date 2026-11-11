@@ -648,6 +648,30 @@ module.exports = function Chats({ chatFor } = {}) {
       return !!(ts && Date.now() - ts < VISIT_TTL);
     },
 
+    // IS THIS IDENTITY STILL BOUNCED? The other half of `kick()`, and until 2026-11-11 there was no
+    // other half: `kick` wrote the identity and a timestamp into `kicked` and **nothing ever read
+    // either one**. `KICK_TTL` appeared in two comments and its own declaration and nowhere else.
+    // So the cooldown the visiting etiquette rests on — "stay freely", because the human can bounce
+    // you — did not exist, and a kicked identity could speak again in the next second. A surface
+    // claiming more than the disk supports, written in the confident voice of a comment.
+    //
+    // IT LAPSES ON READ. A kick is a cooldown and not a ban, so the entry is dropped the moment it
+    // ages out — otherwise the map only grows and nothing ever says the bounce ended. The answer
+    // carries `until` and `remaining` so the refusal can tell the caller WHEN rather than just no.
+    kickedOut(pc, chat, identity) {
+      const k = key(pc, chat);
+      const kmap = kicked.get(k);
+      const ts = kmap && kmap.get(identity);
+      if (!ts) return null;
+      const remaining = KICK_TTL - (Date.now() - ts);
+      if (remaining <= 0) {
+        kmap.delete(identity);
+        if (!kmap.size) kicked.delete(k);
+        return null;
+      }
+      return { identity, until: ts + KICK_TTL, remaining };
+    },
+
     // SPEAKING IS ARRIVING. Entering used to be a separate act you had to perform first, and it
     // existed to prove the visitor was really there — a hold in the room was the proof. With holds
     // gone (a message now goes straight into the other agent's conversation) that gate only stopped
@@ -656,7 +680,12 @@ module.exports = function Chats({ chatFor } = {}) {
     // which is the proof that actually mattered. Presence still gets marked, so the room shows who
     // walked in — it is recorded BY the visit rather than demanded before it.
     enterBySpeaking(pc, chat, identity) {
+      // A BOUNCED IDENTITY DOES NOT ARRIVE. The caller refuses the message outright (the gate with
+      // the voice is `resolveSpeaker`, which throws a sentence saying when the cooldown ends); this
+      // is the belt beside it, so no second caller can mark a kicked visitor present by accident.
+      if (this.kickedOut(pc, chat, identity)) return false;
       markEntered(key(pc, chat), identity);
+      return true;
     },
 
     // Departure detection for leave(): only announce someone who was actually here.
