@@ -10,95 +10,29 @@ const Client = createClient(createCookieHttpClient());
 // mix stay all-time — bounded rollups keep no per-bucket histograms). Default output is the digest
 // (top load, error hotspots, deltas); --json is the full structured read for agent parsing.
 
-const RANGE_MS = { "15m": 15 * 60e3, "1h": 3600e3, "4h": 4 * 3600e3, "24h": 24 * 3600e3 };
-const RANGES = ["15m", "1h", "4h", "24h", "all"];
-
-const fmtInt = (n) => (n == null ? "—" : Math.round(n).toLocaleString());
-const fmtMs = (n) => (n == null ? "—" : n >= 1000 ? `${(n / 1000).toFixed(1)}s` : `${Math.round(n)}ms`);
-const fmtPct = (n) => (n == null ? "—" : `${(n * 100).toFixed(n >= 0.1 ? 0 : 1)}%`);
-
-// Same split the page draws: 4xx is the caller's fault, only 5xx (and unclassified) is sickness.
-function splitErrors(statusCounts = {}) {
-  let server = 0, client = 0;
-  Object.entries(statusCounts).forEach(([code, n]) => {
-    const c = Number(code);
-    if (c >= 500) server += n;
-    else if (c >= 400) client += n;
-    else server += n;
-  });
-  return { server, client };
-}
-
-function health({ serverErrorRate = 0, p99 = 0 }) {
-  if (serverErrorRate >= 0.05 || p99 >= 2500) return "bad";
-  if (serverErrorRate >= 0.01 || p99 >= 1000) return "watch";
-  return "ok";
-}
-
-// The page's windowing, verbatim in spirit: sum the per-bucket per-method maps inside the cutoff;
-// methods silent in the window drop out; windowed errors split server/client by the all-time ratio.
-function windowMethods(snapshot, rangeMs) {
-  const cutoff = rangeMs ? Date.now() - rangeMs : 0;
-  let windowed = null;
-  if (rangeMs) {
-    windowed = {};
-    (snapshot.series || []).forEach((pt) => {
-      if (pt.ts < cutoff || !pt.methods) return;
-      Object.entries(pt.methods).forEach(([mm, v]) => {
-        const w = windowed[mm] || (windowed[mm] = { count: 0, errors: 0, sumDuration: 0 });
-        w.count += v.count;
-        w.errors += v.errors;
-        w.sumDuration += v.sumDuration;
-      });
-    });
-  }
-  return (snapshot.methods || [])
-    .map((m) => {
-      const w = windowed && (windowed[m.moduleMethod] || { count: 0, errors: 0, sumDuration: 0 });
-      const count = w ? w.count : m.count;
-      const errors = w ? w.errors : m.errors;
-      const wall = w ? w.sumDuration : m.totalDuration;
-      const { server, client } = splitErrors(m.statusCounts);
-      const serverShare = m.errors ? server / m.errors : 1;
-      const serverErrors = w ? Math.round(errors * serverShare) : server;
-      return {
-        moduleMethod: m.moduleMethod,
-        count,
-        errors,
-        serverErrors,
-        clientErrors: w ? errors - serverErrors : client,
-        errorRate: count ? errors / count : 0,
-        serverErrorRate: count ? serverErrors / count : 0,
-        avgDuration: count ? wall / count : 0,
-        totalDuration: wall,
-        p50: m.p50,
-        p95: m.p95,
-        p99: m.p99,
-        maxDuration: m.maxDuration,
-        statusCounts: m.statusCounts || {},
-      };
-    })
-    .filter((m) => !rangeMs || m.count > 0);
-}
-
-// Change: recent half vs previous half of the (windowed) series — the page's Change tab in two lines.
-function changeDelta(series, rangeMs) {
-  const cutoff = rangeMs ? Date.now() - rangeMs : 0;
-  const pts = (series || []).filter((pt) => !rangeMs || pt.ts >= cutoff).sort((a, b) => a.ts - b.ts);
-  if (pts.length < 2) return null;
-  const half = Math.floor(pts.length / 2);
-  const sum = (arr) => arr.reduce((a, p) => ({ count: a.count + p.count, errors: a.errors + p.errors }), { count: 0, errors: 0 });
-  const prev = sum(pts.slice(0, half));
-  const recent = sum(pts.slice(half));
-  return {
-    buckets: pts.length,
-    prev,
-    recent,
-    callsDelta: prev.count === 0 ? (recent.count > 0 ? 1 : 0) : (recent.count - prev.count) / prev.count,
-    prevErrRate: prev.count ? prev.errors / prev.count : 0,
-    recentErrRate: recent.count ? recent.errors / recent.count : 0,
-  };
-}
+// THE ARITHMETIC IS THE HUB'S, AND THIS FILE IS THE CALLER IT ALWAYS SAID IT WAS.
+//
+// `api/stats.js` opens with "it moves here and `cli/stats.js` becomes a caller — the whole point of
+// the exercise being that the answer never forks." It did not become a caller: 86 lines of
+// windowing, the error split, the health thresholds and the formatters sat here as a byte-identical
+// copy, under a comment in the other file swearing the answer could not fork. Nothing had drifted
+// yet, which is precisely the state a drift starts from — the next person to fix a windowing bug
+// fixes it in one of two places and the hub and the CLI start disagreeing about the same snapshot,
+// silently.
+//
+// What stays here is PRINTING: colour, column widths, the digest's choices about what is worth
+// showing. That is this file's job and it is the only thing in it that should ever differ.
+const {
+  RANGES,
+  RANGE_MS,
+  fmtInt,
+  fmtMs,
+  fmtPct,
+  splitErrors,
+  health,
+  windowMethods,
+  changeDelta,
+} = require("../api/stats");
 
 module.exports = async function statsCommand(projectCode, serviceFilter, { uiUrl, range, json, collect = false } = {}) {
   if (collect) json = true; // RFC-056 lib mode

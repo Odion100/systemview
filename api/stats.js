@@ -165,4 +165,8 @@ async function stats({ projectCode, service, range } = {}, connections = [], Cli
   return { projectCode, range: r, generatedAt: Date.now(), silent, services: perService };
 }
 
-module.exports = { stats, windowMethods, changeDelta, splitErrors, health, RANGES, RANGE_MS };
+// THE FORMATTERS ARE EXPORTED TOO, and that is not tidiness: the CLI prints the same numbers and
+// was carrying its own byte-identical copies of these three beside its own copy of the arithmetic.
+// A thousands separator or a "1.2s" threshold that differs between the hub's report and the CLI's
+// is the same fork in smaller clothes.
+module.exports = { stats, windowMethods, changeDelta, splitErrors, health, fmtInt, fmtMs, fmtPct, RANGES, RANGE_MS };
