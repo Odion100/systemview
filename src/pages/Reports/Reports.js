@@ -136,7 +136,7 @@ const Chrome = ({ embedded, projectCode, children }) =>
 // somebody renames a route), NOTHING is written to the URL (the Code page owns it — a second writer
 // would fight the tab store for the address bar), and the project picker goes, because the card you
 // opened this from already said which project.
-export default function Reports({ projectCode: pcProp = null, serviceId: svcProp = null, embedded = false }) {
+export default function Reports({ projectCode: pcProp = null, serviceId: svcProp = null, embedded = false, className = "" }) {
   const { SystemViewService } = useContext(ServiceContext);
   const history = useHistory();
   const location = useLocation();
@@ -526,7 +526,12 @@ export default function Reports({ projectCode: pcProp = null, serviceId: svcProp
   useOpenedFile(embedded ? null : projectCode, setFileDoc);
 
   return (
-    <section className={`reports-page${embedded ? " reports-page--embedded" : ""}`}>
+    // `className` RIDES THE ROOT so this panel can be KEPT like every other centre document. The
+    // centre hides a panel on the panel's OWN element — never on a wrapper — because the height
+    // comes down a direct-child chain and one added level breaks it (measured: it cost a
+    // scrollable dashboard). Stats was the last panel still rebuilt on leaving, for want of this
+    // one prop.
+    <section className={`reports-page${embedded ? " reports-page--embedded" : ""}${className ? ` ${className}` : ""}`}>
       {/* NO PAGE CHROME INSIDE A TAB. Embedded, this renders the app's own header — top nav and
           all — inside a center tab, which is a page wearing a tab's clothes. A tab is a VIEW; the
           window around it already exists. */}

@@ -616,14 +616,15 @@ export default function Documentation({
             <Board projectCode={tabsPc} chrome="pane" />
           </div>
         )}
-        {/* STATS IS NOT KEPT, and the reason is the one above: it renders with no wrapper of its
-            own, so keeping it would mean ADDING an element — which is the thing that broke the
-            dashboard. Wrapping it needs `Reports` to take a className first. */}
-        {!hidden && i === focus && tab === "stats" && (
+        {/* STATS IS KEPT NOW, like every other centre document — `Reports` takes a className, so
+            the hide goes on its OWN root element and no DOM level is added. It was the last panel
+            still rebuilt on leaving, and the reason was only ever that one missing prop. */}
+        {!hidden && holdsKey(pn, `stats:${tabsPc}`) && (
           <Reports
             projectCode={fileLens ? codeFile.projectCode : sProject}
             serviceId={fileLens ? undefined : sService}
             embedded
+            className={showsKey(pn, i, `stats:${tabsPc}`, tab === "stats") ? "" : "doc-kept-away"}
           />
         )}
         {!hidden && i === focus && tab === "logs" && (
