@@ -245,7 +245,11 @@ export default function Documentation({
 
   // WHAT THE CENTER SHOWS = what the URL says is active (never the store alone, so back/forward
   // keep working): a file when one is in the URL, else the kind the tab param names.
-  const activeFileTab = fileLens && codeFile ? pane.tabs.find((x) => x.key === fileKey(codeFile)) : null;
+  //
+  // There used to be an `activeFileTab` here, read so the one shared code pane could be handed the
+  // active tab's file. Every open file has its own pane now, and each reads its OWN tab, so there
+  // is nothing left for a single "which one is active" lookup to feed — the visibility test does
+  // that job where the panes are rendered.
 
   const openReport = useCallback((path) => {
     const p = new URLSearchParams(window.location.search);
@@ -345,22 +349,43 @@ export default function Documentation({
             <HelpPane topicKey={helpTopic} />
           </div>
         )}
-        {/* RFC-022 — the Code center: edit-first file pane fed by the Codebase nav's selection. */}
-        {!helpOpen && fileLens && tab === "docs" && (
-          <div className="documentation-view__data-table">
-            {/* The pane's × closes the TAB — the strip picks the neighbor you land on. (The old
-                ftab-restore dance is the strip's job now.) */}
-            <CodePane
-              file={(activeFileTab && activeFileTab.file) || codeFile}
-              onClose={() => {
-                // same act the strip's × performs: store-close, then move the URL if it was active
-                const key = fileKey(codeFile);
-                const nextKey = closeTab(tabsPc, key);
-                afterClose(nextKey, null);
-              }}
-            />
-          </div>
-        )}
+        {/* RFC-022 — the Code center: edit-first file pane fed by the Codebase nav's selection.
+            ONE PANE PER OPEN FILE TAB, and this is where his ask actually lives: *"saving where you
+            are in the document."* A TAB IS A TAB — every document he opens is a file tab, so one
+            shared pane serving all of them meant switching files rebuilt the pane and the scroll
+            position went with it. Now each open file keeps its own pane and all but the active one
+            are hidden, so leaving a document and coming back lands where he was.
+
+            THE GATE IS NOT `fileLens && tab === "docs"` ANY MORE, and that is deliberate: as a
+            gate it unmounted every file pane the moment he looked at the dashboard, which is
+            exactly the case this is meant to survive. It moved into the visibility test, so the
+            panes live as long as their TABS do.
+
+            EACH PANE KEEPS ITS OWN `documentation-view__data-table`, because `styles.scss:621` is
+            `> .documentation-view__data-table > .code-pane` — a direct-child chain. Nesting the
+            panes under one shared wrapper would break it the same way wrapping the dashboard did.
+
+            Each pane reads its OWN tab's file rather than the active one, so a hidden pane cannot
+            be handed somebody else's address. */}
+        {!helpOpen &&
+          (tabsState.panes || [])
+            .flatMap((pn) => pn.tabs || [])
+            .filter((t) => t.kind === "file" && t.file)
+            .map((t) => {
+              const showing = fileLens && tab === "docs" && codeFile && fileKey(codeFile) === t.key;
+              return (
+                <div key={t.key} className={`documentation-view__data-table${showing ? "" : " doc-kept-away"}`}>
+                  {/* The pane's × closes ITS OWN tab — the strip picks the neighbor you land on. */}
+                  <CodePane
+                    file={t.file}
+                    onClose={() => {
+                      const nextKey = closeTab(tabsPc, t.key);
+                      afterClose(nextKey, null);
+                    }}
+                  />
+                </div>
+              );
+            })}
         {/* NOTHING LOADED — HOW WE WORK takes the floor. The empty strip used to show SystemView's
             own documentation, which answered "what are these panels" for somebody who already knew
             why they would want them ("it's kind of bullshit" — his read, 2026-10-27). What belongs
