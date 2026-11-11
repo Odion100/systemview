@@ -159,6 +159,17 @@ average of 546 — and it carries an explicit disable pointing at the reason alr
 declaration and nothing else. That is worse than no comment — it is the thing that stops the next
 reader deleting dead code.
 
+## What built it
+
+::commit{sha=948ddcfc}
+::commit{sha=9518c30d}
+
+The second is the bundle, which is how `src/` reaches your window — nothing here needs a shell
+restart. A report cannot hold the sha of the commit that writes it, so these land in the next touch
+and the newest commit is one-way: a fixed point rather than an omission, and note `pq5k` is explicit
+that it should be left visible rather than hidden by dropping a trailer. **So `oneWay: 1` naming the
+last commit here is the clean result**, which is what the door should show.
+
 ## Where the tests stand
 
 | suite | ran | says |
