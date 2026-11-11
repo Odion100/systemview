@@ -19,14 +19,31 @@ import "./styles.scss";
 // its own project the moment you looked away from it. The last address it was given IS its address
 // until it is given another: that is what makes the pane survive being left, rather than merely
 // stay in the DOM.
-const KeptPane = ({ match, className = "", children }) => {
+// TWO WAYS TO SAY "I AM SHOWING", because two surfaces need this and they do not agree about what
+// decides it — his ask, 2026-11-10: *"how can we make a document keep state as you go across tabs
+// without... coming to the page."*
+//
+//   `match`      — a ROUTE match, for the pages. Absent means the route does not match.
+//   `show`+`keep` — a BOOLEAN and the address to remember, for the centre's TAB panels, which have
+//                   no route of their own: they are a `tab` string compared against the URL.
+//
+// One component rather than two, deliberately. The mechanism is identical and the hard-won part —
+// keeping the last address — is the part a second copy would get wrong first, so a tab-flavoured
+// clone of this file is exactly the drift one definition exists to prevent.
+const KeptPane = ({ match, show, keep, className = "", children }) => {
+  const routed = match !== undefined;
+  const here = routed ? !!match : !!show;
+  // The address to remember WHILE HERE. A route carries it in `params`; a tab is handed it as
+  // `keep`. A pane with nothing to carry still records that it has been here, so `{}` is a real
+  // answer and not the same as "never shown".
+  const address = here ? (routed ? match.params || {} : keep || {}) : null;
   const kept = useRef(null);
-  if (match) kept.current = match.params || {};
-  // Never rendered yet and not matching now — there is nothing to keep, so stay out of the DOM
+  if (address) kept.current = address;
+  // Never rendered yet and not showing now — there is nothing to keep, so stay out of the DOM
   // entirely. The first visit mounts it; from then on it only ever hides.
-  if (!match && !kept.current) return null;
+  if (!here && !kept.current) return null;
   return (
-    <div className={`kept-pane${match ? "" : " kept-pane--away"} ${className}`.trim()} aria-hidden={!match}>
+    <div className={`kept-pane${here ? "" : " kept-pane--away"} ${className}`.trim()} aria-hidden={!here}>
       {typeof children === "function" ? children(kept.current || {}) : children}
     </div>
   );

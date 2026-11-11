@@ -19,6 +19,7 @@ import Board from "../Board/Board";
 import CenterTabs, { useOpenByPath } from "../CenterTabs/CenterTabs";
 import { buildRoute, tabForUrl, floorTab, seedable } from "../../pages/SystemView/tabRoutes";
 import HowWeWork from "../HowWeWork/HowWeWork";
+import KeptPane from "../../atoms/KeptPane/KeptPane";
 import DashboardSwitch from "../DashboardSwitch/DashboardSwitch";
 
 export default function Documentation({
@@ -93,6 +94,10 @@ export default function Documentation({
     return subscribeTabs(tabsPc, setTabsState);
   }, [tabsPc]);
   const pane = tabsState.panes[0];
+  // IS THIS TAB OPEN IN THE STRIP — across every pane, so the split does not have to come back and
+  // fix this. It is what BOUNDS the kept panes below: a panel lives while its tab is open and is
+  // released when the tab is closed, which is the only lifetime that cannot grow without end.
+  const tabIsOpen = (key) => (tabsState.panes || []).some((pn) => (pn.tabs || []).some((t) => t.key === key));
   // THE FLOOR IS THE HOW TAB — one name, three readers. With nothing loaded in the center (no
   // file, no namespace scope, or nothing open at all) this page shows How-we-work; it used to show
   // it as a bare RENDER, which opened no tab and selected nothing. After a shell restart that left
@@ -476,27 +481,44 @@ export default function Documentation({
         )}
         {/* OPENED DELIBERATELY, not fallen into. Same page as the floor below — one component,
             so the two can never drift into two answers about how the system works. */}
-        {!helpOpen && tab === "dash" && (
-          <div className="documentation-view__data-table">
-            <DashboardSwitch projectCode={tabsPc} />
-          </div>
+        {/* KEPT, NOT REBUILT — his ask: *"keep state as you go across tabs without... coming to
+            the page."* Leaving a tab used to UNMOUNT the panel, so the scroll position, an open
+            editor and anything mid-flight were rebuilt on return. `KeptPane` hides instead.
+            MOUNTED ON FIRST SHOWING and released when the TAB IS CLOSED — the open set is the
+            lifetime, because "keep everything forever" feeds the card about the window getting
+            heavier the longer it is open. */}
+        {!helpOpen && tabIsOpen(`dash:${tabsPc}`) && (
+          <KeptPane show={tab === "dash"}>
+            {/* THE BOX STAYS INSIDE. `.kept-pane` is `display: contents` so it generates no box of
+                its own — which is what makes it layout-neutral, and also what would make a layout
+                class passed to it silently do nothing. The original div is kept verbatim. */}
+            <div className="documentation-view__data-table">
+              <DashboardSwitch projectCode={tabsPc} />
+            </div>
+          </KeptPane>
         )}
-        {!helpOpen && tab === "how" && (
-          <div className="documentation-view__data-table">
-            <HowWeWork />
-          </div>
+        {!helpOpen && tabIsOpen(`how:${tabsPc}`) && (
+          <KeptPane show={tab === "how"}>
+            <div className="documentation-view__data-table">
+              <HowWeWork />
+            </div>
+          </KeptPane>
         )}
-        {!helpOpen && tab === "board" && (
-          <div className="doc-board">
-            <Board projectCode={tabsPc} chrome="pane" />
-          </div>
+        {!helpOpen && tabIsOpen(`board:${tabsPc}`) && (
+          <KeptPane show={tab === "board"}>
+            <div className="doc-board">
+              <Board projectCode={tabsPc} chrome="pane" />
+            </div>
+          </KeptPane>
         )}
-        {!helpOpen && tab === "stats" && (
-          <Reports
-            projectCode={fileLens ? codeFile.projectCode : sProject}
-            serviceId={fileLens ? undefined : sService}
-            embedded
-          />
+        {!helpOpen && tabIsOpen(`stats:${tabsPc}`) && (
+          <KeptPane show={tab === "stats"}>
+            <Reports
+              projectCode={fileLens ? codeFile.projectCode : sProject}
+              serviceId={fileLens ? undefined : sService}
+              embedded
+            />
+          </KeptPane>
         )}
         {!helpOpen && tab === "logs" && (
           <InlineLogs
