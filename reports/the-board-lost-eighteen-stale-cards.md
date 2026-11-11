@@ -134,8 +134,20 @@ longer exists — the thing that made this regression unreadable from the code. 
 assertions exist to keep it honest: a **branch** attachment stamps no report, and a non-job run
 touches nothing.
 
-**This report is its own proof.** Attaching it stamps this run's record, which is what the fix
-restored.
+**THIS REPORT IS NOT ITS OWN PROOF, AND I WROTE THAT IT WAS BEFORE CHECKING.** I attached it and
+then read the run record: still `report: undefined`. The reason is the one written under *Arming*
+below and I should have predicted it — `attach` runs inside the shell's MCP server, and the shell
+has the old `worklist.cjs` cached, so the fix cannot fire until the shell restarts. The code is
+right and the test proves the behaviour in isolation; what does not yet exist is the end-to-end
+evidence on a live run.
+
+**So the proof is a press, not a claim.** After your shell restart, this command answers it — a
+`report` with this document's path means the stamp fired; `undefined` means the fix is wrong and I
+want to know.
+
+:::cmd
+node -e "const r=require(require('os').homedir()+'/.autobot/jobs/proactive-development/runs/rmwbhyuvl00.json'); console.log('report:', JSON.stringify(r.report))"
+:::
 
 ## 5 · Your directly-asked work, landed the same night
 
@@ -162,7 +174,7 @@ cold start seeded the floor into a real localStorage store no surface will ever 
 | systemview window | 2565 assertions, green | no suite mounts the chat renderer or `Documentation.js` — react-markdown sits at line 3 of that import graph |
 | systemview hub | 369 assertions, green | — |
 | `yarn verify` (bare) | green, production build included | eslint-as-error only runs here, not in jest |
-| autobot | attachments · job-path 33 · nudge 39 · run-slots 7 · lanes 21 · compaction 25 · documents 29 · context · hooks — all green | — |
+| autobot | attachments · job-path 33 · nudge 39 · run-slots 7 · lanes 21 · compaction 25 · documents 29 · context · hooks — all green | the suites prove the stamp in isolation; the LIVE path is unproven until the shell restarts, because the MCP server holds the old module |
 
 **What I could not verify, and it matters:**
 
