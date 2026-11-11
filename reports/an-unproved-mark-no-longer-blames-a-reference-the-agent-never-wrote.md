@@ -162,6 +162,40 @@ proves a string is returned, never that anybody sees it — and "computed and wi
 fault I have filed against this codebase more than once this week. So the assertion renders the
 jammed claim and reads the text out of the list element.
 
+## Pick 3 — half an answer, and the half is the hub's
+
+The card *"reports drawer count vs registry — 6 against 9, filter never found"* asks which filter
+dropped three, and names three suspects: stale, a cap, or the `.systemview` path. **The hub is
+cleared of all three.**
+
+| | |
+|---|---|
+| `Agent.documentsRegistry` on the live hub | **31 reports** |
+| `registry({kind: "report"})`, independently | **31 reports** |
+
+No cap, no stale filter, and the thirteen living under `.systemview/` all come back beside the
+eighteen under `reports/` and `meetings/`. So whatever drops rows is in the WINDOW, not in the door,
+and that is the card's question narrowed by one whole side.
+
+**I could not count the drawer, and the reason is worth stating.** His band is showing the WORK
+family right now — `.agent-chat__bandtab--document` reads **0 nodes** in his live window — and
+putting the documents family on screen means driving his window, which is not mine to do while he is
+in it. So I went to my own instance on 9333, which is what it is for, and `Page.navigate` did not
+take: the page stayed on `/specs` across two attempts, which means every DOM query I ran was
+answering about the wrong page. I killed it rather than keep reading a window I had not moved. The
+card is stamped `partial` with the hub half recorded and a reply saying exactly where to resume.
+
+**The 6-against-9 in the card is still the only drawer count anybody has taken**, and it predates
+the population change the card itself names. The next count is against 31.
+
+## What built this account
+
+::commit{sha=78b5bb1d}
+
+A report cannot hold the sha of the commit that writes it, so this record lands in the next touch
+and the newest commit is one-way — one visible fixed point, left standing rather than hidden by
+dropping a trailer.
+
 ## What I could NOT do or verify
 
 - **The registry row is still silent about a jammed fold**, and the host is NOT wrong — I measured
