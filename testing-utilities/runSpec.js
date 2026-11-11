@@ -21,6 +21,7 @@
 // ---- the step grammar -------------------------------------------------------------------------
 // A step's label — `{title="…"}` on the end of the step, disambiguated from the object shorthand
 // (`- Math.add { "a": 1 }`) by the separator: attributes are `key=`, JSON is `"key":`.
+const { VALIDATION_NAMES } = require("./stepClaims");
 const ATTR_TAIL = /\{\s*([A-Za-z_][\w-]*)\s*=\s*([\s\S]*?)\s*\}\s*$/;
 
 function splitStepAttrs(body) {
@@ -219,10 +220,71 @@ function resolveNamespace(target, services = []) {
 // `✓ results.total = 5` · `expect results.label = "x"` · `✓ results.name ~ ser_` · `>=` / `<=` bounds.
 const BOUNDS = { ">=": "min", "<=": "max" };
 
+// THE NAMED FORM — `path includes manager`, `path minLength 2`, `path isOneOf a, b`.
+//
+// WHY IT IS HERE NOW. This grammar exists TWICE: once in the window
+// (`src/atoms/Markdown/blocks/RunBlock.js`) and once here, and they had drifted. The window grew
+// the named form and this copy did not, so the same `:::run` fold ran clean under his press and
+// came back from `runProofs` with "2 assertions couldn't be read" — one document, two doors, two
+// answers. Measured 2026-11-11: a step with `includes` and `minLength` kept one evaluation of three
+// through this file and three of three through the window's.
+//
+// The names are not a list anyone types here. They come off `VALIDATION_NAMES`, which
+// `stepClaims.test.js` already pins against every `name === "…"` that `validators.js` really
+// implements — so a validator added there becomes writable in a fold with nothing else to edit,
+// and `runSpec.parity.test.js` fails if this copy and the window's stop accepting the same set.
+const NAME_TYPES = (() => {
+  const byName = {};
+  Object.entries(VALIDATION_NAMES).forEach(([type, names]) =>
+    names.forEach((name) => {
+      (byName[name] = byName[name] || []).push(type);
+    }),
+  );
+  return byName;
+})();
+// A LENGTH ASSERTION BECOMES A NUMERIC ONE ABOUT `path.length` — same claim, no ambiguity, and it
+// is the window's own translation rather than a second idea about what the words mean.
+const LENGTH_TO_NUMERIC = { lengthEquals: "numEquals", minLength: "min", maxLength: "max" };
+const NUMERIC_VALUES = ["min", "max", "numEquals"];
+// FOUR NAMES ARE LEGAL ON TWO TYPES, so the name alone cannot settle `expected_type` — and it has
+// to be settled, because `mixed` skips the type check entirely and a missing field would then
+// assert nothing. `isOneOf` is the genuine read-off-the-values case: the validator splits a comma
+// list either way, so the values themselves say which variant this is.
+function typeForName(name, rhs) {
+  const types = NAME_TYPES[name];
+  if (!types) return null;
+  if (types.length === 1) return types[0];
+  const parts = String(rhs).split(",").map((v) => v.trim()).filter(Boolean);
+  return parts.length && parts.every((v) => Number.isFinite(Number(v))) ? "number" : "string";
+}
+function namedEvaluation(line) {
+  const named = line.match(/^(\S+)\s+([A-Za-z][A-Za-z0-9]*)\s+(.+)$/);
+  if (!named || !NAME_TYPES[named[2]]) return null;
+  const [, path, written, rawValue] = named;
+  const name = LENGTH_TO_NUMERIC[written] || written;
+  const ns = LENGTH_TO_NUMERIC[written] ? `${path}.length` : path;
+  const expected_type = typeForName(name, rawValue);
+  let value = rawValue.trim().replace(/^["']|["']$/g, "");
+  if (NUMERIC_VALUES.includes(name)) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return null;
+    value = num;
+  } else if (name === "boolEquals") {
+    if (value !== "true" && value !== "false") return null;
+    value = value === "true";
+  }
+  return { namespace: ns, expected_type, validations: [{ name, value }], save: true };
+}
+
 function toEvaluations(checks = []) {
   return checks
     .map((raw) => {
-      const m = normalizeRefs(raw).match(/^(\S+)\s*(>=|<=|==|=|~)\s*(.+)$/);
+      const line = normalizeRefs(raw);
+      // THE NAMED FORM FIRST, because it is unambiguous: a namespace carries no spaces, so
+      // `path includes x` can only be the named shape. The symbol forms below are untouched.
+      const byName = namedEvaluation(line);
+      if (byName) return byName;
+      const m = line.match(/^(\S+)\s*(>=|<=|==|=|~)\s*(.+)$/);
       if (!m) return null;
       const [, ns, op, rhs] = m;
       let value = rhs.trim();

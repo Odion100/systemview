@@ -369,9 +369,20 @@ objects, arrays, numbers, strings, or `tv(…)` references to an earlier step:
 Notice what `use: seedSum` does — it stays a **shared action**, its own titled section, exactly as it
 appears in the Scratch Pad. It is not flattened into anonymous steps, because it isn't anonymous.
 
-**Assertion forms:** `✓ path = value` (numbers, booleans and strings compare by type), `✓ path ~ text`
-(is-like / regex), and the value may itself be a `tv(…)` reference. `expect` works as a synonym for
-`✓`.
+**Assertion forms.** Two shapes, and both run identically under your press and under an agent's
+`runProofs` — that is pinned by a test, because the grammar lives in two files and has drifted once.
+
+- **Symbols:** `✓ path = value` (numbers, booleans and strings compare by type), `✓ path ~ text`
+  (is-like / regex), `✓ path >= n` and `✓ path <= n`.
+- **Named:** `✓ path <validator> value`, where the validator is any name the engine implements for
+  that type — `includes` for an array, `isOneOf` for a value from a comma list, and
+  `lengthEquals` / `minLength` / `maxLength`, which become a numeric claim about `path.length`.
+  This is what lets a fold say *the roster contains manager* against the array where it stands,
+  instead of a door projecting a pipe-wrapped string for a `~` to match.
+
+The value may itself be a `tv(…)` reference, and `expect` works as a synonym for `✓`. A word that
+is not a validator name is NOT read as an assertion — it is reported as unreadable rather than
+becoming a check that runs nothing.
 
 And the **saved** form, for replaying an action by name — badged differently so you can always tell
 which one you're looking at:
