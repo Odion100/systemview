@@ -47,7 +47,7 @@ testing-utilities/`, nothing in autobot outside its own declaration, its export 
 
 ## Why the docstring was worth removing, and not just the function
 
-::commit{sha=40f8a9c project=autobot}
+::commit{sha=40f8a9c7 project=autobot}
 
 **A comment that misdirects is worse than no comment.** An agent adding a trigger reads
 `registry.cjs`, because that is where the registry lives — not `sessions.cjs`. Wiring it to "the
