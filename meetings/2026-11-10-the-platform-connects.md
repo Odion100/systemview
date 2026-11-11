@@ -69,6 +69,55 @@ the agents once things move forward."*
 
 ---
 
+## Priors — two documents this arc must not design over, and one of them is yours
+
+Found by the reading, not by remembering. Both are registered, both are on the subject, and neither
+was in my head when I wrote the proposals above.
+
+**1 · You already refused this once, on purpose, and named the trigger.**
+`autobot/gaps/AGENT_REACH_IS_ONE_TIER_TODAY.md` opens: *"**Status: DELIBERATE, NOT OVERLOOKED.**
+Odion's call, 2026-09-09: 'we can go with the current policy and upgrade in the future.' This file
+exists so the upgrade is a decision someone makes on purpose, rather than a surprise someone
+discovers."*
+
+Its §2 is called **WHOSE IDENTITY**, and it is the sharpest statement of this arc's core problem
+anywhere in the system, written two months before this conversation:
+
+> *"Through the hub, every call wears **the hub's credential** — the ambient-identity problem
+> already recorded against buAPI. For a local workbench 'as the operator' is the only sensible
+> answer. For a live product, '**as whom?**' has to be answerable before an agent calls a mutating
+> method, and **today nothing in this repo asks it**."*
+
+**And its stated trigger is this arc.** Originally *"the first non-localhost entry in
+`services.json`"*, then sharpened at `:65-66` to *"gated on the first job that can call one."* So
+this is not an arc that discovers a problem — it is **the upgrade that file was written to wait
+for**, and the decision it asked somebody to make on purpose is the one we are making now. The
+first objective should say so, because the gap closes when the arc lands.
+
+**2 · The portability half already has a design, and it is `::rfc{id=RFC-010}` — "One portable
+folder", marked *partly built*.** `autobot/RFCs/RFC-010-one-portable-folder.md`. It already
+enumerates the portable set against the machine-local set, and it already names the hardest piece —
+which is exactly the piece §2's clone question runs into:
+
+> *"`projects.json` maps codes to **absolute paths in this user's home**, and `corpora.json` stores
+> absolute `root` paths the same way. On a machine with a different username, every one of them is
+> wrong. Agent definitions carry `cwd` too. Three files, one problem: **a project code is portable
+> and an absolute path is not.** … That is a genuine change to `corpora.json`'s shape and to how
+> `cwd` is stored on a definition, and it is **the piece of this RFC most likely to be
+> underestimated.** It may deserve its own RFC rather than a paragraph in this one."*
+
+**So the clone form in §2 is not new work — it is RFC-010 §3 finished.** That paragraph wanting its
+own RFC is a candidate first objective, and the arc either amends RFC-010 or supersedes it. It does
+not get a parallel design; two documents for one problem is two sources drifting.
+
+**DECIDE HERE:**
+1. Does this arc **close** `AGENT_REACH_IS_ONE_TIER_TODAY`, so its first objective names that gap?
+   My position: yes, and it should be stated in the objective so the gap's own trigger is answered
+   on the record rather than silently overtaken.
+2. For the portable-definition piece: **amend RFC-010, or supersede it** with the arc's own plan?
+
+---
+
 ## 0 · What this goal really means — your own ask, and the first thing to settle
 
 You said it last and it comes first, because every section below inherits it.
@@ -130,6 +179,43 @@ through `fsGit.existsSync` (`api/index.js:831`) before it reaches the root map. 
 project that is not on this disk does not refuse — **it silently vanishes from the map**, and the
 shell's own `rootOf` throws `unknown project` (`files-host.cjs:25-29`).
 
+**And autobot has no user either — this is now measured, not assumed.** A grep for
+`oauth|keychain|credential|apiKey|bearer|jwt|signin|login|authenticate` across autobot reduces to
+three live things, none of which is a person. What the system actually has is **agent identity, and
+it is identity BY CONSTRUCTION** — `identity = { projectCode, slot }` closed over at MCP-server
+construction (`electron/agents/context.cjs:875-890`), with the principle stated at `:22-25`:
+*"IDENTITY BY CONSTRUCTION, NOT BY CLAIM — serverFor() closes over the session's own slot and
+project, so an agent-scope note cannot file under the wrong agent even if the model invents a
+name."* That is a good rule and it is the one to extend; there is simply no `user:` compartment
+beside `system` / `project:<code>` / `agent:<slot>` (`context.cjs:13-17`).
+
+**Wherever a human action IS recorded, the attributor is a string literal.** `by: "you"`
+(`electron/agents/host.cjs:84`, `sessions.cjs:1339,1357,1385`), `by: "somebody"`
+(`electron/markdown/blocks.cjs:86`), and `"by": "the window"` sitting as literal data in
+`~/.autobot/terminal-grants.json`. **Attribution with nothing behind it** — which is exactly what a
+logged-in person would replace, and it is also why no existing record would have to be migrated:
+there is nothing to migrate, only placeholders to fill.
+
+**The one human-shaped datum is borrowed and never stored:** `claude.oauthAccount.emailAddress`,
+read from `~/.claude.json` at three sites (`electron/main.cjs:496-497`,
+`electron/apps/files-host.cjs:269-270`, `electron/agents/sessions.cjs:2639`). autobot never writes
+it, never keys on it, never compares it — it is displayed, and used once as a boolean.
+
+**And `agent-auth.json` is not an identity, which I had wondered about.** It is
+`{ "ANTHROPIC_API_KEY": "…" }`, written only by the setup page (`electron/main.cjs:501-506`), and it
+gates exactly one thing: an environment variable on one process spawn, consulted only when the
+Claude login is absent (`sessions.cjs:2636-2644`). It is a billing credential. **It does not exist
+on this machine at all** — the live login wins, so it was never written. `RFC-010:37` settles the
+intent: *"The login is not configuration. It is an account, and it is signed into once per
+computer."*
+
+**No machine identity exists either — confirmed by grep, not inferred.** `os.hostname` has zero
+matches in autobot's own source; `machineId`/`deviceId` zero; autobot mints no UUIDs of its own
+(every uuid in `sessions.json` came from the Claude CLI). The only machine-identity-shaped things
+are `os.homedir()` and the absolute paths built on it. And the closest thing to an authorization
+list anywhere in the system is `~/.autobot/nudge.json`'s `managers: ["manager","systemview-test"]` —
+**a list of agent slots, not people.**
+
 **One finding that constrains §2 hard:** the window reaches sessions **only** through the Electron
 IPC bridge — `window.systemview.agent.sessions()` → `src/utils/hostAgents.js:122-129` →
 `ipcRenderer.invoke("agent:list")` (`electron/apps/svPreload.cjs:127`). Every door degrades to
@@ -168,8 +254,10 @@ with a definition). When my agent appears on your screen, your window should be 
 three: *Odion's* agent, from *Odion's studio machine*, acting as *systemview-test*.
 
 **DECIDE HERE:**
-1. **Keypair-per-install, or accounts on something central?** This is the first fork and everything
-   below hangs on it.
+1. **Keypair-per-install, accounts on something central — or the account we are already standing
+   on?** See §2's finding: the harness underneath already models a *user* whose sessions span
+   machines. That makes this a three-way fork, not a two-way, and it is the first thing to settle
+   because everything below hangs on it.
 2. Is an organization a **set of people**, a **set of nodes**, or a **set of agents**? Who can add a
    member, and who can revoke one — and does a revocation have to reach a node to take effect?
 3. **Does an agent have an identity of its own**, separate from the person who owns it? When my
@@ -209,6 +297,49 @@ So the notes themselves travel. What does not travel is the **scope vocabulary**
 and `agent:<slot>` only mean anything against this machine's project map and `~/.autobot/agents`.
 A clone that arrives carrying notes scoped to a project the host does not have is carrying notes
 addressed to nowhere, and that is a real design constraint on the clone format rather than a detail.
+
+**THE FINDING THAT CHANGES THIS SECTION: a cross-machine agent-to-agent channel ALREADY EXISTS one
+tier below us, and we have not configured it.**
+
+`SendMessage` and `ListAgents` are not autobot's — a grep of the whole repo finds no implementation.
+They are **Claude Agent SDK built-ins**, and the SDK's own typings model precisely the thing you
+described wanting:
+
+- `isolatePeerMachines` — *"Require explicit approval before SendMessage can reach a peer session
+  **on another machine** via Remote Control."*
+- `crossSessionInbound` — *"Inbound cross-session peer messages (SendMessage from **your other
+  sessions**)."*
+- and the event kind `peer-send-message`, described as *"model-authored text from another of **the
+  same user's** sessions, verified by the **server-stamped receiver co-membership**."*
+
+**autobot sets none of them.** The whole options literal it passes is
+`cwd, model, env, resume, includePartialMessages, permissionMode, ...sdkOpts, mcpServers, canUseTool`
+(`electron/agents/sessions.cjs:3006-3049`); a grep for any of those option names across autobot
+returns nothing. So the local-only quality of our messaging is **inherited, not designed** — and the
+layer we inherited it from already has a user-account identity, a cross-machine reach, and a
+server-side membership check.
+
+**That is a genuine fork and it belongs at the top of §1, not buried here.** Riding it would answer
+*"people log in as themselves"* almost for free — the person is the account that is already signed
+in once per computer — and it would give the first cross-machine message path without us building a
+transport at all. What it costs: identity becomes a vendor's, it reaches only **your own** sessions
+rather than a colleague's, and *"drop this application anywhere and connect"* stops being true the
+moment the account is the address. My position: it is the fastest route to a **demo** and the wrong
+foundation for the **goal** — but I would not want to decide that without you, because one of those
+two is what you actually want first and I do not know which.
+
+**What a DEFINITION would have to carry, now measured.** A definition is
+`~/.autobot/agents/<id>.json` (`electron/agents/definitions.cjs:30`) — but an agent is **six layers
+and five of them sit outside that file**: presence (`~/.autobot/presence.md`), system context,
+`CLAUDE.md` resolved from `cwd`, the skills, the hooks, the chores, and the context store
+(`definitions.cjs:186-190`, `:216-217`, `:58`, `:65`).
+
+**And skills, hooks and chores are carried BY NAME, not by content.** `def.skills` is a *filter over
+what the receiving CLI already discovered*. So a definition naming `arc-planning` on a machine
+without that folder **names nothing, silently** — which is the single hardest constraint on the
+clone form: the portable thing is not the definition file, it is the definition plus its named
+layers resolved. `cwd` is a bare absolute path. Subscriptions carry absolute epoch deadlines and
+would arrive already expiring.
 
 **THE QUESTION EVERYTHING ELSE DEPENDS ON: where does the visitor RUN?**
 
@@ -251,16 +382,18 @@ section I think is unambiguous.
 
 **DECIDE HERE:**
 1. **Host's machine or sender's machine?** Everything in this section changes with it.
-2. What is the approval a gate on: **arriving**, **reading**, **writing**, **committing**, or each
+2. **Do we ride the SDK's existing cross-machine peer channel, or build our own?** Fast path versus
+   own foundation — and it decides §1's identity question with it.
+3. What is the approval a gate on: **arriving**, **reading**, **writing**, **committing**, or each
    separately? My position: arriving is one press; writing to disk and committing are separate and
    should stay separate.
-3. **Does the approval expire?** Is it per-visit, per-day, or standing for a colleague you trust?
-4. What does a visitor SEE of the host node — the repos? the window? the context store? the other
+4. **Does the approval expire?** Is it per-visit, per-day, or standing for a colleague you trust?
+5. What does a visitor SEE of the host node — the repos? the window? the context store? the other
    sessions? My position: nothing by default, and the visit names what it needs.
-5. **THE RETURN.** When the visit ends, what comes home, and in what form — a report, a commit, a
+6. **THE RETURN.** When the visit ends, what comes home, and in what form — a report, a commit, a
    run record, or the agent itself with its context? (Your own three-week-old card asked this:
    *"clone yourself to another instance — and how the return comes home."*)
-6. What does the host KEEP as the record of what a visitor did — and can the visitor's run be left
+7. What does the host KEEP as the record of what a visitor did — and can the visitor's run be left
    died-in-place on their node, the way every other run is?
 
 ::::thread{id=visiting members=systemview-test}
