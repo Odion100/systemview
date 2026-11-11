@@ -939,6 +939,15 @@ through at the end.
 
 ## What has landed against this report
 
+**2026-11-01, the log stopped calling a fault a document update** — the night the walk's first
+findings landed in code rather than in prose. A block whose render failed reported nothing after a
+reload, and a fault row in his log was drawn in the delivery indigo, so the one row that needed to
+catch the eye looked like traffic.
+
+::commit{sha=17afd2c6 project=systemview-test}
+::commit{sha=7a819b72 project=systemview-test}
+::commit{sha=5d47fa58 project=systemview-test}
+
 **2026-11-02, the reports layer's second night** — `notice` removed from the How-we-work page data,
 three test fixtures and two comments (`afe4dbb7`); the registry loop closed so a document deleted by
 the janitor loses its row (autobot `506c727`, `reapMissing` had no caller); corpus audience
@@ -974,10 +983,42 @@ the chapter itself, the renderer correction, and the card's declaration with its
 ::commit{sha=390c1b05 project=systemview-test}
 ::commit{sha=f7f59b3 project=autobot}
 
+**2026-11-02, later the same evening — the definition work** — the chapter the walk kept needing
+and did not have: what a claim IS as distinct from when one is written, the window as the answer to
+how long something could still be evidence, and the run-block grammar's limit said out loud
+including that a hang has no deadline.
+
+::commit{sha=bc0b6c67 project=systemview-test}
+::commit{sha=d2bf2d6c project=systemview-test}
+::commit{sha=74697ca7 project=systemview-test}
+::commit{sha=187e232a project=systemview-test}
+::commit{sha=ac3bbad4 project=systemview-test}
+::commit{sha=64c21549 project=systemview-test}
+::commit{sha=53b58789 project=systemview-test}
+
 Also landed, in the autobot repo, so outside this document's own git window: `588e0f5` (members
 and objective owners on the registry row), `bba4b9a` (`rfc` and `gap` as attachment kinds),
 `74dbce9` (a report registers wherever it is written), `2f6df6d` (the watcher says when it did not
 start). Hub side: `0bfc583e` (the registry's member filter).
+
+**2026-11-03, the wrapper service got its name and a claim got its obligation** — the longest of
+the walk's nights. The test-side surface became `Test` with its `Plugin` module, two gap documents
+carrying the old service name were brought along, `spec-authoring`'s retirement was overturned
+where it stood rather than argued about elsewhere, and a claim learned to say which obligation it
+is under and when it is unproved — which is what the walk had been circling for two days.
+
+::commit{sha=d7d663f0 project=systemview-test}
+::commit{sha=355c2c63 project=systemview-test}
+::commit{sha=40e2e544 project=systemview-test}
+::commit{sha=85da4ef3 project=systemview-test}
+::commit{sha=1adb8328 project=systemview-test}
+::commit{sha=b5c5a9e7 project=systemview-test}
+::commit{sha=4edd9881 project=systemview-test}
+::commit{sha=0df8eef2 project=systemview-test}
+::commit{sha=7744d5f0 project=systemview-test}
+::commit{sha=d20aba0c project=systemview-test}
+::commit{sha=f4cc7cc5 project=systemview-test}
+::commit{sha=0ab0f45f project=systemview-test}
 
 **2026-11-04, the claim card and the ladder stop reading held** — the two surfaces that could say a
 claim was defended when nothing defended it, plus the spec pass that finds the same disease in

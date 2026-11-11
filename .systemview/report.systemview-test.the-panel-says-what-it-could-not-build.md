@@ -46,6 +46,11 @@ The `systemviewcore` ghost listener: zero hits in the current boot log. It was t
 registration from the pre-rename era replaying through the old records, and it died with tonight's
 registration cleanup. `api/hosted.json` holds two entries, both legitimate.
 
-## The commit
+## The commits
 
 ::commit{sha=117a345c}
+
+::commit{sha=08af0361}
+
+The second is the doctrine half of the same night: the guide got the two doors, and the reports
+chapter lost a rule he never made.

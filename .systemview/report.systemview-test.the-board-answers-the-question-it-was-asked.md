@@ -57,15 +57,15 @@ So the hub now registers with itself the way every real service registers (`api/
 steps, six assertions, cleanup through the plugin's own fixture door, everything calling the exact
 method your window calls.
 
-::::claim[`at` with no write reads that one card whole, instead of answering with the whole board]{id=b1 state=met by=systemview-test note="addressed by PART of a title among three cards, two of which share a substring; the body and the how come back; `cards` is asserted absent — the fallthrough's signature"}
+::::claim[`at` with no write reads that one card whole, instead of answering with the whole board]{id=b1 state=met by=systemview-test note="addressed by PART of a title among three cards, two of which share a substring; the body and the how come back; `cards` is asserted absent — the fallthrough's signature" told=systemview-test}
 ::test[Hub.Agent.board]{project=systemview-test}
 ::::
 
-::::claim[`brief` hands back the index and never the bodies]{id=b2 state=met by=systemview-test note="three index rows asserted field by field — the untitled one says so instead of being silently named, the titled one carries its declaration and its 22-char body SIZE, and `cards` is absent"}
+::::claim[`brief` hands back the index and never the bodies]{id=b2 state=met by=systemview-test note="three index rows asserted field by field — the untitled one says so instead of being silently named, the titled one carries its declaration and its 22-char body SIZE, and `cards` is absent" told=systemview-test}
 ::test[Hub.Agent.board]{project=systemview-test}
 ::::
 
-::::claim[a parameter the door does not understand is refused by name, and writes nothing]{id=b3 state=met by=systemview-test note="the refusal names `stat` and hands back the vocabulary; the read after it finds the same three cards, so a refused call cannot have half-happened; an ambiguous address is likewise refused with its candidates"}
+::::claim[a parameter the door does not understand is refused by name, and writes nothing]{id=b3 state=met by=systemview-test note="the refusal names `stat` and hands back the vocabulary; the read after it finds the same three cards, so a refused call cannot have half-happened; an ambiguous address is likewise refused with its candidates" told=systemview-test}
 ::test[Hub.Agent.board]{project=systemview-test}
 ::::
 
@@ -138,6 +138,8 @@ restart earlier tonight. The doors below answer the new way now.
 ::commit{sha=2a746141}
 
 ::commit{sha=cfb13cda}
+
+::commit{sha=5fb9fb71}
 
 **The last one is recorded by a commit carrying no `Serves:` trailer, and that is the convention
 rather than an omission.** A commit that adds its own sha cannot contain that sha, so a trailer on

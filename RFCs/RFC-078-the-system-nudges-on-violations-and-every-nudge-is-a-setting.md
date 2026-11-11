@@ -726,6 +726,11 @@ deletion can take them. The withdrawn work is part of what this document cost an
 ::commit{sha=f7fb5575}
 ::commit{sha=dae0c11f}
 ::commit{sha=d644f489}
+::commit{sha=f5c06897}
+::commit{sha=5d1904a5}
+::commit{sha=b702e443}
+::commit{sha=68158150}
+::commit{sha=afa51dfb}
 :::
 
 ## STATUS — withdrawn in part, and §2.8 built 2026-11-09
