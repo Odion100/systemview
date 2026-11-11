@@ -652,7 +652,7 @@ mechanism could not be withdrawn. A design that does this can never be rolled ba
 reversal reads as a betrayal of something. His correction: *"the judgment reaching the agent was not
 the objective — your objectives are too specific."*
 
-:::approval{ask="Approve the 2026-11-09 withdrawal, and §2.8 — a correction is a worklist run owned by the agent that owes it?" verdict=approved by=you at=1794258497497}
+:::approval{ask="Approve the 2026-11-09 withdrawal, and §2.8 — a correction is a worklist run owned by the agent that owes it?" verdict=approved by=you at=1794258497497 told=systemview-test}
 Approving commits to two things: that the automation above is withdrawn rather than paused, and that
 corrections ride the worklist the system already has — enough to reduce §2.8 to claims and build it.
 
