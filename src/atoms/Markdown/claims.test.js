@@ -246,3 +246,88 @@ describe("normalizeKind", () => {
     expect(normalizeKind("nonsense")).toBe("behavioral");
   });
 });
+
+// A PROOF AT THE SAME FENCE DEPTH IS EATEN — AND THAT IS NOW SAID OUT LOUD.
+//
+// The rule of container directives is that an outer fence must be LONGER than every fence inside
+// it, and `normalizeFences` keeps that true on every write. A document hand-written in an editor
+// never goes through that path, so a `:::claim` holding a `:::cmd` is genuinely ambiguous — and
+// remark-directive resolves it by ending the CLAIM at the cmd's closing fence. The `::test` meant
+// to be the proof falls outside the fold, and the claim read met-and-owed with no error anywhere.
+//
+// REPORTED, NOT REPAIRED. Re-reading the document more cleverly than the renderer does would make
+// this bar disagree with the picture: the renderer draws that test chip OUTSIDE the box. The
+// platform's own normalizer says it in as many words — "two parses that differ in a pre-pass are
+// two parses" — so the fault is surfaced and the repair is one character in the document.
+const SAME_DEPTH = [
+  ':::claim[the thing works]{id=c8 state=met by=sv at=1 note="checked"}',
+  ":::cmd",
+  "yarn test",
+  ":::",
+  "::test[Math.add]",
+  ":::",
+].join("\n");
+
+const NESTED = [
+  '::::claim[the thing works]{id=c8 state=met by=sv at=1 note="checked"}',
+  ":::cmd",
+  "yarn test",
+  ":::",
+  "::test[Math.add]",
+  "::::",
+].join("\n");
+
+describe("a fence at the claim's own depth is reported, not quietly reinterpreted", () => {
+  it("says the fold closes early instead of only reporting the claim as owed", () => {
+    const c = parseClaims(SAME_DEPTH)[0];
+    expect(c.jammed).toBe(true);
+    // the truncation itself is unchanged — this is a diagnostic, not a reparse
+    expect(c.hasSpec).toBe(false);
+    expect(c.owed).toBe(true);
+  });
+
+  it("counts it at the document level, so the other numbers can be read correctly", () => {
+    expect(claimsOf(SAME_DEPTH).jammed).toBe(1);
+    expect(claimsOf(SAME_DEPTH).owed).toBe(1);
+  });
+
+  // THE CORRECTLY NESTED DOCUMENT MUST NOT BE ACCUSED. This is the assertion that keeps the
+  // detector from becoming noise: an inner fence that is genuinely shorter never trips it.
+  it("never accuses a claim whose inner fences are properly shorter", () => {
+    const c = parseClaims(NESTED)[0];
+    expect(c.jammed).toBe(false);
+    expect(c.hasSpec).toBe(true);
+    expect(c.owed).toBe(false);
+    expect(claimsOf(NESTED).jammed).toBe(0);
+  });
+
+  // A LEAF CLAIM HAS NO BODY, so there is no fold to close early and nothing to report.
+  it("says nothing about a leaf claim, which has no body at all", () => {
+    expect(parseClaims('::claim[a leaf]{id=c1 state=met by=sv at=1 note="x"}')[0].jammed).toBe(false);
+  });
+
+  // AND THE WHOLE EXISTING DOCUMENT IS CLEAN — the detector fires on a real fault and on nothing
+  // else, measured against the fixture every other claim assertion in this file reads.
+  it("finds no jam anywhere in a document written correctly", () => {
+    expect(claimsOf(DOC).jammed).toBe(0);
+  });
+
+  // A QUOTED EXAMPLE IS A QUOTATION. A document TEACHING this vocabulary must not be reported as
+  // one holding a jammed claim — the fault `unfenced` exists for in the first place.
+  it("does not read a jam out of a fenced example", () => {
+    const teaching = [
+      "# how to write one",
+      "",
+      "```markdown",
+      ':::claim[an example]{id=cX state=met by=sv at=1 note="x"}',
+      ":::cmd",
+      "yarn test",
+      ":::",
+      "::test[Math.add]",
+      ":::",
+      "```",
+    ].join("\n");
+    expect(parseClaims(teaching)).toEqual([]);
+    expect(claimsOf(teaching).jammed).toBe(0);
+  });
+});

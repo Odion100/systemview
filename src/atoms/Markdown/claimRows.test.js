@@ -100,3 +100,29 @@ describe("the summary is one derivation, so the bar and the rows cannot disagree
     expect(rowsOf(null).rows).toEqual([]);
   });
 });
+
+// A JAMMED FOLD IS THE FIRST THING SAID, because it changes how everything under it reads.
+//
+// A claim whose fence is matched by a container at its own depth ends THERE — so the `::test`
+// written after it is outside the fold and the counts are answers about a shorter body than the
+// author wrote. A reader told only "no spec" goes and writes a proof that is already in the file,
+// one character outside the fence, which is worse than being told nothing.
+describe("a claim whose fold closes early says so before anything else", () => {
+  it("leads with the jam, not with the spec it appears to be missing", () => {
+    const out = owesOf(claim({ jammed: true, hasSpec: false, proved: false, owed: true, state: "met" }));
+    expect(out[0].text).toContain("fold closes early");
+    expect(out[0].text).toContain("Widen the claim's fence");
+    expect(out[0].kind).toBe("blocked");
+  });
+
+  it("still says everything else it owes — the jam is added, never a replacement", () => {
+    const out = owesOf(claim({ jammed: true, hasSpec: false, proved: false, owed: true, state: "met" }));
+    expect(out.length).toBeGreaterThan(1);
+    expect(out.some((o) => o.text.includes("no proof in its body"))).toBe(true);
+  });
+
+  it("says nothing about a claim whose fences are properly nested", () => {
+    expect(owesOf(claim({ jammed: false })).some((o) => o.text.includes("fold closes early"))).toBe(false);
+    expect(owesOf(claim()).some((o) => o.text.includes("fold closes early"))).toBe(false);
+  });
+});

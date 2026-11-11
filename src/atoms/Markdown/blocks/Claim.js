@@ -101,6 +101,26 @@ const Claim = ({ attrs = {}, kind, label, line, children }) => {
     // The cleanup IS the fix: embed the fold and this unmounts before it ever fires.
     return () => clearTimeout(t);
   }, [unproved, attrs.id, statement, report]);
+  // AND A JAMMED FOLD TELLS ITS AUTHOR TOO, because nobody else can fix it. A fence at the claim's
+  // own depth ends the claim there, so the proof written after it is outside the fold — and the
+  // author is the only party who can widen that fence. It goes out as a STATE fault: the claim
+  // resolved perfectly, it is the document's shape that is wrong, so the resolution wording would
+  // send them hunting a bad reference they never wrote.
+  //
+  // NO GRACE PERIOD, unlike the unproved nudge above. That one waits because marked-and-unproved is
+  // a NORMAL transient state in the prescribed order of work — mark, then prove. A jammed fence is
+  // never a stage of anything: it is wrong the moment it is written and stays wrong until edited.
+  const jammed = !!parsed && !!parsed.jammed;
+  useEffect(() => {
+    if (!jammed) return;
+    report({
+      kind: "claim",
+      ref: attrs.id || statement,
+      fault: "state",
+      reason:
+        "closed early by a fence at its own depth — everything after that line is outside the fold, including any proof. Widen the claim's fence by one colon",
+    }).catch(() => {});
+  }, [jammed, attrs.id, statement, report]);
   // RFC-075 round two — A CLAIM KNOWS ITS REVIEWERS (his: "the badges show up because the claim
   // knows who the reviewer is. And you check it off"). `reviewers=` declares who owes this claim a
   // look; each renders as a HOLLOW badge until their signature lands in `by=`. The human is the one

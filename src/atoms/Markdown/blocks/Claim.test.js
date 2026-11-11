@@ -596,3 +596,73 @@ describe("by eye on an experiential claim that nobody has marked yet", () => {
     expect(screen.queryByText("no spec")).toBeNull();
   });
 });
+
+// A JAMMED FOLD TELLS ITS AUTHOR, because nobody else can fix it.
+//
+// A container opened at the claim's own fence depth ends the claim there, so the proof written
+// after it sits outside the fold. The reader sees `owed`; the AUTHOR is the only party who can
+// widen that fence — and they are the one least likely to be looking at the screen.
+describe("a claim whose fence is jammed tells the agent that wrote it", () => {
+  const JAMMED = [
+    "# RFC-9",                                                                      // 1
+    ':::claim[the thing works]{id=c8 state=met by=sv at=1 note="checked"}',         // 2
+    ":::cmd",                                                                       // 3
+    "yarn test",                                                                    // 4
+    ":::",                                                                          // 5
+    "::test[Math.add]",                                                             // 6
+    ":::",                                                                          // 7
+    '::::claim[properly nested]{id=c9 state=met by=sv at=1 note="checked"}',        // 8
+    ":::cmd",                                                                       // 9
+    "yarn test",                                                                    // 10
+    ":::",                                                                          // 11
+    "::test[Math.add]",                                                             // 12
+    "::::",                                                                         // 13
+  ].join("\n");
+
+  const mountAt = (line, attrs) =>
+    render(
+      <MarkdownMembersProvider value={{ source: JAMMED }}>
+        <MarkdownWriteProvider value={{ editable: true, setAttr: jest.fn() }}>
+          <Claim attrs={attrs} kind="container" label="x" line={line} />
+        </MarkdownWriteProvider>
+      </MarkdownMembersProvider>,
+    );
+
+  it("reports it as a STATE fault, not as a reference that failed to resolve", () => {
+    mockReported.mockClear();
+    mountAt(2, { id: "c8", state: "met", by: "sv", at: "1", note: "checked" });
+    expect(mockReported).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "claim", ref: "c8", fault: "state" }),
+    );
+    expect(mockReported.mock.calls[0][0].reason).toContain("closed early by a fence at its own depth");
+    expect(mockReported.mock.calls[0][0].reason).toContain("Widen the claim's fence");
+  });
+
+  // NO GRACE PERIOD, and the contrast with the unproved nudge is the point: that one waits because
+  // marked-and-unproved is a normal stage of the prescribed order of work. A jammed fence is never
+  // a stage of anything — it is wrong the moment it is written.
+  it("does not wait, because a jammed fence is never a stage of anything", () => {
+    mockReported.mockClear();
+    mountAt(2, { id: "c8", state: "met", by: "sv", at: "1", note: "checked" });
+    expect(mockReported).toHaveBeenCalled(); // no timers advanced
+  });
+
+  // AND THE READER SEES IT ON THE CLAIM, in the box, not only in the author's notification. This
+  // is the assertion that makes the surface claim rather than the unit one: the line is rendered.
+  it("draws the jam on the claim itself, ahead of the proof line", () => {
+    mountAt(2, { id: "c8", state: "met", by: "sv", at: "1", note: "checked" });
+    const owes = document.querySelector(".md-claim__owes");
+    expect(owes).toBeTruthy();
+    expect(owes.textContent).toContain("fold closes early");
+    // FIRST, because a reader told only "no proof" goes and writes one that is already in the file
+    expect(owes.querySelector("li").textContent).toContain("fold closes early");
+  });
+
+  it("says nothing about the properly nested claim beside it", () => {
+    mockReported.mockClear();
+    mountAt(8, { id: "c9", state: "met", by: "sv", at: "1", note: "checked" });
+    expect(
+      mockReported.mock.calls.filter((c) => String(c[0].reason || "").includes("closed early")),
+    ).toEqual([]);
+  });
+});

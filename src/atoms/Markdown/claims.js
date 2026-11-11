@@ -112,10 +112,32 @@ export function parseClaims(source) {
     let hasSpec = false;
     let proofSpec = false;
     let proofShown = false;
+    // JAMMED — this claim's body was closed early by a container opened at its OWN fence depth.
+    //
+    // The rule of container directives is that an outer fence must be LONGER than every fence
+    // inside it, and `normalizeFences` keeps that true on every write. A document hand-written in
+    // a text editor never goes through that path, so a `:::claim` holding a `:::cmd` is genuinely
+    // ambiguous — and remark-directive resolves it by ending the CLAIM at the cmd's closing fence.
+    // Anything after it, the `::test` that was meant to be the proof included, falls outside the
+    // fold. `specd: 0, owed: 1` where the identical correctly-nested document reads `1, 0`.
+    //
+    // THE FAULT IS REPORTED, NOT REPAIRED, and that is the whole decision here. Re-reading the
+    // document more cleverly than the renderer does would make this bar disagree with the picture
+    // on screen — the renderer ends the claim at that fence and draws the test chip OUTSIDE the
+    // box, so a count that claimed the spec was in the fold would be the window contradicting
+    // itself. The platform's own normalizer says the same thing in as many words: "two parses that
+    // differ in a pre-pass are two parses." So the author is told, the reader is shown, and the
+    // repair is one character in the document — where every parser and the renderer all agree.
+    let jammed = false;
     if (fence >= 3) {
       const close = new RegExp(`^\\s*:{${fence}}\\s*$`);
+      const sameDepthOpen = new RegExp(`^\\s*:{${fence}}\\s*[a-zA-Z]`);
       for (let j = i + 1; j < lines.length; j += 1) {
         if (close.test(lines[j])) break;
+        // An opening fence of exactly this width WILL steal this claim's close: its own closing
+        // line is indistinguishable from the claim's. Seen before the break, so a claim that is
+        // correctly nested never reaches this.
+        if (sameDepthOpen.test(lines[j])) jammed = true;
         if (SPEC_BLOCK.test(lines[j])) hasSpec = true;
         if (PROOF_SPEC.test(lines[j])) proofSpec = true;
         if (PROOF_SHOWN.test(lines[j])) proofShown = true;
@@ -141,6 +163,11 @@ export function parseClaims(source) {
       // OWED is the honest gap: a behavioural claim someone marked met with no spec behind it. It
       // reads met today and is defended by nobody once the conversation ends.
       owed: kind === "behavioral" && !!state && !hasSpec,
+      // JAMMED is a fact about the DOCUMENT, not about the claim's work: its fold closes early, so
+      // every count taken off this claim is answering about a shorter body than the author wrote.
+      // It travels beside `owed` rather than replacing it, because both are true and they ask for
+      // different things — `owed` wants a proof, `jammed` wants one character of fence.
+      jammed,
       by,
       at: Number(attrOf(attrs, "at")) || 0,
       note: attrOf(attrs, "note"),
@@ -188,6 +215,12 @@ export function claimsOf(source) {
     experiential: all.length - behavioral.length,
     specd: behavioral.filter((c) => c.hasSpec).length,
     owed: all.filter((c) => c.owed).length,
+    // JAMMED — claims whose fold closes early on a fence at their own depth. Counted at the
+    // document level because it changes how every OTHER number on this line should be read: a
+    // jammed claim's body is shorter than the author wrote, so its `specd` and `owed` are answers
+    // about a truncated fold. A bar reporting `owed: 1` with no mention of this sends its reader
+    // to write a proof that is already in the file, one character outside the fence.
+    jammed: all.filter((c) => c.jammed).length,
     claims: all,
   };
 }

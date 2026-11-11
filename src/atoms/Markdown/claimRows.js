@@ -33,6 +33,17 @@ export function toneOf(c) {
  */
 export function owesOf(c) {
   const out = [];
+  // THE JAM GOES FIRST, BECAUSE IT CHANGES HOW EVERY LINE UNDER IT SHOULD BE READ. A claim whose
+  // fold closes early on a fence at its own depth is being counted over a body shorter than the
+  // author wrote — so "no spec" underneath it may be describing a `::test` that is already in the
+  // file, one character outside the fence. Telling somebody to write a proof that exists is worse
+  // than telling them nothing, and worst-first ordering is what stops it.
+  if (c.jammed)
+    out.push({
+      kind: "blocked",
+      text:
+        "this claim's fold closes early — a fence at its own depth ends it, so anything after that line is outside the claim. Widen the claim's fence by one colon",
+    });
   if (c.state === "met" && !c.proved)
     out.push({
       kind: "blocked",
