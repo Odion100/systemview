@@ -63,3 +63,11 @@ nothing else.
   completable, never because one thing finished. It stopped here because he came back.
 - **Whether `routeResult` could ever be pointed at a document's members.** The guard makes doing so
   a visible act; it does not make it impossible, and nothing today does it.
+
+## What built it
+
+::commit{sha=04b372cb}
+
+A report cannot hold the sha of the commit that writes it, so this record lands in the touch after
+it and the newest commit is one-way — a fixed point left visible rather than hidden by dropping a
+trailer.
