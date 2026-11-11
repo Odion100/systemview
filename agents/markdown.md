@@ -728,6 +728,11 @@ Clicking a chosen answer or verdict again CLEARS it — the attribute is removed
 
 ## The document right-click menu (what a human has, so you know what they'll do)
 
+- **🎧 Listen to this** — reads the block aloud, in the voice of the agent whose chat is open. It is
+  the one item here that writes nothing, so it is offered on documents the window cannot save to —
+  another project's RFC, a report you are reviewing — and it does not scroll the page or walk a bot
+  over. The text is the document's own spoken form, so the pills, the badges and the fold summaries
+  a reader never said are not read out.
 - **Start a thread here** — wraps the block you aimed at.
 - **Wrap this in** → approval · callout · fold.
 - **Insert below** → question · checklist · runnable steps · saved test · logs · chart · file · diff.

@@ -128,6 +128,13 @@ export function menuOffers(at = {}, { canThread = false, canAddMember = false, c
     // off every block there is nothing to wrap, and on a block the host cannot save replies for
     // there is nowhere for them to live.
     note: !inThread && !(onHost && canThread) ? (onHost ? "no-save" : "nothing-to-wrap") : null,
+
+    // LISTENING NEEDS NO SAVE DOOR, which is why it is not gated the way everything else here is.
+    // Every other verb in this menu is an EDIT to the markdown; this one reads what is already
+    // there aloud and writes nothing — so it is offered on a read-only document, on somebody
+    // else's repo, and on a block the host cannot save replies for. All it needs is something to
+    // read, which is what `onHost` means: the press landed on a block.
+    listen: onHost,
     // Wrapping needs something to wrap; inserting always lands somewhere — below the block you hit,
     // or at the end of the document when you hit none.
     wraps: onHost,

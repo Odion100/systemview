@@ -22,6 +22,8 @@ import {
 import { useComments } from "./comments";
 import { expectThread } from "./threadFocus";
 import { namespaceOptions, testOptions, fileOptions, menuOffers, TEMPLATES } from "./menuOptions";
+import { spokenForm } from "../../utils/spokenForm";
+import { listeningScope, openChats } from "../../utils/listeningScope";
 import ServiceContext from "../../ServiceContext";
 import BLOCKS from "./registry";
 import TaskItem from "./blocks/TaskItem";
@@ -286,6 +288,14 @@ const DocMenu = ({ at, onPick, onClose, canThread, canAddMember, canRegister, th
   return (
     <div ref={rootRef} className="md-menu" style={style} onClick={(e) => e.stopPropagation()}>
       <div className="md-menu__head">{at.label}</div>
+      {/* LISTEN — the only verb in this menu that writes nothing, so it sits first and is offered
+          wherever there is something to read: a read-only document, another project's repo, a
+          block whose host cannot save. His ask: *"I want to be able to just listen."* */}
+      {offers.listen && (
+        <button type="button" className="md-menu__item md-menu__item--lead" onClick={() => onPick({ kind: "listen" })}>
+          🎧 Listen to this <span className="md-menu__hint">in the open agent's voice</span>
+        </button>
+      )}
       {/* What you can do depends on WHAT YOU HIT. Inside a thread, the useful verb is removing it;
           on a plain block, starting one; on empty space, there's nothing to wrap — you can still
           insert, which lands at the end of the document. */}
@@ -705,9 +715,33 @@ const Markdown = ({ children, dark = false, scope = null, onSourceChange = null,
   const pickMenu = (choice) => {
     const { source: src, onSourceChange: save } = live.current;
     if (!menu) return;
+    const docScope = (scope && scope.projectCode) || "";
     // Off a block, "below" means the end of the document.
     const at = menu.end || src.split("\n").length;
-    if (choice.kind === "thread") startThread(menu.start, menu.end);
+    if (choice.kind === "listen") {
+      // READ THE SOURCE, NOT THE RENDERED NODE. `sv:read` can take a selector and read a live
+      // element's innerText, which is right for a tour pointing at UI — but a document's rendered
+      // text carries chrome a reader never said: a claim's state pills, a fold's summary, the
+      // word "unproved". `spokenForm` is the same converter the chat already reads replies with,
+      // so a document sounds like the agent reading it rather than like a screen being described.
+      const lines = src.split("\n").slice(Math.max(0, menu.start - 1), menu.end || menu.start);
+      const text = spokenForm(lines.join("\n"));
+      if (text)
+        window.dispatchEvent(
+          new CustomEvent("sv:read", {
+            detail: {
+              // WHOSE VOICE — the agent whose chat is open, never the document's project.
+              projectCode: listeningScope(openChats(), { route: docScope, doc: docScope }),
+              items: [{ text }],
+              // NEITHER FOLLOWER. readLine's own words for exactly this case: *"a quiet 'read me
+              // this while I work' wants neither yanking the scroll nor a bot photobombing the
+              // pane."* He is looking at the thing already — he asked to hear it, not to be taken
+              // to it.
+              follow: { scroll: false, avatar: false },
+            },
+          }),
+        );
+    } else if (choice.kind === "thread") startThread(menu.start, menu.end);
     else if (choice.kind === "unthread") {
       const next = menu.thread && unwrapThread(src, menu.thread.start, menu.thread.end);
       if (next != null) save(next);

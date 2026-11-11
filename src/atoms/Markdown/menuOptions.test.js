@@ -74,3 +74,28 @@ describe("the menu offers what you actually hit", () => {
     expect(o.note).toBe("nothing-to-wrap");
   });
 });
+
+// LISTENING IS NOT AN EDIT, so it is not gated like one. Every other verb in this menu writes to
+// the markdown and is withheld where the host cannot save; this one reads what is already there.
+// His ask, 2026-11-11: *"I want voice on the document right-click menu… I want to be able to just
+// listen."* Withholding it on a read-only document would withhold it from exactly the documents
+// most worth hearing — another project's RFC, a report he is reviewing.
+describe("listening is offered wherever there is something to read", () => {
+  const onBlock = { start: 12, end: 14, label: "a paragraph" };
+
+  it("is offered on a block even when nothing can be saved or threaded", () => {
+    const offers = menuOffers(onBlock, { canThread: false, canAddMember: false, canRegister: false });
+    expect(offers.listen).toBe(true);
+    // and the menu still says WHY its editing verbs are absent — listening does not paper over that
+    expect(offers.startThread).toBe(false);
+    expect(offers.note).toBe("no-save");
+  });
+
+  it("is offered inside a thread too", () => {
+    expect(menuOffers({ ...onBlock, thread: { start: 1, end: 20 } }, { canThread: true }).listen).toBe(true);
+  });
+
+  it("is NOT offered off every block — there is nothing to read", () => {
+    expect(menuOffers({}, { canThread: true }).listen).toBe(false);
+  });
+});
