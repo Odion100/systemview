@@ -85,10 +85,25 @@ named.
 
 ## What I could NOT do or verify
 
-- **The `outside.commits` count is proven by assertion, not yet by the live door.** I restarted the
-  hub to arm the fix, so at the moment I checked it there was nothing newer and `outside` was all
-  zeros — which demonstrates the scoping but not the narrowing. The second item on the press-list is
-  exactly that gap, and it takes one commit to close.
+- **The narrowing is now proven live too** — that gap is closed, by committing this very account and
+  asking again:
+
+  | | |
+  |---|---|
+  | `api` | `newer: 1` — the fix's own commit |
+  | `outside.commits` | **1** — this account's `docs(report)` commit, counted and named |
+  | `newer` | **1**, not 2 |
+
+  Before the fix that call would have answered `newer: 2`, folding a markdown commit into a verdict
+  about `api/`.
+
+- **AND IT CAUGHT ME OUT IN A WAY WORTH WRITING DOWN: `--amend` makes a commit newer than a hub that
+  is running its exact content.** `api newer: 1` above is the armed fix itself — I amended its
+  message *after* starting the hub, which moved its committer date past the baseline. The code the
+  hub loaded is byte-identical. So the door is right and the reader can still be misled: it compares
+  TIMES, and an amend is a new time for old bytes. Nothing to fix — a door that tried to be clever
+  about that would be guessing — but it is the second time an `--amend` has cost me something today,
+  and the rule that falls out is to amend *before* the restart, never after.
 - **Nothing here was seen rendered.** `armed` has no window surface yet — that is still the open card
   about the shell half — so this is an agent-facing door only, checked by probe and by suite.
 - **I got this door's trailer wrong first.** `fecf294f` carried the previous run's report id; this
