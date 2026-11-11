@@ -17,6 +17,7 @@ import { raiseError } from "../../atoms/Banner/bannerStore";
 import ReportsTab from "../Reports/ReportsTab";
 import Board from "../Board/Board";
 import CenterTabs, { useOpenByPath } from "../CenterTabs/CenterTabs";
+import PaneDivider from "../CenterTabs/PaneDivider";
 import { buildRoute, tabForUrl, floorTab, seedable } from "../../pages/SystemView/tabRoutes";
 import HowWeWork from "../HowWeWork/HowWeWork";
 import DashboardSwitch from "../DashboardSwitch/DashboardSwitch";
@@ -92,11 +93,12 @@ export default function Documentation({
     setTabsState(getTabs(tabsPc));
     return subscribeTabs(tabsPc, setTabsState);
   }, [tabsPc]);
-  const pane = tabsState.panes[0];
-  // IS THIS TAB OPEN IN THE STRIP — across every pane, so the split does not have to come back and
-  // fix this. It is what BOUNDS the kept panes below: a panel lives while its tab is open and is
-  // released when the tab is closed, which is the only lifetime that cannot grow without end.
-  const tabIsOpen = (key) => (tabsState.panes || []).some((pn) => (pn.tabs || []).some((t) => t.key === key));
+  // THE PANE THE URL IS TALKING ABOUT — the FOCUSED one, and that is the whole translation from
+  // one pane to several. Everything on this page that reads the URL (the floor, which tab is
+  // active, where a close lands) is a statement about the side he is working on; `panes[0]` said
+  // "the left one" at every site written before the split existed, which is right exactly until
+  // there are two. Unsplit, focus is 0 and this is the same object it always was.
+  const pane = tabsState.panes[tabsState.focus] || tabsState.panes[0];
   // THE FLOOR IS THE HOW TAB — one name, three readers. With nothing loaded in the center (no
   // file, no namespace scope, or nothing open at all) this page shows How-we-work; it used to show
   // it as a bare RENDER, which opened no tab and selected nothing. After a shell restart that left
@@ -117,8 +119,12 @@ export default function Documentation({
   useEffect(() => {
     if (codeFile && codeFile.path) {
       const key = fileKey(codeFile);
-      const pane0 = getTabs(tabsPc).panes[0];
-      const present = pane0.tabs.some((t) => t.key === key);
+      const open = getTabs(tabsPc);
+      const pane0 = open.panes[open.focus] || open.panes[0];
+      // PRESENT ANYWHERE, ANCHORED ON THIS SIDE. A file already open on the OTHER side is not a
+      // tab to re-create — openTab focuses it where it lives (one document, one side) — so
+      // presence is asked of every pane while the `beside` anchor is this side's active tab.
+      const present = open.panes.some((pn) => pn.tabs.some((t) => t.key === key));
       // AN EXPLICIT CLOSE STAYS CLOSED (his bug: *"sometimes you close the document and it just
       // pops up at the end of the tabs"*). The URL is the slower writer: a close removes the tab
       // from the store, but this effect re-runs on its OTHER deps (scope, the floor, a report) and
@@ -218,7 +224,11 @@ export default function Documentation({
   // Closing what you're LOOKING AT routes to the neighbor; closing a background tab moves nothing.
   // Bulk closes land the same way — CenterTabs already did the store half.
   const afterClose = useCallback((nextKey) => {
-    const next = getTabs(tabsPc).panes[0].tabs.find((x) => x.key === nextKey);
+    // ACROSS EVERY PANE. closeTab answers with the focused pane's new active tab, and after the
+    // last tab on a side closes that pane is gone and focus has moved to the survivor — so looking
+    // the key up in `panes[0]` would find nothing and send him to the project page instead of to
+    // the document he is left looking at.
+    const next = (getTabs(tabsPc).panes || []).flatMap((pn) => pn.tabs || []).find((x) => x.key === nextKey);
     if (next) return routeTo(next);
     // NOTHING LEFT OPEN lands on the project's own page.
     const q = new URLSearchParams(window.location.search);
@@ -319,32 +329,37 @@ export default function Documentation({
     // if (Plugin) Plugin.on(`reconnect`, fetchDocument.bind({}, Plugin));
   }, [Plugin]);
 
-  return (
-    <section className="documentation">
-      <div className="documentation-view">
-        {/* Tabs ALWAYS show — SystemView mode doesn't switch the page, it just shows a different document.
-            The selected namespace rides at the END of this same row (no separate title row → more vertical
-            space for the document / stories / logs below). */}
-        {/* THE ONE STRIP — extracted whole into CenterTabs after the lookalike
-            lesson; the Agents view mounts the same component over the same store. This page hands
-            it meaning: the URL answers "active", clicks route, closes move the URL. */}
-        <CenterTabs
-          tabsPc={tabsPc}
-          tabs={pane.tabs}
-          isActive={isTabActive}
-          onOpen={clickTab}
-          afterClose={afterClose}
-          extraMenuItems={extraMenuItems}
-          plus={plusDoor}
-          onCollapse={onCollapse}
-        />
+  // ONE PANE'S WORTH OF CONTENT — every panel this page can show, for the pane `pn` at index `i`.
+  //
+  // It is a function and not a component on purpose: a component would be a new element type, and
+  // a new element type under the panes row means React unmounts and remounts the whole subtree the
+  // first time the split appears — throwing away exactly the scroll positions and in-flight state
+  // that the kept panels exist to preserve. As a function it is inlined into the column, so a
+  // document's DOM node survives everything except being carried to the other side.
+  //
+  // WHICH SIDE THE URL IS TALKING ABOUT. The URL names ONE active document, so with a split
+  // standing it can only be speaking for the FOCUSED side; the other side answers from the store —
+  // the tab its own pane says is active. Unsplit, every pane IS the focused pane, so each of these
+  // collapses to the URL's answer and nothing about today's behaviour moves.
+  const panelsFor = (pn, i) => {
+    const focus = tabsState.focus;
+    const activeOf = (p) => (p.tabs || []).find((t) => t.key === p.active) || null;
+    const holdsKey = (p, key) => (p.tabs || []).some((t) => t.key === key);
+    const holdsKind = (p, kind) => (p.tabs || []).some((t) => t.kind === kind);
+    const showsKey = (p, at, key, urlSays) => (at === focus ? !!urlSays : p.active === key);
+    // AN OPEN HELP TOPIC TAKES ITS OWN SIDE'S CONTENT SPOT, not the window's. It is opened from a
+    // document, so the side that document is on is the side it belongs over — and the other pane
+    // keeping its document is the whole reason to have two.
+    const hidden = helpOpen && i === focus;
+    return (
+      <>
         {/* THE NAMESPACE IS THE DOC TAB'S, PER-TAB — his second correction on this line: it was
             still painted at the COMPONENT level, so it sat over logs, over files, over an empty
             view after a delete ("it shows the namespace at the top — that doesn't make any sense").
             A namespace is a fact about the namespace DOCUMENT: it renders only on that tab, and
             only when something is actually selected — an empty state has no address to announce. */}
         {/* An open HELP topic takes the content spot — whatever tab was showing waits behind it. */}
-        {helpOpen && (
+        {hidden && (
           <div className="documentation-view__data-table">
             <HelpPane topicKey={helpTopic} />
           </div>
@@ -367,12 +382,11 @@ export default function Documentation({
 
             Each pane reads its OWN tab's file rather than the active one, so a hidden pane cannot
             be handed somebody else's address. */}
-        {!helpOpen &&
-          (tabsState.panes || [])
-            .flatMap((pn) => pn.tabs || [])
+        {!hidden &&
+          (pn.tabs || [])
             .filter((t) => t.kind === "file" && t.file)
             .map((t) => {
-              const showing = fileLens && tab === "docs" && codeFile && fileKey(codeFile) === t.key;
+              const showing = showsKey(pn, i, t.key, fileLens && tab === "docs" && codeFile && fileKey(codeFile) === t.key);
               return (
                 <div key={t.key} className={`documentation-view__data-table${showing ? "" : " doc-kept-away"}`}>
                   {/* The pane's × closes ITS OWN tab — the strip picks the neighbor you land on. */}
@@ -399,12 +413,17 @@ export default function Documentation({
             "SystemView". The moment the scope resolves, the real document replaces it.
             The condition is `onFloor`, defined once above — the effect opens the tab off the same
             boolean that draws this, so the page can never be up without its tab. */}
-        {onFloor && (
+        {onFloor && i === focus && (
           <div className="documentation-view__data-table">
             <HowWeWork />
           </div>
         )}
-        {!helpOpen && !fileLens && pane.tabs.length > 0 && !!sService && (tab === "docs" || (tab === "reports" && !reportPath)) && (
+        {!hidden &&
+          holdsKind(pn, "doc") &&
+          !!sService &&
+          (i === focus
+            ? !fileLens && pane.tabs.length > 0 && (tab === "docs" || (tab === "reports" && !reportPath))
+            : (activeOf(pn) || {}).kind === "doc") && (
           <div className="documentation-view__data-table">
             {/* The doc IS a file panel — a framed pane with a header/badge. When nothing is selected it
                 shows SystemView's own help; otherwise the per-namespace doc (getDoc/saveDoc). The doc's
@@ -501,14 +520,13 @@ export default function Documentation({
             explicitly.
 
             With a file open, Logs and Report run at the PROJECT level — same rule as Stories. */}
-        {!helpOpen &&
-          (tabsState.panes || [])
-            .flatMap((pn) => pn.tabs || [])
+        {!hidden &&
+          (pn.tabs || [])
             .filter((t) => t.kind === "report" && t.report && t.report.path)
             .map((t) => (
               <div
                 key={t.key}
-                className={`doc-kept-doc${tab === "reports" && reportPath === t.report.path ? "" : " doc-kept-away"}`}
+                className={`doc-kept-doc${showsKey(pn, i, t.key, tab === "reports" && reportPath === t.report.path) ? "" : " doc-kept-away"}`}
               >
                 <ReportsTab
                   projectCode={fileLens ? codeFile.projectCode : sProject}
@@ -520,7 +538,7 @@ export default function Documentation({
                 />
               </div>
             ))}
-        {!helpOpen && (tab === "links" || tab === "cmds") && (
+        {!hidden && i === focus && (tab === "links" || tab === "cmds") && (
           <div id={`sv-dock-slot-${tabsPc}-${tab}`} className="doc-dockslot">
             {/* the docked AgentChat portals the live panel in here; an empty slot means the chat
                 for this project is not docked in the side panel right now */}
@@ -541,32 +559,32 @@ export default function Documentation({
             One element in between and that rule stopped matching, so the panel lost the one
             property that lets a flex child scroll instead of stretching. He found it in a minute:
             *"suddenly the dashboard cannot be scrolled, or is stretching too long."* */}
-        {!helpOpen && tabIsOpen(`dash:${tabsPc}`) && (
-          <div className={`documentation-view__data-table${tab === "dash" ? "" : " doc-kept-away"}`}>
+        {!hidden && holdsKey(pn, `dash:${tabsPc}`) && (
+          <div className={`documentation-view__data-table${showsKey(pn, i, `dash:${tabsPc}`, tab === "dash") ? "" : " doc-kept-away"}`}>
             <DashboardSwitch projectCode={tabsPc} />
           </div>
         )}
-        {!helpOpen && tabIsOpen(`how:${tabsPc}`) && (
-          <div className={`documentation-view__data-table${tab === "how" ? "" : " doc-kept-away"}`}>
+        {!hidden && holdsKey(pn, `how:${tabsPc}`) && (
+          <div className={`documentation-view__data-table${showsKey(pn, i, `how:${tabsPc}`, tab === "how") ? "" : " doc-kept-away"}`}>
             <HowWeWork />
           </div>
         )}
-        {!helpOpen && tabIsOpen(`board:${tabsPc}`) && (
-          <div className={`doc-board${tab === "board" ? "" : " doc-kept-away"}`}>
+        {!hidden && holdsKey(pn, `board:${tabsPc}`) && (
+          <div className={`doc-board${showsKey(pn, i, `board:${tabsPc}`, tab === "board") ? "" : " doc-kept-away"}`}>
             <Board projectCode={tabsPc} chrome="pane" />
           </div>
         )}
         {/* STATS IS NOT KEPT, and the reason is the one above: it renders with no wrapper of its
             own, so keeping it would mean ADDING an element — which is the thing that broke the
             dashboard. Wrapping it needs `Reports` to take a className first. */}
-        {!helpOpen && tab === "stats" && (
+        {!hidden && i === focus && tab === "stats" && (
           <Reports
             projectCode={fileLens ? codeFile.projectCode : sProject}
             serviceId={fileLens ? undefined : sService}
             embedded
           />
         )}
-        {!helpOpen && tab === "logs" && (
+        {!hidden && i === focus && tab === "logs" && (
           <InlineLogs
             projectCode={fileLens ? codeFile.projectCode : sProject}
             serviceId={fileLens ? undefined : sService}
@@ -574,10 +592,70 @@ export default function Documentation({
             methodName={fileLens ? undefined : sMethod}
           />
         )}
+      </>
+    );
+  };
+
+  // THE ROW THE DIVIDER MEASURES AGAINST — a fraction is only meaningful against the thing it is a
+  // fraction of, and that is this element's box, read fresh on every pointer move.
+  const panesRow = useRef(null);
+  const panes = tabsState.panes || [];
+  const sizes = tabsState.sizes || [];
+
+  return (
+    <section className="documentation">
+      <div className="documentation-view">
+        {/* THE PANES ROW — a column per pane, a divider between each pair. His ask, said twice:
+            *"you can split into two and you can drag documents across and resize between them.
+            Close all the tabs on one side and it goes back to regular."*
+
+            ALWAYS RENDERED, EVEN WITH ONE PANE, and that is the one structural decision here. A row
+            that only appeared when split would mean collapsing the split RE-PARENTS every open
+            document — and re-parenting remounts, which throws away the scroll positions the kept
+            panels exist to hold, at the exact moment he closes the last tab on one side. One shape
+            always: React reconciles the columns by position, the surviving side is never touched,
+            and the only remount left is the one he asked for by carrying a document across.
+
+            THE COLUMNS GROW, THEY DO NOT BASIS. `flex: <size> 1 0` shares the space left after the
+            divider in proportion to the stored fractions; percentage widths plus a 6px divider add
+            up to more than the row and the last column loses the difference.
+
+            COLLAPSING IS THE STORE'S JOB, not this render's — `normalize` prunes a pane whose last
+            tab closed, so there is no condition here that says when to go back to one. */}
+        <div className="documentation-view__panes" ref={panesRow}>
+          {panes.map((pn, i) => (
+            <React.Fragment key={`pane-${i}`}>
+              {i > 0 && <PaneDivider tabsPc={tabsPc} index={i - 1} rowRef={panesRow} />}
+              <div
+                className={`documentation-view__pane${panes.length > 1 && i === tabsState.focus ? " documentation-view__pane--focus" : ""}`}
+                // A STABLE ADDRESS PER SIDE, the same rule the tabs follow: a check or a saved
+                // command finds `[data-pane="1"]` rather than counting divs.
+                data-pane={i}
+                style={{ flex: `${sizes[i] || 1 / panes.length} 1 0px` }}
+              >
+                {/* THE SAME STRIP, ONE PER SIDE — it is told which side it is, and that index is
+                    what makes a drop from the other pane a crossing rather than a reorder. */}
+                <CenterTabs
+                  tabsPc={tabsPc}
+                  tabs={pn.tabs}
+                  pane={i}
+                  isActive={isTabActive}
+                  onOpen={clickTab}
+                  afterClose={afterClose}
+                  extraMenuItems={extraMenuItems}
+                  plus={plusDoor}
+                  onCollapse={onCollapse}
+                />
+                {panelsFor(pn, i)}
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
     </section>
   );
 }
+
 
 // A help topic shown in the doc pane's clothes: same header band + md-view read box, its own
 // "help" badge tint, Close returns to whatever tab was showing. Read-only by design — help content

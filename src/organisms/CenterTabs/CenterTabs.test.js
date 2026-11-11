@@ -234,3 +234,103 @@ describe("a tab that just arrived", () => {
     expect(fresh[0].textContent).toContain("c.js");
   });
 });
+
+// THE SPLIT, FROM THE STRIP'S SIDE. The store's own claims cover what a split IS; these cover the
+// three things the strip decides: which side a drop crossed to, which side's tabs a menu is
+// counting, and which side the next document opens on.
+describe("two strips, one store", () => {
+  // A SPLIT IS SET UP THROUGH THE STORE, never by hand-building state — the point of these claims
+  // is the strip over the real store, and a fabricated two-pane object would only prove the
+  // fabrication was shaped right.
+  const split = (pc, paths) => {
+    const tabs = seed(pc, paths);
+    const { splitTab } = require("../../pages/SystemView/tabsStore");
+    splitTab(pc, tabs[tabs.length - 1].key);
+    return getTabs(pc);
+  };
+
+  it("a drop on the OTHER side's strip crosses the divider — the document changes sides", () => {
+    const pc = freshPc();
+    const state = split(pc, ["src/a.js", "src/b.js", "src/c.js"]);
+    expect(state.panes.map((p) => p.tabs.length)).toEqual([2, 1]);
+    const moving = state.panes[0].tabs[0].key; // a.js, on the left
+    // The right-hand strip, mounted as pane 1 — which is the only thing that tells it that a tab
+    // arriving from pane 0 is a CROSSING and not a reorder.
+    const right = mount(pc, { tabs: state.panes[1].tabs, pane: 1 });
+    fireEvent.drop(right.container.querySelector(".doc-tab"), {
+      dataTransfer: { getData: () => moving, types: ["text/sv-tab"] },
+    });
+    const after = getTabs(pc);
+    expect(after.panes[0].tabs.map((t) => t.file.path)).toEqual(["src/b.js"]);
+    // It landed WHERE IT WAS DROPPED, not merely on the far side — a crossing is as precise as a
+    // reorder, which is what `before` carries.
+    expect(after.panes[1].tabs.map((t) => t.file.path)).toEqual(["src/a.js", "src/c.js"]);
+  });
+
+  // THE SILENT FAULT THIS GUARDS. `moveTab` finds a tab by key wherever it lives and reorders it
+  // inside ITS OWN pane — so a cross-pane drop treated as a reorder shuffles the document on the
+  // side he dragged it out of, nothing crosses, and nothing says so.
+  it("a drop inside its own side is still only a reorder — no pane is created or emptied", () => {
+    const pc = freshPc();
+    const state = split(pc, ["src/a.js", "src/b.js", "src/c.js"]);
+    const left = mount(pc, { tabs: state.panes[0].tabs, pane: 0 });
+    const faces = [...left.container.querySelectorAll(".doc-tab")];
+    // b.js dropped onto a.js: it lands where a.js sat and pushes it right.
+    fireEvent.drop(faces[0], { dataTransfer: { getData: () => state.panes[0].tabs[1].key, types: ["text/sv-tab"] } });
+    const after = getTabs(pc);
+    expect(after.panes.map((p) => p.tabs.map((t) => t.file.path))).toEqual([["src/b.js", "src/a.js"], ["src/c.js"]]);
+  });
+
+  it("the menu counts the side it was pressed on, not pane 0", () => {
+    const pc = freshPc();
+    const state = split(pc, ["src/a.js", "src/b.js", "src/c.js"]);
+    mount(pc, { tabs: state.panes[1].tabs, pane: 1 });
+    fireEvent.contextMenu(screen.getByText("c.js"));
+    // One tab on this side. Counting `panes[0]` would have offered "Close all 2" — the most
+    // alarming thing a confirm could get wrong.
+    expect(screen.getByText("Close all 1")).toBeInTheDocument();
+    expect(screen.queryByText("Close all 2")).not.toBeInTheDocument();
+    expect(screen.queryByText("Close others")).not.toBeInTheDocument();
+  });
+
+  it("the split verb is named for what it will do, and refuses when there is nothing to leave behind", () => {
+    const only = freshPc();
+    seed(only, ["src/solo.js"]);
+    mount(only);
+    fireEvent.contextMenu(screen.getByText("solo.js"));
+    // Splitting the only tab on the only pane would empty its own origin — a focus change with
+    // extra steps — so the row is absent rather than offered dead.
+    expect(screen.queryByText(/Split/)).not.toBeInTheDocument();
+
+    const pc = freshPc();
+    seed(pc, ["src/a.js", "src/b.js"]);
+    const unsplit = mount(pc);
+    fireEvent.contextMenu(screen.getByText("b.js"));
+    fireEvent.click(screen.getByText("Split — give it its own side"));
+    expect(getTabs(pc).panes.map((p) => p.tabs.map((t) => t.file.path))).toEqual([["src/a.js"], ["src/b.js"]]);
+    unsplit.unmount();
+
+    // With a split standing the same verb carries it back, and says so.
+    const state = getTabs(pc);
+    mount(pc, { tabs: state.panes[1].tabs, pane: 1 });
+    fireEvent.contextMenu(screen.getByText("b.js"));
+    fireEvent.click(screen.getByText("Move to the other side"));
+    const after = getTabs(pc);
+    // The right-hand pane emptied, so it is gone — "close all the tabs on one side and it goes
+    // back to regular", enforced by the store rather than by this component.
+    expect(after.panes).toHaveLength(1);
+    expect(after.panes[0].tabs.map((t) => t.file.path)).toEqual(["src/a.js", "src/b.js"]);
+  });
+
+  it("pressing a side makes it the side the next document opens on", () => {
+    const pc = freshPc();
+    const state = split(pc, ["src/a.js", "src/b.js"]);
+    expect(getTabs(pc).focus).toBe(1); // the split focuses the new side
+    const left = mount(pc, { tabs: state.panes[0].tabs, pane: 0 });
+    // A mousedown on the strip's own box, not on a tab: a click on the empty tail still says
+    // "I am working over here", which is the difference between opening a document beside what he
+    // is reading and opening it on the other screen.
+    fireEvent.mouseDown(left.container.querySelector(".doc-tabs"));
+    expect(getTabs(pc).focus).toBe(0);
+  });
+});

@@ -618,7 +618,39 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    > .documentation-view__data-table {
+
+    // THE PANES ROW — one column per open pane with a divider between each pair, and the row
+    // itself is what the drag measures a fraction against.
+    //
+    // IT IS ALWAYS IN THE TREE, even unsplit, which is the point of the two selectors below: the
+    // height chain now runs through a column, and a column is a flex child that must be allowed
+    // to be SMALLER than its content (`min-height: 0`, `min-width: 0`) or a long document pushes
+    // the whole row wider than the centre instead of scrolling inside its own pane. That is the
+    // same mistake in a new place: `min-height: 0` is the half that makes a flex child scroll.
+    > .documentation-view__panes {
+      flex: 1 1 auto;
+      min-height: 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+
+      > .documentation-view__pane {
+        min-height: 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+    }
+
+    // THE CHAIN, AT BOTH DEPTHS. The panels sit inside a pane column now; the first selector is
+    // kept because it still matches anything the page renders beside the row.
+    //
+    // WRITTEN AS TWO SELECTORS ON ONE RULE, not copied: the lesson from the dashboard is that a
+    // layout arriving through a direct-child chain breaks silently the moment something nests, and
+    // a second COPY of the rule would be a second thing to keep in step. One rule, two addresses.
+    > .documentation-view__data-table,
+    > .documentation-view__panes > .documentation-view__pane > .documentation-view__data-table {
       flex: 1 1 auto;
       min-height: 0;
       display: flex;
@@ -632,6 +664,48 @@
       }
     }
   }
+}
+
+// THE DIVIDER — 6px of grabbable nothing between two panes.
+//
+// `flex: 0 0 6px` so it takes its width out of the row BEFORE the columns share what is left,
+// which is why the columns grow rather than carrying percentage widths: percentages plus a divider
+// add up to more than the row, and the overflow comes off the last pane.
+//
+// A 6px target is small for a hand, so the hit area is widened with padding and the LINE is drawn
+// by a child pseudo-element — the visual stays hairline-thin while the thing you can grab is 10px.
+// `touch-action: none` is what makes a pointer drag work on a trackpad and a touchscreen without
+// the browser deciding it was a scroll instead.
+.documentation-view__split {
+  flex: 0 0 6px;
+  align-self: stretch;
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 2px;
+    background: var(--sv-border);
+    border-radius: 2px;
+  }
+  &:hover::after,
+  &:active::after {
+    background: var(--sv-indigo);
+  }
+}
+
+// WHICH SIDE IS THE WORKING ONE — only ever drawn when there is more than one, because with a
+// single pane "the focused one" is not a distinction and a highlight that is always on teaches
+// nothing. It is the faintest mark that still answers "where will the next document open": the
+// strip's rail, on the focused side only.
+.documentation-view__pane--focus > .doc-tabs::after {
+  background: var(--sv-indigo);
 }
 // THE DASHBOARD DOOR sits beside help and wears its shape — two doors onto centre tabs, side by
 // side in DOM order, rather than one door and one surprise somewhere else.

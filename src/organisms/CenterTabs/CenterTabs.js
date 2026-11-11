@@ -1,7 +1,22 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { openAddress } from "../../atoms/Markdown/openRef";
-import { getTabs, openTab, closeTab, moveTab, closeRight, closeOthers, closeAll, countRight } from "../../pages/SystemView/tabsStore";
+import {
+  getTabs,
+  openTab,
+  closeTab,
+  moveTab,
+  closeRight,
+  closeOthers,
+  closeAll,
+  countRight,
+  paneOf,
+  paneCount,
+  focusPane,
+  splitTab,
+  moveTabToPane,
+} from "../../pages/SystemView/tabsStore";
+import { dropPlan } from "./paneDrag";
 import { iconForTab, TAB_ICONS } from "../../utils/fileIcons";
 import { labelOfTab } from "../../pages/SystemView/tabRoutes";
 import "../WallPanel/styles.scss";
@@ -33,7 +48,12 @@ import { browseSplit, browseMatch, browseJoin } from "./browse";
 //   onCollapse       — optional: push this whole area off to its edge tab. Renders the ONE
 //                      wall-collapse button (WallPanel/styles.scss), OUTSIDE the scroll row so it
 //                      can never cover the + (his rule: the + rides the last tab, never hidden).
-export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterClose, extraMenuItems, plus, onCollapse }) {
+//   pane             — WHICH SIDE THIS STRIP IS. Defaults to 0, which is what every host that has
+//                      never heard of the split means: the only pane there is. A split host mounts
+//                      one of these per pane and tells each one its index, and that index is what
+//                      makes a drop ACROSS the divider a different verb from a reorder (dropPlan)
+//                      and the bulk-close verbs scope to the side they were pressed on.
+export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterClose, extraMenuItems, plus, onCollapse, pane = 0 }) {
   const [tabMenu, setTabMenu] = useState(null);
 
   const closeStripTab = useCallback(
@@ -55,7 +75,13 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
       e.preventDefault();
       e.stopPropagation();
       const rightCount = countRight(tabsPc, t.key);
-      const total = getTabs(tabsPc).panes[0].tabs.length;
+      // THE COUNTS ARE THIS TAB'S OWN SIDE'S. `panes[0]` by hand was right while there was only
+      // ever one pane and silently wrong the moment there were two: a "Close all 3" pressed on the
+      // right-hand strip would have counted the LEFT one's tabs, which is the most alarming thing
+      // a confirm dialog could get wrong. `paneOf` answers which side actually holds it.
+      const at = paneOf(tabsPc, t.key);
+      const mine = getTabs(tabsPc).panes[at === -1 ? pane : at] || { tabs: [] };
+      const total = (mine.tabs || []).length;
       const items = [{ label: "Close", action: () => closeStripTab(t) }];
       // A verb that would do nothing is HIDDEN, not greyed: a menu of dead items teaches you to
       // stop reading it.
@@ -68,10 +94,21 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
         // Two-step: the one verb here you cannot undo by clicking the tree again.
         confirm: total > 2 ? `Close all ${total}?` : undefined,
       });
+      // THE SPLIT, AND THE WAY BACK ACROSS — his *"you can split into two and you can drag
+      // documents across"*. The drag is the fast way; this row is the one that works without
+      // aiming, and it is where the verb gets a NAME, which a drag never has.
+      //
+      // Two labels for one store verb, because what it does depends on what is standing: with one
+      // pane it opens a side (and cannot, when this is the only tab — there would be nothing left
+      // behind, so the row is hidden rather than offered dead); with a split standing it carries
+      // the document to the other side.
+      const panes = paneCount(tabsPc);
+      if (panes > 1) items.push({ label: "Move to the other side", action: () => splitTab(tabsPc, t.key) });
+      else if (total > 1) items.push({ label: "Split — give it its own side", action: () => splitTab(tabsPc, t.key) });
       for (const it of (extraMenuItems && extraMenuItems(t)) || []) items.push(it);
       setTabMenu({ x: e.clientX, y: e.clientY, title: label, items });
     },
-    [tabsPc, closeStripTab, afterBulkClose, extraMenuItems]
+    [tabsPc, pane, closeStripTab, afterBulkClose, extraMenuItems]
   );
 
   // A TAB THAT ARRIVES BESIDE YOU HAS TO ANNOUNCE ITSELF. Following a reference no longer moves
@@ -99,9 +136,31 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
     return () => clearTimeout(t);
   }, [tabs]);
 
+  // A DROP IS TWO DIFFERENT VERBS AND THE DIFFERENCE IS SILENT. `moveTab` finds a tab by key
+  // wherever it lives, so treating a cross-pane drop as a reorder shuffles the document inside the
+  // side he dragged it OUT of — nothing crosses, and nothing says so. `dropPlan` names which it is
+  // from where the tab came and where it landed; both handlers below read it rather than deciding.
+  const drop = useCallback(
+    (key, onKey) => {
+      const plan = dropPlan({ from: paneOf(tabsPc, key), to: pane, key, onKey });
+      if (!plan) return;
+      if (plan.verb === "reorder") moveTab(tabsPc, key, plan.before);
+      else moveTabToPane(tabsPc, key, plan.to, plan.before);
+    },
+    [tabsPc, pane]
+  );
+
   return (
     <>
-      <div className="doc-tabs">
+      <div
+        className="doc-tabs"
+        // CLICKING A SIDE MAKES IT THE SIDE YOU ARE WORKING ON, even when the click lands on the
+        // strip's empty tail rather than on a tab. Without this, opening a document after clicking
+        // the right-hand strip would land it on the left, which reads as the window ignoring where
+        // his hand is. A click on a TAB already does this through focusTab; this is the rest of the
+        // strip. mousedown rather than click, so the focus is already right when a drag starts.
+        onMouseDown={() => focusPane(tabsPc, pane)}
+      >
         <div
           className="doc-tabs__scroll"
           onDragOver={(e) => {
@@ -111,7 +170,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
             const key = e.dataTransfer.getData("text/sv-tab");
             if (!key) return;
             e.preventDefault();
-            moveTab(tabsPc, key, null); // past the tabs = last
+            drop(key, null); // past the tabs = last on THIS side
           }}
         >
           {/* THE FLOOR SHOWS AS A TAB — with nothing open, the strip isn't empty chrome over a
@@ -152,7 +211,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
                   if (!key || key === t.key) return;
                   e.preventDefault();
                   e.stopPropagation(); // or the ROW's drop fires next and sends it to the end
-                  moveTab(tabsPc, key, t.key);
+                  drop(key, t.key); // lands where THIS tab sits, on this side, wherever it came from
                 }}
                 onContextMenu={(e) => openTabMenu(e, t, label)}
               >
