@@ -49,8 +49,10 @@ module.exports = async function commentsCommand(
     return 1;
   }
 
-  let services = [];
   let Hub = null;
+  // THE CALL IS THE CHECK — `getProjects()` answers whether this project is connected at all. Its
+  // services were being assigned to a variable nothing read, left behind by the move to "the hub
+  // serves the files" below, which is the whole reason there is no service hunting here any more.
   try {
     const { SystemView } = await Client.loadService(`${uiUrl}/systemview/api`);
     Hub = SystemView;
@@ -59,7 +61,6 @@ module.exports = async function commentsCommand(
       log.error(`no connected project "${projectCode}" — projects: ${Object.keys(projects).join(", ") || "(none)"}`);
       return 1;
     }
-    services = projects[projectCode];
   } catch (err) {
     log.error("Failed to connect to SystemView: " + err.message);
     return 1;

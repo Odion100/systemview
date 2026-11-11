@@ -28,7 +28,6 @@ const {
   fmtInt,
   fmtMs,
   fmtPct,
-  splitErrors,
   health,
   windowMethods,
   changeDelta,

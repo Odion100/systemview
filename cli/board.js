@@ -80,7 +80,9 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
     return 1;
   }
 
-  let services = [];
+  // THE CALL IS THE CHECK. `getProjects()` is here to answer whether this project is connected at
+  // all — its services were being assigned to a variable nothing read, which made the read look
+  // like it fed something downstream.
   try {
     const { SystemView } = await Client.loadService(`${uiUrl}/systemview/api`);
     const projects = await SystemView.getProjects();
@@ -88,7 +90,6 @@ module.exports = async function boardCommand(projectCode, name, { uiUrl, json, r
       log.error(`no connected project "${projectCode}" — projects: ${Object.keys(projects).join(", ") || "(none)"}`);
       return 1;
     }
-    services = projects[projectCode];
   } catch (err) {
     log.error("Failed to connect to SystemView: " + err.message);
     return 1;

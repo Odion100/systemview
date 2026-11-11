@@ -1,4 +1,3 @@
-const http = require("http");
 const { HttpClient } = require("systemlynx");
 
 module.exports = async function appIsRunning(url) {

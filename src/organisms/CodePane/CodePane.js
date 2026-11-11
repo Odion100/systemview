@@ -430,7 +430,7 @@ const CodePane = ({ file, onClose }) => {
   // Every file the pane shows is pushed once; opening the SAME file again (a new line range, say)
   // is not a step in the trail.
   const here = { path: file.path, projectCode: file.projectCode, serviceId: file.serviceId, language: file.language };
-  const [nav, setNav] = useState(0); // just to re-render the two buttons when the stack moves
+  const [, setNav] = useState(0); // the setter only: just to re-render the two buttons when the stack moves
   useEffect(() => {
     if (sameFile(stack[at], here)) return; // same file again (a new line range) is not a step
     if (moving) {

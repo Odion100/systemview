@@ -1,6 +1,6 @@
 {
   "rules": {
-    "no-unused-vars": 38,
+    "no-unused-vars": 31,
     "react-hooks/exhaustive-deps": 23
   }
 }

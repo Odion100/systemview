@@ -140,7 +140,7 @@ export const arr = function ArrayParser(arr) {
 // failed at the MATCHER, so it stayed a literal string and the assertion compared against the
 // characters "date(tv(...))". Nobody noticed because nothing had two string functions to compose
 // until arithmetic needed a reference as an operand.
-const isFnRegEx = /^\w+\(([^,)]*(,[^,)]*)*)\)$/; // kept: `str.match(isFnRegEx)` callers below
+
 export const fnCall = (str) => {
   const m = /^(\w+)\(([\s\S]*)\)$/.exec(String(str == null ? "" : str).trim());
   if (!m) return null;

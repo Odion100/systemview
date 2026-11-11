@@ -1,5 +1,4 @@
 const fs = require("fs");
-const path = require("path");
 const { createClient } = require("systemlynx");
 const { createCookieHttpClient } = require("./cookieClient");
 const { takeNotices, persist, readSessionPolicy, setSessionPolicy, setManifestFile } = require("./manifestHeaders");
