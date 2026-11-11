@@ -9,7 +9,7 @@ import { setHelpTopic } from "../../atoms/Help/helpStore";
 import RowMenu from "../../atoms/RowMenu/RowMenu";
 import { commentedPathSet } from "../../atoms/CodeView/codeComments";
 import ServiceContext from "../../ServiceContext";
-import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
+import { hostFiles } from "../../utils/hostFiles";
 import { slotId, useNavDock, useDockOrder, orderProjects, moveInDock } from "../AgentChat/navDock";
 import useFold from "./useFold";
 import TerminalSection from "./TerminalSection";

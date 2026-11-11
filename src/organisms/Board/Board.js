@@ -3,7 +3,7 @@ import ServiceContext from "../../ServiceContext";
 import moment from "moment";
 import { MarkdownScopeProvider } from "../../atoms/Markdown/context";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
-import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
+import { hostFiles } from "../../utils/hostFiles";
 // A DELIBERATE CYCLE, and a safe one: AgentChat imports Board (the floating popup wraps this), and
 // this imports the chat's own light markdown pass back, because a board note must draw EXACTLY like
 // a bubble — two renderers of one grammar is how the collector and the chat once drifted apart.
@@ -39,6 +39,8 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   };
   const [board, setBoard] = useState(null); // null = not read yet · else [{ ts, text }]
   const [boardSaved, setBoardSaved] = useState(true);
+  // What the last failed write said, or "" — the board's only honest way to report it cannot save.
+  const [boardError, setBoardError] = useState("");
   const boardSavedRef = useRef(true);
   boardSavedRef.current = boardSaved;
   const [boardDraft, setBoardDraft] = useState("");
@@ -56,10 +58,15 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   // happened to be first for this project — which is why his notes vanished the moment a test
   // service was down: not lost, just asked for down a road that was closed. `.systemview/boards/
   // board.md` sits on disk the whole time. Same rule as the codebase: files are the host's.
-  const boardPlugin = useMemo(
-    () => (hasHostFiles() ? hostFiles(projectCode) : null),
-    [projectCode],
-  );
+  // NO hasHostFiles GUARD, and this is the second surface to lose it. That test asks whether the
+  // SHELL BRIDGE (`window.systemview.files`) is there — and `hostFiles` stopped using that bridge:
+  // every verb it has asks the hub, which knows the shell's registry. So the guard was asking about
+  // a mechanism that is no longer the mechanism, and answering no in any window that is not the
+  // Electron shell. Measured 2026-11-11 in a plain browser tab on the hub: the board sat on
+  // "opening…" forever under the line "no live service for this project", while the code pane
+  // beside it read files perfectly well. The report picker had already been caught by the same
+  // guard (AgentChat.js) and fixed with the same removal.
+  const boardPlugin = useMemo(() => hostFiles(projectCode), [projectCode]);
   // EVERY TIME IT OPENS, not just the first — a reply written while the board was shut was invisible
   // until he reloaded the whole page, which is not a thing anyone should have to do to read an answer.
   useEffect(() => {
@@ -87,7 +94,6 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   const saveBoard = async (cards, title = boardTitle) => {
     setBoard(cards);
     setBoardSaved(false);
-    if (!boardPlugin) return;
     try {
       // AN AGENT'S REPLY MUST SURVIVE HIS NEXT KEYSTROKE. The panel holds the whole board in memory
       // and writes the whole file, so a reply written by `systemview board --reply` between the
@@ -145,8 +151,15 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
         await boardPlugin.deleteFile({ path: boardPath });
       else await boardPlugin.writeFile({ path: boardPath, content: serializeBoard(cards, title) });
       setBoardSaved(true);
-    } catch {
+      setBoardError("");
+    } catch (e) {
       setBoardSaved(false);
+      // A REFUSAL IS SHOWN, WITH ITS REASON. What stood here was an invented line about there
+      // being no live service, printed from a guard rather than from anything that had actually
+      // been tried — so a window that could save perfectly well said it could not, and a window
+      // that genuinely could not would have said the same thing for the wrong reason. This says
+      // what the write came back with, and only once a write has really failed.
+      setBoardError(String((e && e.message) || e || "the board could not be saved"));
     }
   };
   // The title saves itself a beat after you stop typing, like the notes do.
@@ -292,7 +305,7 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
   // merge follows.
   useEffect(() => {
     const SystemView = SystemViewService && SystemViewService.SystemView;
-    if (!SystemView || !boardPlugin) return undefined;
+    if (!SystemView) return undefined;
     const off = SystemView.on(`board-updated:${projectCode}`, async () => {
       if (editingCard !== null || editingTitle !== null || !boardSavedRef.current) return;
       try {
@@ -1081,10 +1094,8 @@ export default function Board({ projectCode, headerDrag, onClose, onHandToChat, 
                 ))
               )}
             </div>
-            {!boardPlugin && (
-              <div className={`${CLASSNAME}__board-note`}>
-                no live service for this project — the board can't be saved from here
-              </div>
+            {!!boardError && (
+              <div className={`${CLASSNAME}__board-note`}>the last save was refused — {boardError}</div>
             )}
     </>
   );

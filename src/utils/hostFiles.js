@@ -15,8 +15,22 @@ import { getHub } from "./hub";
 //
 // WHAT THE SHELL IS STILL FOR, so the name of this file does not mislead: it owns the REGISTRY — it
 // picks the folder, names it, renames it, forgets it. The hub reads that list; it never writes it.
-export const hasHostFiles = () =>
-  !!(typeof window !== "undefined" && window.systemview && window.systemview.files);
+// THERE IS NO `hasHostFiles` ANY MORE, and its absence is the fix rather than a tidy-up.
+//
+// It answered "is the shell bridge present" — `window.systemview.files` — and callers used it to
+// decide whether they could touch files at all. That was true while this module routed through the
+// bridge. It stopped: every verb below asks the hub, which knows the shell's registry. From then on
+// the question was about a mechanism that is no longer the mechanism, and it answered NO in any
+// window that is not the Electron shell — a plain browser tab on the hub, which is a perfectly
+// ordinary way to use this package.
+//
+// It cost two surfaces before it was removed: the report picker sat permanently empty (caught
+// 2026-10), and the board sat on "opening…" under the invented line "no live service for this
+// project" while the code pane beside it read files fine (caught 2026-11-11, by opening it).
+//
+// The function is gone so the guard cannot come back by autocomplete. If you need to know whether
+// files are reachable, TRY ONE and handle the refusal — that answers the question that actually
+// matters, and it answers it about the hub, which is who serves them.
 
 // WHAT THE SHAPE-WALKING USED TO BE. This file once carried a breadth-first `walkAll` over the
 // shell's one-directory-at-a-time bridge, because the nav wanted the whole tree flat and the shell

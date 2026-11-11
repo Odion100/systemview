@@ -52,7 +52,7 @@ import { canListTranscripts, listAgents, listTranscripts, transcriptTail } from 
 import CodebaseNav from "../CodebaseNav/CodebaseNav";
 import { useAppDark } from "../../atoms/appTheme";
 import loadServiceWithHeaders from "../../utils/loadService";
-import { hostFiles, hasHostFiles } from "../../utils/hostFiles";
+import { hostFiles } from "../../utils/hostFiles";
 // eslint-disable-next-line import/no-cycle
 import Board from "../Board/Board";
 import { bandTabs, tabOfSource, bandLabel, bandHead, withDefaultList, showsPlan, listKey, readBandTab, writeBand, TAB_KEY, DEFAULT_LIST_KEY } from "./bandTabs";
@@ -5338,7 +5338,11 @@ const countdown = (str, now = Date.now()) => {
   });
   // THE PROJECT'S FILE PLUGIN, which the TV's reader and the report editor still need after the
   // board moved out to organisms/Board (2026-10-14, his "pop up like a document" ruling).
-  const chatFilesPlugin = useMemo(() => (hasHostFiles() ? hostFiles(projectCode) : null), [projectCode]);
+  // NO hasHostFiles GUARD — the same removal the report picker above already carries, for the same
+  // reason: that test asks whether the shell bridge is present, and `hostFiles` reaches the HUB for
+  // every verb it has. Guarded, the TV's reader and the report editor were dead in any window that
+  // is not the Electron shell, while the nav listed the same files beside them.
+  const chatFilesPlugin = useMemo(() => hostFiles(projectCode), [projectCode]);
   useEffect(() => {
     projPluginRef.current = chatFilesPlugin;
   }, [chatFilesPlugin]);
