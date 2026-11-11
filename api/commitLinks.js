@@ -141,11 +141,16 @@ const sameSha = (a, b) => {
 // is not, so a new document kind must not quietly lose its teeth by not being listed here.
 const COMMISSIONS = (kind) => !["report"].includes(String(kind || "").toLowerCase());
 
-function audit({ commits = [], documents = [] } = {}) {
+// `retired` — ids this repository ONCE held and no longer does, each with the path it lived at and
+// the commit that deleted it. Supplied by the caller because gathering it means reading git; the
+// rule for what to DO with it is here, where it can be checked.
+function audit({ commits = [], documents = [], retired = {} } = {}) {
   const byId = new Map(documents.map((d) => [String(d.id), d]));
   const docShas = documents.map((d) => ({ doc: d, shas: shasIn(d.text) }));
   const unlinked = [];
   const dangling = [];
+  // SERVED SOMETHING THIS REPO ONCE HELD — a finding with an address rather than an accusation.
+  const expired = [];
   const oneWay = [];
   // A `Serves:` LINE THAT IS NOT IN THE TRAILER BLOCK, which this door used to answer about
   // wrongly in both directions. Measured 2026-11-07: a commit put its trailer on the line after
@@ -171,6 +176,20 @@ function audit({ commits = [], documents = [] } = {}) {
     for (const id of serves) {
       const doc = byId.get(id);
       if (!doc) {
+        // A RETIRED DOCUMENT IS NOT A TYPO, and telling them apart is the whole value of this
+        // bucket. A report's normal end of life — the janitor collects it, its row leaves the
+        // registry — used to make every trailer that ever named it read "serves an id nothing
+        // registered". Measured on this repo 2026-11-11: 49 of them at a 400-commit window, with
+        // ONE structured id (an RFC) hiding among them, which is exactly the finding the noise was
+        // burying.
+        //
+        // THE REASONING IS NOT LOST, it is one `git show` away — so the finding carries the address
+        // instead of an accusation: where the document lived, and the commit that deleted it.
+        const gone = retired[String(id)];
+        if (gone) {
+          expired.push({ sha: c.sha, subject: c.subject || "", id, path: gone.path || "", deletedIn: gone.sha || "" });
+          continue;
+        }
         dangling.push({ sha: c.sha, subject: c.subject || "", id });
         continue;
       }
@@ -242,6 +261,7 @@ function audit({ commits = [], documents = [] } = {}) {
     unlinked,
     dangling,
     oneWay,
+    expired,
     unclaimed,
     noted,
     misplaced,

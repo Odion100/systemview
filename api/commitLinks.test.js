@@ -368,3 +368,76 @@ test("noted counts only records this run could actually see", () => {
   });
   assert.strictEqual(out.noted.length, 1, "a sha outside the window is not evidence of anything, either way");
 });
+
+// A RETIRED DOCUMENT IS NOT A TYPO.
+//
+// A report's normal end of life — the janitor collects it, its row leaves the registry — used to
+// make every trailer that ever named it read "serves an id nothing registered". Measured on this
+// repo 2026-11-11: forty-nine of them at a 400-commit window, with ONE structured id hiding among
+// them. That is the finding the noise was burying, and the reason this split exists.
+//
+// The evidence comes from git and is gathered by the caller; what is checked here is the rule.
+test("a trailer naming a document this repo once held is expired, not dangling", () => {
+  const out = audit({
+    commits: [{ sha: "aaaa1111", subject: "feat: x", message: serving("feat: x", "An old account") }],
+    documents: [],
+    retired: { "An old account": { path: "reports/old.md", sha: "dead0000" } },
+  });
+  assert.deepStrictEqual(out.dangling, []);
+  assert.strictEqual(out.expired.length, 1);
+  // THE ADDRESS, NOT AN ACCUSATION: where it lived and the commit that buried it, so the reasoning
+  // is one `git show` away rather than lost.
+  assert.deepStrictEqual(out.expired[0], {
+    sha: "aaaa1111",
+    subject: "feat: x",
+    id: "An old account",
+    path: "reports/old.md",
+    deletedIn: "dead0000",
+  });
+});
+
+test("an id this repo NEVER held is still dangling — that is the finding worth keeping", () => {
+  const out = audit({
+    commits: [{ sha: "bbbb2222", subject: "feat: x", message: serving("feat: x", "RFC-404") }],
+    documents: [],
+    retired: { "Something else": { path: "reports/other.md", sha: "dead0000" } },
+  });
+  assert.strictEqual(out.dangling.length, 1);
+  assert.strictEqual(out.dangling[0].id, "RFC-404");
+  assert.deepStrictEqual(out.expired, []);
+});
+
+// EXPIRY IS NOT A DISAGREEMENT. The trailer was right when it was written and the document ended
+// its life as designed — so it must not hold the whole answer down, or the door goes back to never
+// being able to say "agreed".
+test("expired findings do not make the two directions disagree", () => {
+  const out = audit({
+    commits: [{ sha: "cccc3333", subject: "feat: x", message: serving("feat: x", "An old account") }],
+    documents: [],
+    retired: { "An old account": { path: "reports/old.md", sha: "dead0000" } },
+  });
+  assert.strictEqual(out.agreed, true);
+  assert.strictEqual(out.expired.length, 1, "and it is still reported, not swallowed");
+});
+
+// A LIVE DOCUMENT WINS OVER A BURIAL RECORD — the same id registered today is not expired, whatever
+// git remembers about a file that once carried it.
+test("a registered document is never read as expired", () => {
+  const out = audit({
+    commits: [{ sha: "dddd4444", subject: "feat: x", message: serving("feat: x", "RFC-9") }],
+    documents: [{ id: "RFC-9", kind: "rfc", path: "RFCs/r.md", text: "::commit{sha=dddd4444}" }],
+    retired: { "RFC-9": { path: "RFCs/old-r.md", sha: "dead0000" } },
+  });
+  assert.deepStrictEqual(out.expired, []);
+  assert.deepStrictEqual(out.dangling, []);
+  assert.strictEqual(out.agreed, true);
+});
+
+test("with no retired map at all, nothing changes — every unknown id is dangling", () => {
+  const out = audit({
+    commits: [{ sha: "eeee5555", subject: "feat: x", message: serving("feat: x", "Anything") }],
+    documents: [],
+  });
+  assert.strictEqual(out.dangling.length, 1);
+  assert.deepStrictEqual(out.expired, []);
+});

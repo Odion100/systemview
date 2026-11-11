@@ -309,4 +309,7 @@ function reportsOn({ readFile, writeFile, listFiles }) {
   return { write, read, list, reportPath, labelFor, REPORT_INDEX };
 }
 
-module.exports = { reportsOn, replyInto, stampSent, threadBodyOf, reportPath, labelFor, REPORT_INDEX, slug };
+// LEAF_ID IS EXPORTED so nobody writes a second one. It is the rule for "what id does this
+// document declare", and commitLinks has to ask it of documents that no longer exist — read out of
+// git rather than off disk, but the same question and so the same regex.
+module.exports = { reportsOn, replyInto, stampSent, threadBodyOf, reportPath, labelFor, REPORT_INDEX, slug, LEAF_ID };

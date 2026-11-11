@@ -2390,6 +2390,12 @@ const DocumentsRegistry = require("./documentsRegistry").documentsRegistryOn({ r
 // own ledger file, joined onto the registry rows at read time.
 const StampOpened = require("./documentsRegistry").stampOpened;
 const CommitLinks = require("./commitLinks");
+// THE SAME RULE FOR "WHAT ID DOES THIS DOCUMENT DECLARE", asked of documents that no longer exist.
+const { LEAF_ID } = require("./reports");
+// How many deleted markdown paths commitLinks will read out of git before it stops and says so.
+// 105 on this repo at 1.0s; the cap is four times that so the answer stays honest on a bigger
+// history without the door ever running unbounded.
+const RETIRED_SCAN_CAP = 400;
 const DocMembers = require("./documentMembers");
 
 // WHERE THE FOUR DRIVE METHODS LAND. api/drive.js decides WHAT to send (and refuses, with why);
@@ -3510,7 +3516,52 @@ module.exports = function launchSystemView(port = 3000) {
         // silently. The facts go beside the findings so the reader can tell a clean project from a
         // short look (card 2026-11-09: "2 findings at 200, 24 at 300").
         const win = CommitLinks.windowFacts({ requested: since, commits });
-        return { ok: true, projectCode, window: win, ...CommitLinks.audit({ commits, documents }) };
+        // WHAT THIS REPO ONCE HELD, read out of GIT because the documents are gone from disk.
+        //
+        // A report's normal end of life — the janitor collects it, its row leaves the registry —
+        // used to make every trailer that ever named it read "serves an id nothing registered".
+        // Measured here 2026-11-11: 49 such findings at a 400-commit window, with one structured
+        // id (an RFC) hiding among them. The reasoning was never lost; it is one `git show` away,
+        // and that is exactly what the finding carries now.
+        //
+        // COST, MEASURED: one `git log --diff-filter=D` (0.06s) plus one `git show` per distinct
+        // deleted markdown path — 105 of them here, 1.0s all in. Capped, and the cap is reported,
+        // because a check that silently stops looking is the fault this same door was fixed for.
+        const retired = {};
+        let retiredScanned = 0;
+        let retiredCapped = false;
+        const del = await git(cwd, ["log", "--diff-filter=D", "--name-only", "--format=%x01%H", "--", "*.md"]);
+        if (del.ok) {
+          const pairs = [];
+          const seenPath = new Set();
+          let delSha = "";
+          for (const line of String(del.out || "").split("\n")) {
+            if (line.startsWith("\u0001")) { delSha = line.slice(1).trim(); continue; }
+            const rel = line.trim();
+            // THE FIRST DELETION WINS, and the log is newest-first — so a path deleted, restored and
+            // deleted again reports the latest burial rather than the first.
+            if (!rel || seenPath.has(rel)) continue;
+            seenPath.add(rel);
+            pairs.push({ sha: delSha, rel });
+          }
+          retiredCapped = pairs.length > RETIRED_SCAN_CAP;
+          for (const { sha: dsha, rel } of pairs.slice(0, RETIRED_SCAN_CAP)) {
+            const show = await git(cwd, ["show", `${dsha}^:${rel}`]);
+            if (!show.ok) continue; // a root commit has no parent to read from — not evidence either way
+            retiredScanned += 1;
+            const m = String(show.out || "").slice(0, 4000).match(LEAF_ID);
+            if (!m) continue; // markdown that was never a registered document
+            const id = m[2].replace(/^"|"$/g, "");
+            if (!retired[id]) retired[id] = { path: rel, sha: dsha };
+          }
+        }
+        return {
+          ok: true,
+          projectCode,
+          window: win,
+          retiredScan: { paths: retiredScanned, found: Object.keys(retired).length, capped: retiredCapped, cap: RETIRED_SCAN_CAP },
+          ...CommitLinks.audit({ commits, documents, retired }),
+        };
       },
       comments: async ({ projectCode, path, replyText, at, as } = {}) =>
         CodeComments({ projectCode, path, reply: replyText, at, as: as || null }),
