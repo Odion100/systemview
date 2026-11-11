@@ -1,4 +1,4 @@
-import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes } from "./tabsStore";
+import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes } from "./tabsStore";
 
 // the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
@@ -429,5 +429,49 @@ describe("resizing between the panes", () => {
     // a fresh split is even — the remembered drag is not resurrected from a pane that no longer
     // existed, which would put the divider somewhere he did not leave it for THIS pair
     expect(paneSizes(PC)).toEqual([0.5, 0.5]);
+  });
+});
+
+// ─── WHICH BRANCH THE CENTRE IS IN — the URL's call, never the prop's ────────────────────────────
+//
+// His bug, 2026-11-11: two panes, a document dragged back, and the tab would not let go — plus
+// *"you click something and then some other tabs show up."* Measured in a real browser, one press
+// on the Dashboard tab produced EIGHT events: the click wrote `active=dash`, the route pushed
+// `?tab=dash`, and the centre's effect then fired on the changed tab param while the `codeFile`
+// prop still held the file, re-opened it, and the focus-routing effect pushed the file's URL back.
+//
+// The prop is the URL copied into state by the PARENT's effect, and React runs a child's effects
+// first — so the disagreeing render is not a race, it happens every single navigation.
+describe("fileBranch — the URL decides, and disagreement means wait", () => {
+  it("opens the file when the URL names it and the prop agrees", () => {
+    expect(fileBranch("RFCs/RFC-076.md", "RFCs/RFC-076.md")).toBe("file");
+  });
+
+  it("WAITS when the prop names a different file from the URL — neither is trusted", () => {
+    // The render where he has navigated from one document to another. Acting on either answer
+    // opens the wrong one; the next render has them agreeing.
+    expect(fileBranch("RFCs/RFC-076.md", "gaps/G-16.md")).toBe("wait");
+  });
+
+  it("WAITS when the URL names a file the prop has not caught up to yet", () => {
+    expect(fileBranch("RFCs/RFC-076.md", null)).toBe("wait");
+    expect(fileBranch("RFCs/RFC-076.md", undefined)).toBe("wait");
+  });
+
+  it("lets the TAB PARAM decide when the URL names no file, whatever the prop still says", () => {
+    // THE BUG ITSELF. Pressing Dashboard clears `?file=` and the prop is still the document —
+    // "tabs" is what stops it being re-opened and stealing the selection straight back.
+    expect(fileBranch(null, "RFCs/RFC-076.md")).toBe("tabs");
+    expect(fileBranch("", "RFCs/RFC-076.md")).toBe("tabs");
+  });
+
+  it("is a plain three-way answer with no fourth state", () => {
+    const answers = new Set([
+      fileBranch(null, null),
+      fileBranch("a", "a"),
+      fileBranch("a", "b"),
+      fileBranch("", ""),
+    ]);
+    expect([...answers].sort()).toEqual(["file", "tabs", "wait"]);
   });
 });

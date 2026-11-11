@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { list as listProofs } from "../../../utils/proofsBus";
 import useEffectiveProject from "../../../utils/effectiveProject";
-import { useInEmbed } from "../context";
+import { useInEmbed, useShown } from "../context";
 
 // OPENING A DOCUMENT LOADS ITS SPECS INTO THE PANEL.
 //
@@ -12,12 +12,19 @@ import { useInEmbed } from "../context";
 // control every registered document already has and which already knows the id, project and
 // inventory.
 //
-// MOUNT IS THE SIGNAL, and that is a fact about this window rather than an assumption: only the
-// ACTIVE document is in the DOM (counted live — one leaf, with eight tabs open), so switching tabs
-// unmounts one leaf and mounts another, and this effect fires exactly when a document comes into
-// view. An earlier version compared the URL's `?file=` against the document's path to decide whether
-// it was "the one on screen"; that gate was written to stop a thrash which turned out to be an
-// unrelated retry loop, and all it actually did was stop the panel loading when you switched tabs.
+// BEING SELECTED IS THE SIGNAL — `useShown`, which the centre sets per pane.
+//
+// Mount used to be the signal, on the grounds that only the active document is ever in the DOM.
+// That stopped being true in two ways at once: a hidden tab keeps its pane mounted so its scroll
+// position survives, and the centre can now show two documents side by side. His report,
+// 2026-11-11: *"the test on the side… it should be whatever document you're selected, because you
+// could select the tabs even though you have multiple different panes open."* With nothing
+// unmounting, clicking a tab fired no effect at all and the panel kept the last leaf to render.
+//
+// Comparing the URL's `?file=` here was tried once and reverted — it was aimed at a thrash that
+// turned out to be an unrelated retry loop, and it broke tab switching. This is not that: the
+// centre already knows which pane is focused and which tab in it is active, so it says so, and
+// this block asks instead of inferring.
 //
 // LIST, NEVER RUN. Opening a document must not execute anything against a service.
 //
@@ -35,7 +42,11 @@ import { useInEmbed } from "../context";
 const DocProofs = ({ id, projectCode: given }) => {
   const projectCode = useEffectiveProject(given);
   const quoted = useInEmbed();
-  const has = !!(id && projectCode && !quoted);
+  // A document in the OTHER pane, or behind another tab, is on screen without being the one he
+  // picked. It loads nothing — the panel belongs to the selection, and two documents claiming it
+  // is the race this replaces.
+  const shown = useShown();
+  const has = !!(id && projectCode && !quoted && shown);
   useEffect(() => {
     if (has) listProofs(projectCode, { document: id });
   }, [has, id, projectCode]);

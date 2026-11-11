@@ -4,7 +4,7 @@ import "./styles.scss";
 import DescriptionBox from "../../atoms/DescriptionBox/DescriptionBox";
 import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorTheme";
 import Markdown from "../../atoms/Markdown/Markdown";
-import { InDocumentProvider } from "../../atoms/Markdown/context";
+import { InDocumentProvider, ShownProvider } from "../../atoms/Markdown/context";
 import CodePane from "../CodePane/CodePane";
 import {
   getTabs,
@@ -14,6 +14,7 @@ import {
   closeTab,
   fileKey,
   fileOpenPlan,
+  fileBranch,
   paneOf,
   moveTabToPane,
   splitTab,
@@ -96,6 +97,11 @@ export default function Documentation({
   // Which document the Reports tab is reading rides the URL (?rdoc=…), so it survives a refresh and
   // can be linked — the same rule an open file follows.
   const reportPath = new URLSearchParams(location.search).get("rdoc") || null;
+  // THE URL'S OWN ANSWER TO "IS A FILE OPEN", read here rather than inferred from the `codeFile`
+  // prop. They are the same fact a render apart: the URL changes first, SystemView's effect copies
+  // it into `codeFile`, and REACT RUNS THIS CHILD'S EFFECTS BEFORE THAT PARENT EFFECT — so there is
+  // always one render where the prop still names the document you just navigated away from.
+  const urlFile = new URLSearchParams(location.search).get("file") || null;
 
   // THE OPEN SET. The strip renders from the store; the URL names the ACTIVE tab (his
   // rule: "the URL routing includes what TYPE someone is in the center"). Existing params keep
@@ -130,7 +136,22 @@ export default function Documentation({
   // How-we-work once rather than every time a render happens to find it empty.
   const seeded = useRef(null);
   useEffect(() => {
-    if (codeFile && codeFile.path) {
+    // WHICH BRANCH WE ARE IN IS THE URL'S CALL, AND ONLY THE URL'S.
+    //
+    // His bug, 2026-11-11: *"you got two panes open, you bring one back into the other pane — it
+    // doesn't want to let go of that tab."* One press on the Dashboard tab produced EIGHT events —
+    // the click wrote `active=dash`, the route pushed `?tab=dash`, and then this effect fired on
+    // the changed `tab` param while `codeFile` still held the file, re-opened it, and the
+    // focus-routing effect below pushed the file's URL back. He could not leave the document.
+    //
+    // The prop is a COPY of the URL that arrives a render late, so it can say "a file is open"
+    // after the URL has stopped saying so. It is still the right source for the file's DETAIL —
+    // the line range, the side, the language — which the URL carries in pieces. So: the URL
+    // decides the branch, the prop supplies the detail, and when they disagree we WAIT rather than
+    // acting on either one alone. Waiting is safe because the prop catching up is itself a render.
+    const branch = fileBranch(urlFile, codeFile && codeFile.path);
+    if (branch === "wait") return;
+    if (branch === "file") {
       const key = fileKey(codeFile);
       const open = getTabs(tabsPc);
       const pane0 = open.panes[open.focus] || open.panes[0];
@@ -202,13 +223,22 @@ export default function Documentation({
       openTab(tabsPc, floorTab(tabsPc));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabsPc, urlTab, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
+  }, [tabsPc, urlTab, urlFile, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
   // store → URL, on a strip click: the active tab writes the params that MEAN it — which is exactly
   // what keeps every deep link, chip and agent command working unchanged.
   // THE MAP LIVES IN tabRoutes.buildRoute NOW — the Agents page routes the
   // same tabs, and a second copy of this map is exactly the drift the extraction exists to kill.
+  //
+  // A ROUTE THAT CHANGES NOTHING IS NOT PUSHED. Several callers can ask for the same destination in
+  // one interaction — the click routes, and the focus-routing effect below re-checks the same pane
+  // a render later — and `history.push` has no opinion about that: it stacks an identical entry
+  // every time, so the back button needs two presses to undo one click. Comparing before pushing is
+  // the whole guard; it changes nothing about where a route GOES.
   const routeTo = useCallback((t) => {
-    history.push(buildRoute(t, tabsPc, window.location.search));
+    const next = buildRoute(t, tabsPc, window.location.search);
+    const at = `${window.location.pathname}${window.location.search}`;
+    if (`${next.pathname}${next.search}` === at) return;
+    history.push(next);
   }, [history, tabsPc]);
   const clickTab = useCallback((t) => {
     focusTab(tabsPc, t.key);
@@ -432,14 +462,20 @@ export default function Documentation({
               const showing = showsKey(pn, i, t.key, fileLens && tab === "docs" && codeFile && fileKey(codeFile) === t.key);
               return (
                 <div key={t.key} className={`documentation-view__data-table${showing ? "" : " doc-kept-away"}`}>
-                  {/* The pane's × closes ITS OWN tab — the strip picks the neighbor you land on. */}
-                  <CodePane
-                    file={t.file}
-                    onClose={() => {
-                      const nextKey = closeTab(tabsPc, t.key);
-                      afterClose(nextKey, null);
-                    }}
-                  />
+                  {/* THE SIDE PANEL BELONGS TO THE DOCUMENT HE PICKED, and this is where that gets
+                      said. Showing is not enough: with a split standing, BOTH panes are showing a
+                      document and only one of them is the selection. `DocProofs` reads this and
+                      loads that document's specs; everything else inside the markdown ignores it. */}
+                  <ShownProvider value={showing && i === focus}>
+                    {/* The pane's × closes ITS OWN tab — the strip picks the neighbor you land on. */}
+                    <CodePane
+                      file={t.file}
+                      onClose={() => {
+                        const nextKey = closeTab(tabsPc, t.key);
+                        afterClose(nextKey, null);
+                      }}
+                    />
+                  </ShownProvider>
                 </div>
               );
             })}
@@ -578,26 +614,28 @@ export default function Documentation({
                       scope this panel was SHOWN with and generates no element, which is the half
                       of KeptPane the centre can use (`display: contents` breaks the height
                       chain). */}
-                  <KeptScope
-                    showing={showing}
-                    scope={{
-                      projectCode: fileLens ? codeFile.projectCode : sProject,
-                      serviceId: fileLens ? undefined : sService,
-                      moduleName: fileLens ? undefined : sModule,
-                      methodName: fileLens ? undefined : sMethod,
-                    }}
-                  >
-                    {(sc) => (
-                      <ReportsTab
-                        projectCode={sc.projectCode}
-                        serviceId={sc.serviceId}
-                        moduleName={sc.moduleName}
-                        methodName={sc.methodName}
-                        openName={t.report.path}
-                        onOpen={openReport}
-                      />
-                    )}
-                  </KeptScope>
+                  <ShownProvider value={showing && i === focus}>
+                    <KeptScope
+                      showing={showing}
+                      scope={{
+                        projectCode: fileLens ? codeFile.projectCode : sProject,
+                        serviceId: fileLens ? undefined : sService,
+                        moduleName: fileLens ? undefined : sModule,
+                        methodName: fileLens ? undefined : sMethod,
+                      }}
+                    >
+                      {(sc) => (
+                        <ReportsTab
+                          projectCode={sc.projectCode}
+                          serviceId={sc.serviceId}
+                          moduleName={sc.moduleName}
+                          methodName={sc.methodName}
+                          openName={t.report.path}
+                          onOpen={openReport}
+                        />
+                      )}
+                    </KeptScope>
+                  </ShownProvider>
                 </div>
               );
             })}

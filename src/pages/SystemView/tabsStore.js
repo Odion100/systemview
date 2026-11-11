@@ -52,6 +52,27 @@ export function fileOpenPlan(present, key, lastKey) {
   return "open";
 }
 
+// WHICH BRANCH THE CENTRE'S URL→STORE EFFECT IS IN — and the answer is the URL's, never a prop's.
+//
+// His bug, 2026-11-11: *"you got two panes open, you bring one back into the other pane — it
+// doesn't want to let go of that tab"*, and beside it *"you click something and then some other
+// tabs show up."* Both are one fault. The centre is handed a `codeFile` prop that SystemView
+// derives from the URL in an effect — and React runs a child's effects BEFORE its parent's, so
+// there is always one render where the URL has moved on and the prop still names the document you
+// just left. Acting on the prop in that render re-opens the old document: it steals the selection
+// back, and when that document is no longer open it is re-created as a tab out of nowhere.
+//
+// Three answers, and the middle one is the whole fix:
+//
+//   "file"  — the URL names a file and the prop agrees. Open it; this is a real navigation.
+//   "wait"  — they disagree. Do NOTHING. One of them is a render behind, and which one does not
+//             matter: the next render brings them together, and a render is cheap. Guessing is not.
+//   "tabs"  — the URL names no file at all, whatever the prop still says. The tab param decides.
+export function fileBranch(urlFile, codePath) {
+  if (!urlFile) return "tabs";
+  return codePath && codePath === urlFile ? "file" : "wait";
+}
+
 // VERSIONED — the shape changed once mid-day (reports went from one tab to tab-per-document) and
 // the stale cache produced exactly the bug he replicated: a leftover "Stage" tab written under the
 // old meaning, wearing the new code's clothes. A cache that outlives its shape lies; on mismatch we

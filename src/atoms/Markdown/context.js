@@ -85,6 +85,26 @@ export function InEmbedProvider({ value = true, children }) {
 
 export const useInEmbed = () => useContext(InEmbed);
 
+// IS THIS DOCUMENT THE ONE HE SELECTED — not "is it in the DOM", which stopped being the same
+// question the moment the centre could split.
+//
+// `DocProofs` used to claim the side panel on MOUNT, under a comment that said only the active
+// document is ever in the DOM. That was TRUE and it is not any more, twice over: a hidden tab's
+// pane is kept mounted so its scroll position survives, and two panes hold two documents at once.
+// So "the specs of the document you are looking at" became "the specs of whichever leaf rendered
+// last", and clicking a tab — which unmounts nothing — stopped changing the panel at all.
+//
+// DEFAULT TRUE, deliberately. Every host that renders one document at a time (the Agents page, a
+// report embed, a test fixture) says nothing and keeps exactly today's behaviour; only a surface
+// that can show two documents at once has to say which one he picked.
+const Shown = createContext(true);
+
+export function ShownProvider({ value = true, children }) {
+  return <Shown.Provider value={!!value}>{children}</Shown.Provider>;
+}
+
+export const useShown = () => useContext(Shown);
+
 const MarkdownWrite = createContext({ editable: false, setAttr: () => {} });
 
 export function MarkdownWriteProvider({ value, children }) {
