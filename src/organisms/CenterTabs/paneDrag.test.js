@@ -1,7 +1,7 @@
 // THE DIVIDER'S CLAIMS. A pointer drag has no suite here — jsdom has no layout, so a row's box is
 // all zeros and a fraction of it means nothing — which is exactly why the DECISION the drag makes
 // is a pure function. These are the assertions that stand in for a hand on the divider.
-import { sizesAfterDrag, dropPlan, MIN_PANE } from "./paneDrag";
+import { sizesAfterDrag, dropPlan, bodyDropPlan, MIN_PANE } from "./paneDrag";
 
 const ROW = { left: 100, width: 1000 }; // a 1000px row starting at x=100
 
@@ -82,5 +82,24 @@ describe("dropPlan — reorder, or cross the divider", () => {
   it("refuses a tab no pane holds", () => {
     expect(dropPlan({ from: -1, to: 0, key: "a" })).toBe(null);
     expect(dropPlan({ from: 0, to: 0 })).toBe(null);
+  });
+});
+
+describe("bodyDropPlan — the dark section is a target too", () => {
+  it("a tab from the other side lands here", () => {
+    expect(bodyDropPlan({ from: 0, to: 1, key: "a", panes: 2 })).toEqual({ verb: "cross", to: 1 });
+  });
+  // THE "DRAGGED OUT" GESTURE. Dropped back into its own body while that is the only body there
+  // is, a tab is asking for a side of its own — which is the same verb the menu offers by name.
+  it("dropped into its own side, with only one side, it earns a pane of its own", () => {
+    expect(bodyDropPlan({ from: 0, to: 0, key: "a", panes: 1 })).toEqual({ verb: "split" });
+  });
+  it("dropped into its own side with a split already standing, the window does nothing", () => {
+    expect(bodyDropPlan({ from: 1, to: 1, key: "a", panes: 2 })).toBe(null);
+  });
+  it("refuses a tab no pane holds", () => {
+    expect(bodyDropPlan({ from: -1, to: 0, key: "a", panes: 1 })).toBe(null);
+    expect(bodyDropPlan({ to: 0, key: "a", panes: 1 })).toBe(null);
+    expect(bodyDropPlan()).toBe(null);
   });
 });

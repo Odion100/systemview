@@ -170,6 +170,10 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
             const key = e.dataTransfer.getData("text/sv-tab");
             if (!key) return;
             e.preventDefault();
+            // STOPPED HERE. The pane's BODY is a drop target too, and a drop that bubbles out of
+            // the strip would be handled twice — once as "land it on this side" and again as the
+            // body's own verb. The strip's answer is the specific one, so it is the last one.
+            e.stopPropagation();
             drop(key, null); // past the tabs = last on THIS side
           }}
         >

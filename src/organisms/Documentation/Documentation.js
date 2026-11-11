@@ -6,7 +6,18 @@ import { EditorThemeToggle, useEditorDark } from "../../atoms/CodeView/editorThe
 import Markdown from "../../atoms/Markdown/Markdown";
 import { InDocumentProvider } from "../../atoms/Markdown/context";
 import CodePane from "../CodePane/CodePane";
-import { getTabs, subscribeTabs, openTab, focusTab, closeTab, fileKey, fileOpenPlan } from "../../pages/SystemView/tabsStore";
+import {
+  getTabs,
+  subscribeTabs,
+  openTab,
+  focusTab,
+  closeTab,
+  fileKey,
+  fileOpenPlan,
+  paneOf,
+  moveTabToPane,
+  splitTab,
+} from "../../pages/SystemView/tabsStore";
 import ServiceContext from "../../ServiceContext";
 import { Client } from "../../systemClient";
 import InlineLogs from "../InlineLogs/InlineLogs";
@@ -18,6 +29,7 @@ import ReportsTab from "../Reports/ReportsTab";
 import Board from "../Board/Board";
 import CenterTabs, { useOpenByPath } from "../CenterTabs/CenterTabs";
 import PaneDivider from "../CenterTabs/PaneDivider";
+import { bodyDropPlan } from "../CenterTabs/paneDrag";
 import { buildRoute, tabForUrl, floorTab, seedable } from "../../pages/SystemView/tabRoutes";
 import HowWeWork from "../HowWeWork/HowWeWork";
 import DashboardSwitch from "../DashboardSwitch/DashboardSwitch";
@@ -221,6 +233,36 @@ export default function Documentation({
           (t.kind === "logs" && tab === "logs" && t.key === `logs:${sService || ""}.${sModule || ""}.${sMethod || ""}`) ||
           (t.kind === "report" && tab === "reports" && (t.report ? t.report.path === reportPath : !reportPath))),
     [fileLens, codeFile, onFloor, tab, reportPath, sService, sModule, sMethod]);
+  // WHEN THE SIDE CHANGES, THE URL FOLLOWS IT.
+  //
+  // The URL names the document being looked at, and with a split standing that can only mean the
+  // FOCUSED side's active tab. Several verbs move focus without touching the URL — the menu's
+  // "give it its own side", a document dropped on the other pane, a press on the other strip — and
+  // after any of them the URL would still be describing the pane he just left. The visible symptom
+  // is worse than the inconsistency: the focused pane renders nothing at all, because the document
+  // the URL names is not in it. Measured in a real browser, 2026-11-10: dropping a tab into the
+  // dark section split it out correctly and the new side came up blank.
+  //
+  // ONLY WHILE SPLIT. With one pane the URL is already the single truth and this would be a second
+  // writer arguing with it.
+  const routedFocus = useRef(null);
+  useEffect(() => {
+    if ((tabsState.panes || []).length < 2) {
+      routedFocus.current = null;
+      return;
+    }
+    const pn = tabsState.panes[tabsState.focus];
+    if (!pn || !pn.active) return;
+    // Stamped, so this routes ONCE per (side, document) rather than on every render that still
+    // disagrees — a route is a history entry, and one per render is a back button nobody can use.
+    const stamp = `${tabsState.focus}:${pn.active}`;
+    if (routedFocus.current === stamp) return;
+    const t = (pn.tabs || []).find((x) => x.key === pn.active);
+    if (!t) return;
+    routedFocus.current = stamp;
+    if (!isTabActive(t)) routeTo(t);
+  }, [tabsState, isTabActive, routeTo]);
+
   // Closing what you're LOOKING AT routes to the neighbor; closing a background tab moves nothing.
   // Bulk closes land the same way — CenterTabs already did the store half.
   const afterClose = useCallback((nextKey) => {
@@ -602,6 +644,30 @@ export default function Documentation({
   const panes = tabsState.panes || [];
   const sizes = tabsState.sizes || [];
 
+  // THE DARK SECTION IS A TARGET TOO — his *"a tab should be able to be dragged out and hover and
+  // then placed back in any tab. Any dark section."* A 30px strip is the fiddly way to aim a
+  // dragged document; the document area is the obvious one, and "hover" is the half that makes a
+  // drag feel like placing rather than guessing — so the pane it would land in says so while the
+  // tab is over it.
+  //
+  // dragenter/dragleave FIRE FOR EVERY CHILD the pointer crosses, so a naive leave-handler blinks
+  // the outline off a dozen times crossing one document. `relatedTarget` is where the pointer went:
+  // still inside this pane means it never left.
+  const [dropPane, setDropPane] = useState(null);
+  const bodyDrop = useCallback(
+    (e, i) => {
+      const key = e.dataTransfer.getData("text/sv-tab");
+      setDropPane(null);
+      if (!key) return;
+      e.preventDefault();
+      const plan = bodyDropPlan({ from: paneOf(tabsPc, key), to: i, key, panes: getTabs(tabsPc).panes.length });
+      if (!plan) return;
+      if (plan.verb === "cross") moveTabToPane(tabsPc, key, plan.to);
+      else splitTab(tabsPc, key);
+    },
+    [tabsPc]
+  );
+
   return (
     <section className="documentation">
       <div className="documentation-view">
@@ -627,11 +693,24 @@ export default function Documentation({
             <React.Fragment key={`pane-${i}`}>
               {i > 0 && <PaneDivider tabsPc={tabsPc} index={i - 1} rowRef={panesRow} />}
               <div
-                className={`documentation-view__pane${panes.length > 1 && i === tabsState.focus ? " documentation-view__pane--focus" : ""}`}
+                className={`documentation-view__pane${panes.length > 1 && i === tabsState.focus ? " documentation-view__pane--focus" : ""}${
+                  dropPane === i ? " documentation-view__pane--drop" : ""
+                }`}
                 // A STABLE ADDRESS PER SIDE, the same rule the tabs follow: a check or a saved
                 // command finds `[data-pane="1"]` rather than counting divs.
                 data-pane={i}
                 style={{ flex: `${sizes[i] || 1 / panes.length} 1 0px` }}
+                onDragOver={(e) => {
+                  if (!e.dataTransfer.types.includes("text/sv-tab")) return;
+                  e.preventDefault();
+                  if (dropPane !== i) setDropPane(i);
+                }}
+                onDragLeave={(e) => {
+                  // Only when the pointer actually left this pane — not on every child boundary.
+                  if (e.currentTarget.contains(e.relatedTarget)) return;
+                  setDropPane((cur) => (cur === i ? null : cur));
+                }}
+                onDrop={(e) => bodyDrop(e, i)}
               >
                 {/* THE SAME STRIP, ONE PER SIDE — it is told which side it is, and that index is
                     what makes a drop from the other pane a crossing rather than a reorder. */}

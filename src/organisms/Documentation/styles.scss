@@ -700,6 +700,18 @@
   }
 }
 
+// WHERE A DRAGGED DOCUMENT WOULD LAND — the "hover" half of his *"dragged out and hover and then
+// placed back"*. A drag with no feedback is a guess: the pane that would take the drop says so
+// while the tab is over it, and says nothing the rest of the time.
+//
+// Drawn as an INSET SHADOW rather than a border or an outline: a border would change the column's
+// box and shove the document a pixel sideways at the moment he is aiming at it, and the one thing
+// a drop target must not do is move.
+.documentation-view__pane--drop {
+  box-shadow: inset 0 0 0 2px var(--sv-indigo);
+  border-radius: 6px;
+}
+
 // WHICH SIDE IS THE WORKING ONE — only ever drawn when there is more than one, because with a
 // single pane "the focused one" is not a distinction and a highlight that is always on teaches
 // nothing. It is the faintest mark that still answers "where will the next document open": the

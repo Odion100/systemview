@@ -75,3 +75,30 @@ export function dropPlan({ from, to, key, onKey } = {}) {
   if (from === to) return { verb: "reorder", before: onKey || null };
   return { verb: "cross", to, before: onKey || null };
 }
+
+/**
+ * WHAT A DROP ON A PANE'S BODY MEANS — his *"a tab should be able to be dragged out and hover and
+ * then placed back in any tab. Any dark section."*
+ *
+ * The strips are only half of that: the dark section is the document area, and it is the bigger
+ * target by far — aiming a dragged tab at a 30px strip is the fiddly way to do the thing he
+ * described.
+ *
+ * `from`  — the pane holding the dragged tab
+ * `to`    — the pane whose BODY took the drop
+ * `panes` — how many panes are standing
+ *
+ * Two verbs and a silence:
+ *   cross  — it came from the other side; carry it here.
+ *   split  — it was dropped back into its own side while that is the ONLY side: that is the
+ *            "dragged out" gesture, and it earns a pane of its own.
+ *   null   — dropped into its own side while a split is already standing. There is nowhere for it
+ *            to go that it is not already, and the honest answer is for the window to do nothing
+ *            rather than to shuffle something to look busy.
+ */
+export function bodyDropPlan({ from, to, key, panes } = {}) {
+  if (!key || from === undefined || from === -1 || to === undefined) return null;
+  if (from !== to) return { verb: "cross", to };
+  if (panes > 1) return null;
+  return { verb: "split" };
+}
