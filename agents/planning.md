@@ -206,12 +206,78 @@ somebody's summary is the weakest evidence here.
 - **The landscape is rewritten as things settle**, by whoever opened it, so somebody arriving late
   reads the section instead of the whole thread. Every rewrite makes the members *behind* (their
   corner lights up), which is how anyone knows to come back.
+- **A DECISION THAT LANDS IS WRITTEN DOWN WHERE IT LANDED**, as a `::decision` block — the same
+  instant and for the same reason an objective is. See the chapter below; this is the part most
+  easily left in the chat, and a decision that lives in a transcript was never made as far as the
+  document is concerned.
 - **An objective that becomes definitive is written down the moment it is definitive** — as an
   `::objective` block carrying what, its owner, its requirements and what it is for. A line could
   only be read by eye; a block carries an ADDRESS, which is what lets the work point back at it.
   Never planned in advance, never a list of what the meeting ought to decide.
 - **Nothing about the mapping is rigid.** An objective can cover two goals; a goal can need three;
   a goal can need none.
+
+## Capturing what lands — `::decision`
+
+**A planning document's whole job is that the discussion lands somewhere instead of scrolling
+away.** Goals and landscapes are the setup; what makes it a record is the CHOICES, written where
+they were made.
+
+A `**DECIDE HERE:**` list cannot do that, and the reasons are specific rather than stylistic:
+
+1. **No address.** Nothing can point at it — not an objective it blocks, not a commit that
+   implements it, not a later decision that reverses it.
+2. **No state**, in a document whose doctrine is that the document IS the state.
+3. **Nothing can count it.** An arc has `::progress`, an RFC has `::claims`; a plan had nothing, so
+   its first screen could not say how many choices were open or whose they were. Reading every
+   section was the only way to find out, so nobody did.
+4. **The answer erases the question.** Rewriting the section is right for describing a mechanism —
+   but the road NOT taken was never in the file, so git cannot be the changelog for it, and it is
+   the first thing anybody asks about a decision they did not sit in on.
+
+```markdown
+:::decision[Host's machine or sender's machine?]{id=d-runs owner=you}
+**why it is a decision** — everything in this section changes with it.
+**my position** — none; I can argue either, which is the tell that it is his.
+:::
+```
+
+**The attributes are `markdown.md`'s** — `id` the address, `owner` who owes it, `by` who made the
+call, `chose`/`over` the answer and the roads not taken, `state`, and `ratify`/`approved` for the
+signature a decision may still owe. Read them there; they are not repeated here, because two copies
+of an attribute table drift the week one of them gains a field.
+
+**`::decisions` at the top recounts them** — a bar, the counts, and who still owes which, with every
+id pressable through to its block. The number is derived on every render and stored nowhere, so it
+can never disagree with the blocks below it. **Never type a count beside it.**
+
+### Only a real choice earns a block
+
+**Two answers, two different systems.** Everything else is detail that settles itself once the
+section is written well, and it stays prose under an *also to settle* list. Nine sections times five
+questions is forty-five presses, which is a gate nobody finishes — and a document of blocks with no
+argument in it is worse than the prose it replaced.
+
+### A SECTION SAYS ITS SUBSTANCE BEFORE IT SAYS WHAT LANDED
+
+**His correction, 2026-11-12:** *"I don't know how a section could lead with decisions. There was a
+distinction between what was there before, or what the conversation was, and then what things would
+land."* A section that opens with its decision blocks has lost its own voice — the blocks absorb the
+prose that explained why any of it matters, and a reader arriving cold meets a verdict with no case.
+
+So the order inside a section is always:
+
+1. **What is there** — the landscape, measured, cited.
+2. **What the conversation was** — the argument, the positions, the thing worth disagreeing with.
+3. **What landed** — the `::decision` blocks, under their own heading when there are several.
+4. **What is still open** — kept apart from what landed, so neither reads as the other.
+
+### An answer can be captured without being closed
+
+A decision carrying `chose=` and `by=` while still open is a real and useful state: *said in the
+room, not yet confirmed.* It is counted apart from plain open, because **"twelve open and all owed
+by him" is a different sentence when one of them already holds his answer.** Write what he said the
+moment he says it; closing it is a separate act and his.
 
 ## Closing one
 
@@ -361,6 +427,12 @@ prose that is not in `<<…>>` only if it is inside the fence.
 **Where this file is:** `<<absolute path to this file>>` — absolute, because members live in
 different repos. Read the file; this document is the state, never the summary you were sent.
 
+::decisions
+
+<<Leave this line exactly as it is. It recounts the `::decision` blocks below on every render —
+a bar, the counts, and who owes which, each id pressable through to its block. Never type a
+number beside it.>>
+
 ## Goals
 
 <<His, in his own words. Quoted, not paraphrased. They stay here and are not moved.>>
@@ -369,6 +441,12 @@ different repos. Read the file; this document is the state, never the summary yo
 
 <<One section per goal, and one for any piece that cuts across goals. The frame for a
 single section is the next chapter down — write it here, repeated.>>
+
+## Decisions, as they land
+
+<<Nothing here at the start, and usually nothing here at the end either — a decision belongs in
+the SECTION where it was made, under a "What landed" heading, not collected in one pile. This
+heading exists only for a choice that belongs to no single section.>>
 
 ## Objectives, as they become definitive
 

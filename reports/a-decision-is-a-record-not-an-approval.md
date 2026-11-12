@@ -54,23 +54,39 @@ it also heals a window already carrying the accident without you having to find 
 left you exactly where you were when you reported this.
 :::
 
-:::decision[The SYNTAX — does `agents/markdown.md` document the block?]{id=d4a owner=you}
+:::decision[The SYNTAX — does `agents/markdown.md` document the block?]{id=d4a state=decided chose="yes — markdown.md is canonical for the attributes" over="document it only in planning.md|leave it undocumented" by=odion at=1794541200000}
 **what changes** — the agent-facing reference gains an entry for `::decision` and `::decisions`:
 attributes, states, what `over=` is for, and why it is not `::approval`. Descriptive only; it makes
 no planning document behave differently.
 
-**my position** — yes, and it is the cheapest of the three. Measured today: `::decision` appears in
-**zero** skills, **zero** handbooks and **zero** agent docs, so the only way an agent learns the
-block exists is by reading `registry.js` — the exact failure the agent docs exist to prevent.
+**what landed** — `markdown.md` carries the block beside `:::approval`, with the attribute table and
+the sentence that separates them. `planning.md` points at it rather than repeating it: two copies of
+an attribute table drift the week one of them gains a field, and I had written exactly that
+duplicate before closing it.
+
+**before this** — `::decision` appeared in zero skills, zero handbooks and zero agent docs, so the
+only way an agent learned the block existed was by reading `registry.js` — the exact failure the
+agent docs exist to prevent.
 :::
 
-:::decision[The PRACTICE — does a how-we-work chapter describe capturing what lands?]{id=d4b owner=you}
+:::decision[The PRACTICE — where does conducting a planning discussion get written?]{id=d4b state=decided chose="update agents/planning.md, the chapter that already exists, and POINT report-authoring at it" over="a new how-we-work chapter|a separate planning skill" by=odion at=1794541200000}
 **what changes** — a chapter on conducting a planning discussion: the document opens first, the
 talking happens inside it, what settles becomes a `::decision` where it settled, and **a section
 says its own substance before it says what landed.**
 
-**my position** — yes. This is the part you have been teaching me all day and none of it is written
-down anywhere, including the correction that a section cannot lead with its decisions.
+**his words** — *"if report authoring points to the how-we-work chapter — if it already shows how to
+conduct the planning discussion, and that's what a planning report really is — then you don't need
+no extra skill, if it points properly to that section."*
+
+**what landed** — `agents/planning.md` already had the chapter; it just did not know about
+decisions. It now carries *Capturing what lands*, the rule that a section says its substance before
+it says what landed, and the answered-not-closed state. `report-authoring` gained §1.5: **if the
+kind is `planning`, the procedure is not this skill's** — a planning report is not written after the
+work, it IS the room, and everything else in that skill is forensics aimed at an investigator.
+
+**instead** — a new chapter would have been a second definition beside the one that existed, and a
+separate planning skill would have restated a procedure that is already written. The pointer is what
+makes both unnecessary.
 :::
 
 :::decision[The REQUIREMENT — does `arc-planning` start DEMANDING the block?]{id=d4c owner=you}

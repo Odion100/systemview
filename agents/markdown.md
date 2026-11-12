@@ -275,6 +275,48 @@ matters — what the answer changes. Optional.
 makes it a decision record. This is the opposite: one sentence to be looked at, nothing filed.
 **One per message** — two is a list, and a list is the thing this exists to prevent.
 
+## `:::decision[…]{…}` — the record of a CHOICE, which is not an approval
+
+```markdown
+:::decision[Host's machine or sender's machine?]{id=d-runs owner=you}
+**why it is a decision** — everything in this section changes with it.
+**my position** — none; I can argue either, which is the tell that it is his.
+:::
+
+::decisions
+```
+
+**An approval is one party SANCTIONING something** — it gates the document, it is binary, the
+verdict is the whole of it. **A decision is one party CHOOSING** — it gates nothing, it is n-way,
+and whether anybody ratified it is a separate and usually absent fact. *"Making a decision doesn't
+mean you have the approval. And when you think about it in an organization, it's different."* The
+two can disagree in both directions, so they are two blocks.
+
+| | |
+|---|---|
+| `id` | the address — pressable from the roll-up, sayable out loud, pointable from an objective |
+| `owner` | who OWES the answer while it is open |
+| `by` | who MADE the call. A different fact from `owner`, on purpose |
+| `chose` | the answer |
+| `over` | the roads it was taken over, `\|`-separated. The half nothing else keeps: a rewritten section destroys the alternative and git never had it |
+| `state` | absent = **open** · `decided` · `reversed` (keeps an overturned choice visible rather than deleting it) |
+| `ratify` | whose signature this decision still owes. Opt-in, so a decision nobody must sign is not painted as pending |
+| `approved` | who has signed. `ratify` minus `approved` renders *decided, not approved* |
+| `at` | when, stamped by the press |
+
+Open with a `chose=` is a real state — **answered in the room, not yet closed** — and is counted
+apart from plain open. A `decided` with no `chose=` is the wrong half of a record and says so on its
+own face.
+
+**`::decisions`** recounts every block in the document on every render: a bar in its own vocabulary,
+the counts, and who still owes which with each id pressable through to its block. Derived always,
+stored nowhere — **never type a number beside it.**
+
+**Only a real choice earns a block** — two answers, two different systems. Detail that settles
+itself once a section is written stays prose. And **a section says its own substance before it says
+what landed**; one that opens with its decisions has lost its own voice. How a planning discussion
+uses all of this is `planning.md` → *Capturing what lands*.
+
 ## `:::approval{…}` — ask for a decision
 
 ```markdown
