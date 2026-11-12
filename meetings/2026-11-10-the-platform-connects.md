@@ -4,6 +4,23 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — `skill:arc-planning`, run `rmwbd0q8906` — declared abandoned at 5/10, waiting on you
+- **new features** — none. No code has been written for this arc
+- **fixes** — none
+- **corrections** — the forks below were prose lists until 2026-11-12; they are blocks now, which is why the counter is suddenly honest
+- **decisions** — the live count is the block below, never a number typed here
+- **live** — nothing
+- **checked** — SystemLynx's connection model, what in systemview assumes one machine, autobot's identity surface, and the standing lanes (none). Measured where it says measured; **nothing was run across two machines**, because there is only one
+:::
+
+::decisions
+
+**The forks below are the ones the design cannot proceed past** — two answers, two different
+systems. Everything else in a section's *also to settle* list is detail that gets settled by
+writing the section well, and deliberately is not a block: forty presses is a gate nobody finishes.
+
 This is where the first arc gets decided. Everything below is open until you cut it, and nothing
 here is settled by me saying it. **Each thing we have to agree on has exactly one home in this
 document** — that is what this file is for, so the discussion lands somewhere instead of scrolling
@@ -110,11 +127,19 @@ which is exactly the piece §2's clone question runs into:
 own RFC is a candidate first objective, and the arc either amends RFC-010 or supersedes it. It does
 not get a parallel design; two documents for one problem is two sources drifting.
 
-**DECIDE HERE:**
-1. Does this arc **close** `AGENT_REACH_IS_ONE_TIER_TODAY`, so its first objective names that gap?
-   My position: yes, and it should be stated in the objective so the gap's own trigger is answered
-   on the record rather than silently overtaken.
-2. For the portable-definition piece: **amend RFC-010, or supersede it** with the arc's own plan?
+:::decision[Does this arc amend RFC-010, or supersede it?]{id=d-rfc010 owner=you}
+**why it is a fork** — two documents for one problem is two sources drifting, so one of them has to
+stop being the plan of record. Amending keeps its history and its approval; superseding lets the arc
+state the mechanism cleanly without carrying an argument nobody is making any more.
+
+**my position** — I do not have one yet. The paragraph in RFC-010 §3 that wanted its own RFC is the
+whole of what carries forward; whether that is an amendment or a new plan depends on how much of
+§2's clone form survives your cut.
+:::
+
+**Also to settle, in passing:** does this arc **close** `AGENT_REACH_IS_ONE_TIER_TODAY`, so its
+first objective names that gap? My position: yes, and it should be stated in the objective so the
+gap's own trigger is answered on the record rather than silently overtaken.
 
 ---
 
@@ -140,11 +165,20 @@ right about):
 visitor runs on your hardware or theirs; whether there is anything in the middle; what an
 organization *is*; and whether updates are in this arc at all or the one after.
 
-**DECIDE HERE:**
-1. Is that definition what you mean, or is it narrower/wider than the goal?
-2. Are all three — agent, data, update — inside the FIRST arc, or is the first arc "two nodes can
-   identify each other and one agent can cross with approval", with data-at-scale and the update
-   feedback loop as arc two? My position: the second, and §5 argues it.
+:::decision[Are agent, data AND update all inside the first arc?]{id=d-scope owner=you}
+**why it is a fork** — it decides what gets built before anything is built. Three problems wearing
+one goal, and the update feedback loop is the one with no bottom.
+
+**my position** — no. The first arc is *two nodes can identify each other and one agent can cross
+with approval*; data-at-scale and the update loop are arc two. §5 argues it and §4.1 is the same
+question asked from the update side.
+
+**instead** — all three in one arc is a plan that cannot be finished, and an unfinishable arc tells
+you nothing when it stalls.
+:::
+
+**Also to settle, in passing:** is the definition above what you mean, or is it narrower or wider
+than the goal?
 
 ::::thread{id=definition members=systemview-test}
 For telling the room when the definition of the goal itself moves. Nothing else goes in here.
@@ -253,11 +287,20 @@ the **node** (an install on a machine — a person may hold several), and the **
 with a definition). When my agent appears on your screen, your window should be able to say all
 three: *Odion's* agent, from *Odion's studio machine*, acting as *systemview-test*.
 
-**DECIDE HERE:**
-1. **Keypair-per-install, accounts on something central — or the account we are already standing
-   on?** See §2's finding: the harness underneath already models a *user* whose sessions span
-   machines. That makes this a three-way fork, not a two-way, and it is the first thing to settle
-   because everything below hangs on it.
+:::decision[Where does identity come from?]{id=d-identity owner=you}
+**the three roads** — a **keypair per install** (nothing central, you own your own name) · **accounts
+on something central** (a directory exists, and so does whoever runs it) · **the account we are
+already standing on** (§2's finding: the harness underneath already models a user whose sessions
+span machines).
+
+**why it is first** — everything below hangs on it. §2's approval, §3's transfers and §5's
+rendezvous each mean something different under each road.
+
+**my position** — none yet, and that is deliberate: the third road only appeared when I read the
+harness, and I would rather you cut it than have me argue for the one I found last.
+:::
+
+**Also to settle, in passing:**
 2. Is an organization a **set of people**, a **set of nodes**, or a **set of agents**? Who can add a
    member, and who can revoke one — and does a revocation have to reach a node to take effect?
 3. **Does an agent have an identity of its own**, separate from the person who owns it? When my
@@ -380,10 +423,23 @@ appearing second. So an arriving agent has a state before it is approved — a r
 door, visible, pressable, refusable. That is a surface in the window, and it is the one piece of this
 section I think is unambiguous.
 
-**DECIDE HERE:**
-1. **Host's machine or sender's machine?** Everything in this section changes with it.
-2. **Do we ride the SDK's existing cross-machine peer channel, or build our own?** Fast path versus
-   own foundation — and it decides §1's identity question with it.
+:::decision[Does a visiting agent RUN on the host's machine or the sender's?]{id=d-runs owner=you}
+**why it is a fork** — everything in this section changes with it. On the host's hardware a visitor
+is a process somebody else's machine is paying for and must contain; on the sender's it is a remote
+hand reaching in, and every verb it calls has to cross the wire with its identity attached.
+
+**my position** — none. I can argue either and that is the tell that it is yours.
+:::
+
+:::decision[Ride the SDK's cross-machine peer channel, or build our own?]{id=d-channel owner=you}
+**why it is a fork** — fast path versus own foundation, and it **decides the identity question with
+it**: riding the SDK means standing on the account it already models, which is one of the three
+roads in `d-identity`.
+
+**my position** — none, and these two should be cut together rather than one at a time.
+:::
+
+**Also to settle, in passing:**
 3. What is the approval a gate on: **arriving**, **reading**, **writing**, **committing**, or each
    separately? My position: arriving is one press; writing to disk and committing are separate and
    should stay separate.
@@ -785,56 +841,69 @@ For telling the room when the SystemLynx section moves. Nothing else goes in her
 
 ---
 
-## 7 · The hub's own door — and two decisions already on the record
+## 7 · The hub's own door
 
-**DECIDED, 2026-11-10, your words:** *"let's run with the whole local network being
-unauthenticated."*
-
-Read as architecture rather than as a shrug, that is a real decision and it aims the whole arc:
-**network position is not a trust boundary.** A caller is trusted because it proved who it is, not
-because of where its packet came from. So the arc designs for an untrusted LAN instead of trying to
-restore a safe interior — no "it came from inside the network so it's fine", anywhere, ever. That
-is the assumption every corporate network is soft because of, and we are not making it.
-
-**DECIDED, same conversation:** this does not become its own RFC off to the side — **it fits in this
-arc.** Which is right, and the reason is §6.2: the arc has to put identity on a service call
-anyway. Gating the hub's own door is not a detour from the arc, it is the arc's first objective
-wearing work clothes.
-
-**The measured state of that door today**, filed in full with the commands at
+**What is there today**, filed in full with the commands at
 `gaps/THE_HUB_ANSWERS_THE_WHOLE_NETWORK_WITH_NO_AUTH.md` (G-16): the hub binds every interface
 (`ServerManager.js:116` listens with no address; `api/index.js:225`'s `host = "localhost"` only
-builds the advertised URL), CORS is `*`, nothing checks a caller, and around ninety methods are
-behind it including `readPath`/`writePath`, the git verbs, and the terminal typing verbs. Called
-over this machine's LAN address with no credential, `readPath` returned `/etc/hosts` and
-`writePath` landed a file on disk.
+builds the advertised URL), CORS is `*`, nothing checks a caller, and around ninety methods sit
+behind it including `readPath`/`writePath`, the git verbs and the terminal typing verbs. Called over
+this machine's LAN address with no credential, `readPath` returned `/etc/hosts` and `writePath`
+landed a file on disk.
 
-**So the ORDER is the finding, and it is the one thing I want this section to fix in advance:** the
-hub is already reachable and is not yet able to say who is calling. That is backwards, and the arc
-is what rights it — **the lock gets fitted before the door is widened on purpose**, not after.
-Every later section assumes a call can carry an identity; this is where that becomes true.
+**The finding that aims the section:** the hub is already reachable and is not yet able to say who
+is calling. That is backwards, and the arc is what rights it — **the lock gets fitted before the
+door is widened on purpose**, not after. Every later section assumes a call can carry an identity;
+this is where that becomes true.
 
-**THE HALF THIS DECISION DOES NOT COVER, and it has to be said plainly.** The untrusted-LAN position
-is about *other machines*. It does nothing about the browser, and the browser is the bigger half:
+**And the half that is a same-machine problem**, which no decision below covers: the preflight
+passes with `Access-Control-Allow-Origin: *` (`Server.js:48-57`) and the hub accepts
+`content-type: text/plain`, which makes a POST a **CORS-simple request** — so no preflight is needed
+at all. Any page open in any browser on this machine can POST to the hub; reads come back because
+CORS is `*`, and a write needs no CORS cooperation whatsoever. **A loopback bind does not fix it**,
+because the browser is already on localhost. It is open today and no second node has to exist for
+it to be open.
 
-- The preflight passes with `Access-Control-Allow-Origin: *` (`Server.js:48-57`), and the hub accepts
-  `content-type: text/plain`, which makes a POST a **CORS-simple request** — so **no preflight is
-  needed at all**.
-- Therefore any page open in any browser on the machine can POST to the hub. Reads come back
-  because CORS is `*`; a **write needs no CORS cooperation whatsoever.**
-- **A loopback bind does not fix this**, because the browser is already on localhost. "It only
-  listens locally" is the exact false comfort here.
+### What landed
 
-This one is a same-machine problem, it is open today, and no node has to exist for it to be open.
-It is the one piece of G-16 that is not arc-shaped.
+:::decision[Is the local network a trust boundary?]{id=d-lan state=decided chose="no — run with the whole LAN unauthenticated, and design for that" over="restore a safe interior|authenticate by network position" by=odion at=1794441600000}
+**his words** — *"let's run with the whole local network being unauthenticated."*
 
-**DECIDE HERE:**
+**why it is architecture and not a shrug** — a caller is trusted because it proved who it is, not
+because of where its packet came from. So the arc designs for an untrusted LAN instead of trying to
+restore a safe interior — no *"it came from inside the network so it's fine"*, anywhere, ever. That
+is the assumption every corporate network is soft because of.
+
+**instead** — the other road is a soft interior, and it fails the first time one machine on the LAN
+is not ours.
+:::
+
+:::decision[Does the hub's door get its own RFC, or fit inside this arc?]{id=d-rfc state=decided chose="inside this arc" over="a separate RFC beside it" by=odion at=1794441600000}
+**why** — §6.2: the arc has to put identity on a service call anyway. Gating the hub's own door is
+not a detour from the arc, it is the arc's first objective wearing work clothes.
+
+**instead** — a separate RFC would have designed the same mechanism twice, in two documents, with
+nothing keeping them in step.
+:::
+
+### Still open here
+
+:::decision[The browser half of G-16 — close it now, or carry it inside the arc?]{id=d-browser owner=you}
+**why it is a fork and not a detail** — it is the only part of G-16 that is **live today with no
+second node existing.** Any page in any browser on this machine can POST to the hub without a
+preflight, and a loopback bind cannot fix it because the browser is already on localhost.
+
+**my position** — close it ahead of the arc with an `Origin` allow-list. It is small, it is
+independent of every open question above, and carrying it inside the arc means it stays open for as
+long as the arc takes.
+
+**instead** — inside the arc it gets designed properly alongside identity, and stays open meanwhile.
+:::
+
+**Also to settle, in passing:**
 1. **Does the hub's door become an objective in this arc, and is it FIRST?** My position: yes and
    yes — every other piece of the arc calls through it, so it is the objective the others need
    done.
-2. **The browser half** — close it ahead of the arc with an `Origin` allow-list on the hub, or carry
-   it inside the arc? My position: ahead of it. It is small, it is independent of every open
-   question above, and it is the only item in G-16 that is live without a second node existing.
 3. Does the gate live **in SystemLynx** (so every service on every node inherits it, §6.3) or **in
    the hub** (so it ships without touching the framework)? My position: the framework — a check
    every service re-implements is the hand-rolled-`fetch` failure in a worse place.
