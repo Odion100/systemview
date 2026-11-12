@@ -285,37 +285,32 @@ the **node** (an install on a machine — a person may hold several), and the **
 with a definition). When my agent appears on your screen, your window should be able to say all
 three: *Odion's* agent, from *Odion's studio machine*, acting as *systemview-test*.
 
-**And a thing that only appears once there is more than one of us in it.** Everything this system
-records today has ONE author: a claim has a marker, an objective has an owner, a decision has a
-decider. That is true because there has only ever been one person here. The moment an organization
-is real, the interesting content arrives BEFORE the decision — several parties each holding a view,
-one of which is *I don't know*, which is usually the most useful one in the room because it means
-the decision is not ready.
+**And what this section is actually short of is not a mechanism — it is DOCUMENTATION.** The arc
+cannot describe who may join an organization, who may approve, or who may decide, because nowhere
+in this system is it written down how an organization works. Every objective in §1 and §2 is
+waiting on that, and no amount of block design substitutes for it.
 
-:::decision[Does a decision collect POSITIONS from several parties, or only a decider's answer?]{id=d-positions owner=you}
-**why it is a decision and not a detail** — it decides whether this system has a governance model.
-A position is an input: an author, a leaning, a reason, several coexisting, none of them resolving
-anything. A VOTE is a RULE for turning positions into an answer — majority, unanimity,
-whoever-owns-it — and that is a different thing to build and a different thing to live with.
+:::decision[Is voting part of the decision block, or a block of its own?]{id=d-voting state=decided chose="its own block, if and when it exists" over="extend ::decision with positions|a tally inside the decision" by=odion at=1794537600000}
+**his words** — *"it needs a different block entirely for voting."*
 
-**my position** — positions yes, votes **not yet**. Positions are additive and commit us to nothing;
-a tally is a governance model, and a mechanism that counts will make people count. Today you decide
-and agents propose. Build the tally and consensus starts looking like the default.
+**why, and it is the block's own founding rule applied again** — `::decision` exists separately from
+`::approval` because deciding and sanctioning are different acts. Collecting several parties' views
+and resolving them by a rule is a THIRD act, and folding it into the decision would repeat exactly
+the conflation that made this block necessary.
 
-**the part that is not this block at all** — *"sending it around the organization"* is DELIVERY. A
-decision owned by somebody says who owes it and tells them nothing. That is the members/audience
-machinery, and it is probably worth more than either positions or votes: a decision nobody was told
-about stays open however well the block models it.
+**instead** — I proposed adding positions to `::decision` while arguing against votes, which is
+incoherent: either multi-party resolution belongs in this block or it does not, and it does not.
 :::
 
-:::decision[Are organization, business and household one model or three?]{id=d-orgkinds owner=you}
-**why it is a decision** — the mission names all three and they are not obviously the same shape. A
-business has roles and an approval chain; a household has neither and would find both insulting. If
-they are one model, "organization" has to be thin enough that a household is not wearing a suit. If
-they are three, then membership, approval and who-may-decide each need three answers and the
-documentation needs a section per kind.
+:::decision[What does the arc need written down about how an organization WORKS?]{id=d-orgdocs owner=you}
+**why it blocks the arc** — §1 asks who may add a member and who may revoke one; §2 asks whose
+approval a visiting agent needs. Both are unanswerable while *organization* is an undefined word.
+This is a documentation objective, and it is probably an early one rather than a write-up at the
+end.
 
-**my position** — none, and I want to hear which one you have in mind before I argue for thin.
+**my position** — it is the first objective or close to it. Membership, roles, who may approve, who
+may decide, and what a revocation reaches. None of that is a mechanism; all of it is a prerequisite
+for designing one.
 :::
 
 :::decision[Where does identity come from?]{id=d-identity owner=you}
