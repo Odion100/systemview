@@ -2,6 +2,17 @@
 
 ::report{id="A document can be listened to" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — his ask
+- **new features** — listen to a block or the whole document, in the voice of the chat he was last in · the block being read wears a mark
+- **fixes** — none
+- **corrections** — the scope rule — openness replaced by the chat he was last in · the mark tied to its own queue item rather than to silence · a Serves: trailer on two commits naming the wrong document, left standing and corrected in prose
+- **decisions** — none
+- **live** — src/ only — the bundle is rebuilt and swapped
+- **checked** — 2666 window · 448 hub · 23 cli · verify green · nothing was heard — no speech synthesis in jest, and the mark and its clearing are unseen
+:::
+
 **Right-click in a document → 🎧 Listen to this, or 🎧 Listen to the whole document.** It reads
 aloud in the voice of the chat he was LAST IN — not the document's project — because the voice is
 already per chat and the reader is the agent in the room, not the repository the file lives in.

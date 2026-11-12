@@ -2,6 +2,17 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card — *27 saved tests do not exist*
+- **new features** — none
+- **fixes** — the Plugin module name collision that made all 27 saved tests unreachable
+- **corrections** — ten of my own specs repointed or re-pinned to decisions that had moved · the chapter's proof section re-split so its subject owns one chunk
+- **decisions** — G-13 — restore RFC-074's two deleted claims or decide their removal on the record
+- **live** — hub restarted (three times)
+- **checked** — runProofs RFC-075 — 31 specs, 30 green, 1 red on purpose (L357) · yarn `test:api` 365
+:::
+
 The card said 27 saved tests do not exist. **All 27 existed** — what did not exist was a way to
 reach them: the hosted `Test` folder's `methods/Plugin.js` declared a module named `Plugin`, the
 systemview-plugin mounts its own on the same service, and the two fought — record declaring both

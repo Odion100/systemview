@@ -1,6 +1,17 @@
-::report{id="The theme owns its last thirteen phantoms" as=account retain=24h}
+::report{id="The theme owns its last thirteen phantoms" as=account retain=24h retired=2026-11-12 retiredAs=expired}
 
 ::members{who=systemview-test}
+
+:::glance
+- **agent** — systemview-test
+- **run** — a board card — thirteen --sv- tokens consumed and defined nowhere
+- **new features** — --sv-amber and --sv-accent defined in both theme halves, and --sv-kind- report for the one use that wanted green
+- **fixes** — eleven phantom tokens repointed to the ramp concepts they were second names for — dark-on-dark from light-mode fallbacks
+- **corrections** — the phantom check's own blind spot — it collects definitions from every stylesheet, so a redeclaration shielded theme.scss and the first mutation pass came back green on both mutations
+- **decisions** — none
+- **live** — the stylesheet rides the css hash; the window swaps on its own hold
+- **checked** — themeTokens 14 pass · mutation: each of the pair fails exactly one claim, restored 14 green · yarn verify 2340 window · 365 hub · 12 cli, plus the production build
+:::
 
 Thirteen `--sv-` tokens were consumed across ten stylesheets and defined nowhere — every use
 carrying its own hardcoded fallback, written for light mode, which on a dark surface is the

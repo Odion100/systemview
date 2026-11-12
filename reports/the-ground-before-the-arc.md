@@ -2,6 +2,17 @@
 
 # The ground before the arc — what is certain, what is waiting, and what is not really there
 
+:::glance
+- **agent** — systemview-test
+- **run** — not stated
+- **new features** — none
+- **fixes** — none
+- **corrections** — this report's own claimless-RFC count — RFCs/ holds 73 .md files and only 10 carry a leaf · RFC-064 is not RFC-010's subject
+- **decisions** — ARC-001's unpressed approval with three objectives already done · RFC-072 and RFC-077, both claimless · RFC-076's two unpressed approvals · G-13 — restore the two deleted claims or write the decision that removed them
+- **live** — not stated
+- **checked** — all 37 registry rows checked path by path; the 46 met marks not re-verified, the 20 live reports' bodies unread, the three gaps' contents unread
+:::
+
 Everything built so far was infrastructure, procedure and doctrine, built while being used. This is
 the count of what that left on the floor, so the real arc starts from known ground.
 

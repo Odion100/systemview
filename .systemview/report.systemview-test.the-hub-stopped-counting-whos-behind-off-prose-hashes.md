@@ -2,6 +2,17 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card, off his ruling of 2026-11-06 — *general text in the document should send no updates*
+- **new features** — none
+- **fixes** — the hub's documents verb derived behind and withUpdates from prose hashes — the dead edit channel cut from the row, the thread, the summary and the MCP tool
+- **corrections** — none
+- **decisions** — none
+- **live** — hub restarted; the autobot half rides the shell restart — until then that one MCP verb answers with a caught failure
+- **checked** — api/documentMembers.test.js 34 pass — mutation-verified · yarn `test:api` 363 · window jest 2340 across 160 suites · yarn `test:cli` 12 · yarn `smoke:skew` 7 · Hub.Agent.documents 1 passed at the live hub
+:::
+
 Your ruling of 2026-11-06 — *"general text in the document should send no updates, period point
 blank"* — killed the edit channel in the window: blocks are the only senders, the engine delivers
 their fires, `told=` is the receipt. **The hub's folder scan never got the same cut.** Its

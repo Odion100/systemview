@@ -2,6 +2,17 @@
 
 ::report{id="The board was unreachable outside the shell" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card
+- **new features** — none
+- **fixes** — the stale hasHostFiles gate deleted at both call sites and its dead import with it · the board's invented refusal line replaced by one driven by a write that actually failed
+- **corrections** — this report's own headline — the symptom was my headless browser's, not one his shell can have
+- **decisions** — none
+- **live** — not stated
+- **checked** — 2601 window across 170 files · 369 hub · 15 cli · verify green incl. the production build · the write path from a non-shell window and the refusal line both unverified
+:::
+
 **`hasHostFiles()` tested for the shell bridge (`window.systemview.files`) to decide whether the
 hub could be written to.** `hostFiles` had stopped routing through that bridge — every verb it has
 asks the hub — so the guard had become a question about a mechanism that is no longer the

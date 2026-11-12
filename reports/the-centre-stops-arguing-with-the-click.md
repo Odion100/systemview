@@ -2,6 +2,17 @@
 
 ::report{id="The centre stops arguing with the click" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — three faults he reported
+- **new features** — none
+- **fixes** — the URL decides whether a file is open, a disagreeing prop means wait · the proofs panel follows the document he selected · one click is one back-press
+- **corrections** — not stated
+- **decisions** — none
+- **live** — src/ only — the bundle is rebuilt and swapped
+- **checked** — 2649 window (+11) · 448 hub · 23 cli · verify green incl. ratchet and build · 5 presses measured in a real browser, before and after
+:::
+
 **One press on a tab was producing eight events, and the document you left won.** Measured in a real
 browser on his exact two-pane state: the click wrote `active=dash`, the route pushed `?tab=dash`,
 and then the centre's URL→store effect fired on the changed tab param while the `codeFile` prop

@@ -2,6 +2,17 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a use-pass sitting, off a board card about the published CLI
+- **new features** — none
+- **fixes** — source maps dropped from the tarball — 50.8MB to 30.2MB unpacked, and the card's premise that the build output does nothing for a CLI was false
+- **corrections** — three dead services of my own, resurrected on every boot by stale .systemview/manifest.json entries — cleaned as data, not code
+- **decisions** — G-13 — RFC-074's two deleted claims, the only two reds, waiting on his call
+- **live** — not stated
+- **checked** — runProofs whole project 44 of 46, the two reds the same deliberate tripwire · yarn `test:cli` 15 — three new, packing the tarball dry · the dial list after the clean: TestService · Test · Hub
+:::
+
 A use-pass sitting: the project's whole proof inventory run headless and read past the green line,
 and the two things that broke under my own hands fixed with the evidence beside them.
 

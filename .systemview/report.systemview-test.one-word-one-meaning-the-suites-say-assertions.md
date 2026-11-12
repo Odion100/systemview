@@ -2,6 +2,17 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — his catch — a report saying "169 claims" about a document holding two ::claim blocks
+- **new features** — the report-proof-doctrine hook, injected on any write to a .systemview/report.* file
+- **fixes** — 25 suite sign-off lines and ~60 comment uses say *assertions* · the harness claim() renamed assertion()
+- **corrections** — none — his order was to improve forward and touch nothing already filed
+- **decisions** — none
+- **live** — nothing — the suites are run, not served, so the rename is live the next time anything runs them
+- **checked** — every touched suite re-ran green under the new word — 24 of them: worklist 73, context 169, registry 69, jobs 39, job-path 33, defs 29, documents 29, compaction 25, nudge 24, announce 22, lanes 21, fires 20, page-events 16, write 16, shot 13, parse 12, origin 10, board 9, skew 7, run-slots 7, skill- staleness 7, perf 5, wake 4, text-blocks 4
+:::
+
 Your catch, twice over: a report said *"169 claims — four new"* about a document holding two
 `::claim` blocks, because the suites it quoted sign off in that word — *"73 claims held"*, *"ALL
 169 CLAIMS PASS"* — and the surface an agent reads after every run teaches the vocabulary it will

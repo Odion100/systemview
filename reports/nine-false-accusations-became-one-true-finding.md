@@ -2,6 +2,17 @@
 
 ::report{id="Nine false accusations became one true finding" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card declaring spec
+- **new features** — Agent.armed — which committed work is newer than the process running it
+- **fixes** — a registered-but-unreadable document gets its own bucket instead of a dangling trailer · documents carries read beside it · one-way links 29 → 0
+- **corrections** — three accounts that blamed the hub for a refusal the request shape caused · two commits landed without a Serves: trailer to make the count read zero, undone
+- **decisions** — the twelve misplaced trailers and the nine dangling ids need a history rewrite, which is his · whether SystemLynx should refuse a POST with no __arguments
+- **live** — the hub was restarted — live; nothing rides the shell restart
+- **checked** — 2607 window · 416 hub (+17) · 23 cli · yarn verify green; nothing seen rendered, unreadable measured only on a planted row
+:::
+
 **`commitLinks` would have reported nine correct commits as `dangling` — "serves an id nothing
 registered" — about a document that IS registered**, because the hub's read dropped a registry row
 it could not open and the audit never knew it existed. One finding per document now, carrying where

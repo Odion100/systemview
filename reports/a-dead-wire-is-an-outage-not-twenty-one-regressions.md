@@ -2,6 +2,17 @@
 
 ::report{id="A dead wire is an outage, not twenty-one regressions" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card
+- **new features** — none
+- **fixes** — runProofs keeps the unreachable list, names it, hands it to the engine and stops counting an outage as a failure · isDeadWire asks a structural question rather than sniffing a message that is never there
+- **corrections** — my own duplicate isDeadWire export, caught by the ratchet inside the hour
+- **decisions** — none
+- **live** — the hub was restarted from ~/autobot — live; nothing rides the shell restart
+- **checked** — 2610 window · 425 hub (+9) · 23 cli · verify green incl. ratchet and build · runProofs on RFC-078 through the live door twice, 20 passed / 5 failed before and after · the live outage case unverifiable from one process
+:::
+
 **`runProofs` on RFC-078 reported 21 of 21 failing, every field reading `undefined`, when the only
 thing wrong was that the service had died.** Read at face value that is twenty-one regressions and a
 missing method, and an agent that trusts it spends an hour debugging its own document.

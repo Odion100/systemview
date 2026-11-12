@@ -2,6 +2,17 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card — shape (a) off the card, the verdict recorded on the board before building
+- **new features** — the report leaf wears the registry row's derived invalid, unioned and deduped against its local pair, with the local pair still answering when the hub is away
+- **fixes** — an embedded report leaf stamped the real report's first open — a quotation could start the retention clock
+- **corrections** — my own typo, caught by the live spec's first run: includes on a string is a validator that never runs
+- **decisions** — none
+- **live** — hub restarted; the window half is main.e949e3e1, which lands on the window's own hold
+- **checked** — api/documentsRegistry.test.js 13 pass · Report.test.js 12 pass — both mutation-verified · yarn `test:api` 364 · window jest 2343 across 160 suites · Hub.Agent.documentOpened 1 passed at the live hub
+:::
+
 The registry row for a spec report with nothing runnable reads `invalid — no spec`. The document
 did not: `Report.js` derives its badge from its own attrs — `no subtype`, `no retention` are
 visible there — but **`no spec` is a fact about the document's OTHER blocks, which the block never

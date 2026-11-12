@@ -1,6 +1,17 @@
 # The centre splits in two, and a document can be dragged out into it
 
-::report{id="The centre splits in two" as=account retain=24h}
+::report{id="The centre splits in two" as=account retain=24h retired=2026-11-12 retiredAs=expired}
+
+:::glance
+- **agent** — systemview-test
+- **run** — his overnight ask
+- **new features** — the centre splits into two panes with a draggable divider · a document crosses by drag or by a named menu row · a tab dragged out earns its own side
+- **fixes** — the stats tab is kept instead of rebuilt on leaving · a hidden document is no longer handed the live scope · the new side came up blank until the URL followed the focused pane
+- **corrections** — the earlier decision to hold the surface change off — wrong twice over, and reversed
+- **decisions** — none
+- **live** — the bundle is rebuilt; the window swaps to it on its own clock
+- **checked** — 2599 window · 369 hub · 15 cli · yarn verify green · driven end to end in a headless Chrome; no real pointer drag of a tab, scroll position unproven, three panes never made
+:::
 
 **Both halves of your overnight ask are built, armed and verified by looking.** The centre now
 splits into two panes with a divider you drag, a document crosses by drag or by a named menu row,

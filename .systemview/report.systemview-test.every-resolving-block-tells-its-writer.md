@@ -2,6 +2,17 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card — the queue's last cleanly completable declared pick of the sitting
+- **new features** — the five remaining resolving blocks report their own failures to their writer
+- **fixes** — none
+- **corrections** — none
+- **decisions** — none
+- **live** — bundle rebuilt — main.8da933f2, lands on the window's hold; nothing else to arm
+- **checked** — the five block suites 127 pass · mutation: Claim's effect and FileLink's refusal cut → exactly their two claims red · window jest 2356 across 161 suites
+:::
+
 `::commit` learned to report its own failures to the agent that wrote it — one line through
 `useBlockFailure`, delivered once per failure, surviving reloads. The other five resolving surfaces
 kept failing silently at the reader: a dead `::file` chip, a `::test` embed with no test named, a

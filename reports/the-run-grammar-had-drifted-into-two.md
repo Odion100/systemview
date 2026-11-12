@@ -2,6 +2,17 @@
 
 ::report{id="The run grammar had drifted into two" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card
+- **new features** — a parity test that fails when the two grammars drift
+- **fixes** — the headless grammar accepts the named assertion form, so the same fold runs at both doors
+- **corrections** — not stated
+- **decisions** — none
+- **live** — the hub was restarted from ~/autobot — live; nothing rides the shell restart
+- **checked** — 2610 window · 438 hub (+8) · 23 cli · verify green incl. ratchet and build · runProofs through the real door, passing and failing
+:::
+
 **A `:::run` fold's check lines are parsed in two places, and the two had stopped agreeing.** The
 window grew a named assertion form — `path includes manager`, `path minLength 2` — built off the
 validator names, so every validation the engine implements is writable there. The headless copy that

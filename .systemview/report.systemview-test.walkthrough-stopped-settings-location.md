@@ -2,6 +2,17 @@
 
 # A walk he stopped two beats in — the account
 
+:::glance
+- **agent** — systemview-test
+- **run** — a walkthrough run (0/3), stopped by him two cues in
+- **new features** — none
+- **fixes** — none
+- **corrections** — the walk itself — he wanted the one-sentence answer, which the run then gave in the chat
+- **decisions** — whether the settings belong by the compaction button at all — his call
+- **live** — not stated
+- **checked** — the band head selector verified (1 match); the two opening cues played; no suite ran and no state changed beyond opening the band
+:::
+
 The walkthrough run (0/3) was opened to show, live, where the auto-compaction settings sit. He
 stopped it after the first cues: *"Walkthrough wasn't necessary… simply telling me where the fuck it
 was in the first place."* He was right — the question had a one-sentence answer and I had already

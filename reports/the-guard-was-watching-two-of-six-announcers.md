@@ -2,6 +2,17 @@
 
 ::report{id="The guard was watching two of six announcers" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — the proactive-development job, abandoned at his word
+- **new features** — none
+- **fixes** — the announcer guard sees all six callers of the door, not two
+- **corrections** — not stated
+- **decisions** — none
+- **live** — nothing — a test file; no bundle, no hub restart
+- **checked** — the file's 4 assertions green · teeth proven twice by planting · yarn verify did NOT run
+:::
+
 **`docSend.callers.test.js` asserted that "exactly the two blocks" announce without recording it.
 Six do.** Two import `sendUpdateTo` directly; four reach the same door through `routeResult`, which
 lives inside `docSend.js` and so imports nothing an import-reading check can see.

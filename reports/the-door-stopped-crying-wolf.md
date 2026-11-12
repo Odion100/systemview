@@ -2,6 +2,17 @@
 
 ::report{id="The door stopped crying wolf" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — not stated
+- **new features** — none
+- **fixes** — unclaimed fires only for documents that commission work; records on accounts are counted as noted and said out loud
+- **corrections** — killing your shell's Electron network helper while aiming at the hub — it respawned on its own, and the listener-only lsof incantation went to the store
+- **decisions** — none
+- **live** — the hub half is live (listener pid 2694); the renderer half is autobot's and rides your shell restart
+- **checked** — 2607 window · 380 hub · 23 cli · verify green incl. the production build · the noted line not seen rendered
+:::
+
 **`commitLinks` reported seventeen findings tonight and every one was noise.** They were account
 reports naming the commits they account for — eight from a single report — and the number grew with
 every honest account anyone filed. It now reads **"the two directions agree"**, with the skipped
@@ -33,7 +44,7 @@ So the rule was asking a question that could not come out any other way, and eve
 manufactured findings. A door whose output is mostly noise stops being read — which is worse than no
 door at all, because it still looks like a check.
 
-::commit{sha=43b53e0c}
+::commit{sha=43b53e0c height=341}
 ::commit{sha=73ff922 project=autobot}
 
 **Three things keep this from being a quiet narrowing**, and the first is the one that matters:

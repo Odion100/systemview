@@ -2,6 +2,17 @@
 
 ::report{id="The walk — jobs, then authoring" as=planning retain=10d}
 
+:::glance
+- **agent** — systemview-test
+- **run** — his walk — eleven documents of twenty-six, the two jobs first and then the authoring skills, in his order
+- **new features** — five doors the document edits needed — the registry asked by query with an exact member filter and projectCode optional, rfc and gap as attachment kinds, the Serves: commit trailer with commitLinks reading both directions, addressable threads in the DOM, and a watcher that says when it did not start
+- **fixes** — a report written as a plain file registered nowhere — .systemview was in the watcher's ignore list, and two of mine were missing from the registry
+- **corrections** — a consolidation nobody asked for, undone · spec-authoring's retirement overturned where it stood
+- **decisions** — eight commits now carry no Serves: trailer — fixing a commit that exists is a history rewrite, which is his
+- **live** — a shell restart (the registry and commitLinks MCP tools, the watcher fix) and a hub restart (commitLinks, the registry's member filter) — both harness-managed, neither done
+- **checked** — 200 real commits read, the two reports registered through the shell's own parse — agreed: true, nothing one-way, nothing dangling. NOT checked: doors 1–5 never exercised through the MCP door, the rewritten jobs never run, not one of the eleven run as a measured eval, and autobot tests/worklist.js hangs (pre-existing)
+:::
+
 **Eleven documents, not twenty-six.** Three jobs and twenty-three skills exist; most of them have
 nothing to do with automation and org execution, so walking all of them would spend your attention
 on presentation skills and incident response. The cut is named in full below — including what I left
@@ -17,7 +28,6 @@ us where this pass actually got to. The checklist is the state of the pass; ther
 I keep somewhere else and report on.
 
 ---
-
 
 ::members{who=systemview-test sent=systemview-test:va95r9}
 ## Group 1 — what actually runs unattended

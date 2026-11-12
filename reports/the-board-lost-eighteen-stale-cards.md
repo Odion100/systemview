@@ -1,6 +1,17 @@
-::report{id="The board lost 18 stale cards, and four doors that lied were fixed" as=account retain=24h}
+::report{id="The board lost 18 stale cards, and four doors that lied were fixed" as=account retain=24h retired=2026-11-12 retiredAs=expired}
 
 # The board lost 18 stale cards, and four doors that lied were fixed
+
+:::glance
+- **agent** — systemview-test
+- **run** — the proactive-development job, plus his board-readiness ask
+- **new features** — the centre's tab store learned panes
+- **fixes** — the board door silently dropped a status · removeSettled's description claimed a bulk delete the code refuses · a stranded subagent was never marked ended · a job's run record never learned its report · a close that opened two tabs
+- **corrections** — a card resolved MOOT on a wrong verdict, restored · wrote that this report proved the stamp before checking it
+- **decisions** — G-16's browser half — an Origin allow-list now, or carried into the connect arc · three arc decisions in the 2026-11-10 meeting · two cards that are his pick
+- **live** — the window work is in the served bundle · the hub was restarted · the three autobot fixes ride the shell restart
+- **checked** — 2565 window · 369 hub · yarn verify green · autobot suites green; the live report stamp unproven until the shell restarts
+:::
 
 **The board went 154 → 136.** Eighteen cards were resolved against the tree with an address each and
 cleared in one motion; the 136 that remain are `reviewed: 32`, `partial: 22`, `blocked: 3`, and 79

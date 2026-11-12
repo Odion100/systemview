@@ -2,6 +2,17 @@
 
 ::report{id="Two counts that were not the truth" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a use-pass
+- **new features** — none
+- **fixes** — the CLI requires the hub's stats arithmetic instead of 86 copied lines · the scratch pad's saved-actions list counted every action twice · action cards keyed by name alone let React reuse a sibling's DOM
+- **corrections** — none
+- **decisions** — none
+- **live** — not stated
+- **checked** — 2607 window (+6) · 369 hub · 23 cli (+8) · yarn verify green · a headless- Chrome use-pass that came back empty; the duplicate-key symptom not reproduced, the digest not diffed against the report
+:::
+
 **Three things, all of them about numbers a surface was reporting.** One was fine and I stopped
 chasing it; two were wrong and are fixed.
 

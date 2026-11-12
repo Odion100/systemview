@@ -2,6 +2,17 @@
 
 ::report{id="One real bug in ten unread warnings" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card
+- **new features** — yarn `lint:ratchet` — the warning class fails when it grows, and loudest on a rule nobody has seen
+- **fixes** — the markdown registry collision where one name drew two components · src/pages/Agents/Agents.js deleted, reachable from nothing · 33 warnings and four whole rules cleared
+- **corrections** — my first version of the registry guard read prose and broke on the comment explaining the removal; it asserts the import is absent instead
+- **decisions** — what a :report[…] in a document should draw · what the board's clear-the- settled control looks like, which is why its four computed values were left wired to nothing
+- **live** — src/ is in the served bundle (rebuilt); api/ and cli/ are live, hub restarted from ~/autobot — nothing rides the shell restart
+- **checked** — 2610 window (+3) · 416 hub · 23 cli · verify green incl. ratchet and build · nothing here was seen rendered
+:::
+
 **The card said clear 87 eslint warnings so the build gate can be strict. I read them instead, and
 the reading is where the value was: three real findings came out of a class everybody calls style.**
 A markdown block registered under a name already taken, so one chip drew two different things

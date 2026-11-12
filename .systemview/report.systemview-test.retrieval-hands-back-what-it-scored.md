@@ -2,6 +2,17 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card — first option off the card, *print the matched text whole*
+- **new features** — none
+- **fixes** — the ~300 and ~400-char delivery caps on context() answers — delivery now prints what the score was computed over, and newlines survive so a table comes back as rows
+- **corrections** — none
+- **decisions** — none
+- **live** — rides the shell restart — the context MCP server lives in electron
+- **checked** — yarn `smoke:context` 169 — four new, through the real tool handler against the real vector store · mutation: caps back in reds the wholeness claim, restored 169 green
+:::
+
 A `context()` search scored every chunk over its whole text and then printed ~300 characters of a
 note and ~400 of a doc chunk — chunks run 370–2170, so **the match said the right thing was found
 and the text handed back did not contain the reason it matched.** Measured with three blind

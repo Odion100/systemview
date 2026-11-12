@@ -2,6 +2,17 @@
 
 ::report{id="The door said agree and did not say what it had set aside" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — the previous sitting's own loose end, checked rather than trusted
+- **new features** — none
+- **fixes** — the MCP door renders the selfWriting bucket instead of dropping it, on the agreed path and the findings path alike
+- **corrections** — the previous sitting's claim that selfWriting stays visible — true of the hub, false at the door · the Serves: trailer written before the report file again
+- **decisions** — the crossed trailer on 5b62f1ab — repairing it means a rebase, which is his
+- **live** — autobot electron/ — rides the shell restart
+- **checked** — autobot hub-skew 11 (+4) · six other autobot suites green · systemview not run, nothing in that repo changed; the live door unreachable until the shell restarts
+:::
+
 **I shipped a claim that was false at the surface an agent actually reads.** The commit that
 introduced `selfWriting` says it is *"reported in full, with the same fields, and counted — the fixed
 point stays VISIBLE."* True of the hub's answer. False of the MCP door, which enumerates its buckets

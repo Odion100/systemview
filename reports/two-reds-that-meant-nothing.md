@@ -2,6 +2,17 @@
 
 ::report{id="Two reds that meant nothing" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card
+- **new features** — tests/scripts.js — the script list checks itself against the disk
+- **fixes** — the two dead `smoke:judges` and `smoke:nudges` entries removed, in their own commit
+- **corrections** — none
+- **decisions** — none
+- **live** — nothing — these are repo scripts, live the moment the file is on disk
+- **checked** — tests/scripts.js 3 assertions green (46 targets across 51 scripts, 34 of 34 test files wired) · tests/board.js 9 · tests/attachments.js 25; systemview's suites not run, this is autobot
+:::
+
 **`yarn smoke:judges` and `yarn smoke:nudges` have exited 1 with MODULE_NOT_FOUND for weeks.** The
 revert that withdrew the judges automation (`a4c981e`) deleted their test files and left their
 `package.json` entries behind. Two reds in a list of fifty-one that are supposed to mean something.

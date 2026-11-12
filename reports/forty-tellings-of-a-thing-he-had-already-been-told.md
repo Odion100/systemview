@@ -2,6 +2,17 @@
 
 ::report{id="Forty tellings of a thing he had already been told" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — not stated
+- **new features** — none
+- **fixes** — the dedupe key is the fact — kind, ref, reason, audience — never the wording
+- **corrections** — my own exception to the key-format rule, written the same sitting, which flooded his chat
+- **decisions** — none
+- **live** — src/ only — the bundle is rebuilt and swapped
+- **checked** — 2650 window · 448 hub · 23 cli · verify green · nothing watched live
+:::
+
 **Forty block-fault messages landed in his chat in about a minute, while he was working on
 something else. Every one of them was a fact he had already been told, re-sent because I changed
 the shape of a persisted key.**

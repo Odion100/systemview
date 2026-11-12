@@ -2,6 +2,17 @@
 
 ::members{who=systemview-test}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card — *a board write that matches no branch silently answers with the whole board*; verdict on the card was do something else — wider than stated
+- **new features** — three reads where there was one — at alone returns that card whole, brief the index, brief+state one state's index
+- **fixes** — an unrecognised parameter is refused by name instead of falling through to all 125 cards — the hub route now forwards what it does not know · an embedded leaf claimed the proofs panel out from under the open document
+- **corrections** — my own leaf declared spec on what was an account — runs-belong-to-the-agent relabelled · the refusal was first written in the wrong file, api/board.js instead of the route · the hub's self-registration record carried six modules and now reads its own self-description
+- **decisions** — 04b0c86f's missing Serves: trailer — repairing it is a history rewrite, which is his
+- **live** — hub restarted twice under his standing order; the autobot half rode his shell restart
+- **checked** — api/board.test.js 41 pass — 8 new, all 8 red against the stashed old door · yarn verify 2323 window · 363 hub · 12 cli, plus the production build · yarn `smoke:board` 9 · `smoke:worklist` 73 · `smoke:nudge` 24 · `smoke:lanes` 21 · Hub.Agent.board 1 passed at the live hub, mutation-verified on a throwaway hub
+:::
+
 I read the board to choose what to work on, and it cost about 12,000 tokens and **truncated
 mid-card** — so the last of the thirty open cards were not merely expensive, they were unreadable,
 and the pick got made off a partial board. The door had no smaller question in it. Every call that

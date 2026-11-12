@@ -1,6 +1,17 @@
-::report{id="The panel says what it could not build" as=account retain=24h}
+::report{id="The panel says what it could not build" as=account retain=24h retired=2026-11-12 retiredAs=expired}
 
 ::members{who=systemview-test}
+
+:::glance
+- **agent** — systemview-test
+- **run** — a board card of mine from earlier the same night, declared spec
+- **new features** — the proofs panel names what it could not build — document, line, 0 of N steps, which project's pool came up empty
+- **fixes** — the builder ignored a block's {project=…} · an explicitly named service was never validated against the pool, so the card built and died silently at press
+- **corrections** — the card builder moved out of the component into proofRows.js, which that file's own first paragraph had required all along
+- **decisions** — none
+- **live** — bundle rebuilt (main.d6d72c3e.js) — waits on the window's own hold
+- **checked** — proofRows 31 pass — 5 new; silencing the issue push fails exactly the three that watch it · yarn verify 2338 window · 365 hub · 12 cli, plus the production build
+:::
 
 The proofs panel's card builder skipped, in silence, every spec it could not build — the scope line
 said "1 spec" while the list below rendered none of it, and a press ran nothing with no reason

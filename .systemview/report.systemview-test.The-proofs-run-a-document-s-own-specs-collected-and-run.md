@@ -2,6 +2,17 @@
 
 ::report{id=proofs-run as=spec retain=permanent title="The proofs run — a living spec of the collector and the runner"}
 
+:::glance
+- **agent** — systemview-test
+- **run** — not stated
+- **new features** — the spec collector and the one test engine, run from three places — in a document, in the side panel, and with no window at all
+- **fixes** — arcOf was a narrower copy of the shell's rule and collected one spec where the arc had seven
+- **corrections** — not stated
+- **decisions** — the approval press — *is this the complete list of claims for the proofs run?*
+- **live** — not stated
+- **checked** — autobot tests/registry.js (r1, r2, r9) · api/proofs.test.js (r2–r6, r10, r11) · proofRows.test.js (r7) · proofsBus.test.js (r8); r6, r8 and r11 carry no mark
+:::
+
 **This is a living spec, not an account.** It is never done — it is *current or drifted*. It exercises
 the mechanism that collects the `:::run` and `::test` blocks a project's documents carry and runs
 them through the one test engine, from three places: in a document, in the side panel, and with no

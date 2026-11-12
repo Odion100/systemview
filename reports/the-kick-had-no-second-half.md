@@ -2,6 +2,17 @@
 
 ::report{id="The kick had no second half" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — two picks from the board
+- **new features** — none
+- **fixes** — the kick has a reader — kickedOut — so a bounced identity is refused until the cooldown lapses
+- **corrections** — my own instrument — a seeded tab store leaves the centre blank while every DOM query reads perfectly, and only the screenshot said so
+- **decisions** — none
+- **live** — the hub was restarted from ~/autobot — the kick fix is live; nothing rides the shell restart
+- **checked** — 2610 window · 430 hub (+5) · 23 cli · verify green incl. ratchet and build · the refusal NOT verified live — no project has connected services
+:::
+
 **`kick()` has been writing the bounced identity into a `kicked` map since it was built, under a
 comment promising that "rejoins are refused for KICK_TTL" — and nothing ever read it.** `KICK_TTL`
 appeared in two comments and its own declaration; `kicked` appeared at its declaration and three

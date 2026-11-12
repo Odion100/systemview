@@ -2,6 +2,17 @@
 
 ::report{id="Forty-nine findings became nine" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a board card
+- **new features** — none
+- **fixes** — expired documents get their own bucket, carrying the git show that reads them back
+- **corrections** — the retiredScan caveat blamed on the hub was a malformed SystemLynx call, re-measured through Client.loadService
+- **decisions** — the nine remaining dangling trailers — fixing them is a history rewrite, which is his
+- **live** — the hub half is live; the renderer half rides the shell restart
+- **checked** — 2607 window · 385 hub · 23 cli · yarn verify green; the rendered EXPIRED section not seen
+:::
+
 **`commitLinks`' DANGLING bucket was 49 findings and almost all of it was a report doing exactly
 what a report is for.** A report's normal end of life — the janitor collects it, its row leaves the
 registry — made every trailer that ever named it read *"serves an id nothing registered"*. The

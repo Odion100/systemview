@@ -2,6 +2,17 @@
 
 ::report{id="The check was wrong twice before it was right" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — not stated
+- **new features** — an UNRESOLVABLE check — a ::commit naming a sha outside its own project, carrying the exact line to write instead
+- **fixes** — none
+- **corrections** — two versions of the check that accused correct work — one dropping project=, one matching only HEAD-reachable shas — both caught against the real repository · the curl refusal blamed on the hub was a malformed __arguments body
+- **decisions** — none
+- **live** — not stated
+- **checked** — 2607 window · 399 hub (+22) · 23 cli · yarn verify green; the rendered UNRESOLVABLE section not seen
+:::
+
 **A cross-repo `::commit` with no `project=` renders "no such commit" in your window, and was only
 ever caught after it was written and read.** The fault reporter flags the newest and leaves the
 rest — ten sat in RFC-078 for a day. Three store notes said the rule and it happened twice in two

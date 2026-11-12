@@ -2,6 +2,17 @@
 
 ::report{id="The row said met and could not say undefended" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a use-pass — runProofs on a document
+- **new features** — none
+- **fixes** — the registry row carries behavioral and specd, so the row and the window answer the same question the same way
+- **corrections** — the markdown-state loop that pinned a run block and a cmd block as identical rows, split so specd can differ
+- **decisions** — whether settled= should require its specs — deliberately not tightened, and on the card
+- **live** — autobot electron/ — rides the shell restart
+- **checked** — autobot markdown-state 44 (+2) · fourteen other autobot suites green · systemview not run, nothing in this repo changed; the live row unchanged until the shell restarts
+:::
+
 **RFC-076's registry row read `{total: 45, met: 44}` while not one of those 45 claims carried a
 spec.** Every one of the 44 looked defended to an agent reading the row; the same document read
 *"0 of 45 spec'd"* to a person at the window. The row carried the proof half and had no way to

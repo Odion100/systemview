@@ -2,6 +2,17 @@
 
 ::report{id="Nine expected findings were burying the tenth" as=account retain=24h}
 
+:::glance
+- **agent** — systemview-test
+- **run** — a use-pass on the night's own output
+- **new features** — selfWriting — self-referential commits classified out and reported in full
+- **fixes** — oneWay no longer counts a commit that wrote the report it serves
+- **corrections** — the commit's Serves: trailer carried the previous sitting's report id; amended while unpushed
+- **decisions** — none
+- **live** — the hub was restarted — this is live
+- **checked** — 448 hub (+4) · 2632 window · 23 cli · yarn verify green · ratchet clean; nothing seen rendered
+:::
+
 **`commitLinks`' `oneWay` bucket stood at nine, and every one of them was arithmetic.** A report
 cannot hold the sha of the commit that writes it, so every account ever filed left a permanent entry
 there. The bucket that exists to surface a broken link had become the place a broken link would hide.
