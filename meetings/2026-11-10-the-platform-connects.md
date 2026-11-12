@@ -177,8 +177,15 @@ question asked from the update side.
 you nothing when it stalls.
 :::
 
-**Also to settle, in passing:** is the definition above what you mean, or is it narrower or wider
-than the goal?
+:::question[Is that definition what you mean?]{id=q-definition options="as written|narrower|wider"}
+The definition above is: **two installs of this application, on two machines owned by two different
+people, can establish identity with each other and move three things across — an agent, a file, and
+an improvement.**
+
+**Narrower** would cut one of the three, most likely the improvement — §4 argues updates are arc
+two. **Wider** would mean it is not two machines but N, or not two people but an organization with
+roles, which pulls `d-orgdocs` in front of everything else.
+:::
 
 For telling the room when the definition of the goal itself moves. Nothing else goes in here.
 
