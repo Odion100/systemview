@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { capFrom, readMax, writeMax, DEFAULT_MAX } from "../../pages/SystemView/tabsStore";
+import { capFrom, readMax, writeMax, DEFAULT_MAX, MIN_CAP } from "../../pages/SystemView/tabsStore";
 import ServiceContext from "../../ServiceContext";
 import { hostFiles, machineFiles } from "../../utils/hostFiles";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
@@ -1074,8 +1074,14 @@ const CodePane = ({ file, onClose }) => {
               <span>tabs</span>
             </label>
             <span className={`${CLASSNAME}__cog-hint`}>
+              {/* THE CONTROL SAYS WHAT IS IN FORCE, including when the number he is looking at is
+                  not it. A value under the floor does nothing — stated here rather than left
+                  silent, because a setting that is set and has no effect is the other half of the
+                  fault that produced this floor. */}
               {maxTabs === 0
                 ? "no limit — tabs accumulate until you close them"
+                : maxTabs < MIN_CAP
+                ? `${maxTabs} is below the floor, so there is NO limit — a document tab takes a slot of its own, so under ${MIN_CAP} every open would just replace the last one`
                 : `the least recently opened go first; whatever you are looking at is never taken${
                     maxTabs === DEFAULT_MAX ? " · 0 turns the limit off" : ""
                   }`}

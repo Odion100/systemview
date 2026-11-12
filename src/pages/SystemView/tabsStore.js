@@ -91,6 +91,24 @@ export function fileBranch(urlFile, codePath) {
 export const MAX_KEY = (pc) => `sv.tabs.max.${pc}`;
 export const DEFAULT_MAX = 12;
 
+// THE FLOOR, AND IT IS A JUDGEMENT I AM MAKING RATHER THAN A NUMBER HE CHOSE.
+//
+// Measured in his window, 2026-11-12, twice an hour apart: the strip held `Dashboard` plus exactly
+// ONE file, and the file was different each time. That is a cap of 2 evicting on every open, and
+// what it looks like from the strip is *"I can only open one, every time it's being replaced."*
+// He never chose 2 — the cog applied each keystroke, so reaching for a two-digit number set it.
+//
+// The reason the floor is the right repair and not just a nicety: the doc / dash / board tab
+// occupies a slot of its own. At a cap of 2 there is exactly one slot left for a file, so every
+// open evicts the previous one; at 1 there are none. Neither value can produce a usable window —
+// the only behaviour available to them is the one he just reported as a bug. And 0 already means
+// no cap, so below the floor there is no meaning left to honour.
+//
+// So anything under this reads as NO CAP, which also heals a window already carrying the accident
+// without him having to find the cog. The control SAYS so at that value rather than going quiet,
+// because a number that is set and does nothing is the other half of this same fault.
+export const MIN_CAP = 3;
+
 export function readMax(pc) {
   try {
     const raw = localStorage.getItem(MAX_KEY(pc));
@@ -137,8 +155,11 @@ export function writeMax(pc, n) {
  * PURE, and separate from the verb that calls it, because the rule here is all judgement and the
  * judgement is what somebody will disagree with:
  *
+
  *  - `cap` OF 0 IS NO CAP. Not "close everything" — a cap of zero open tabs is not a state anybody
- *    wants, and reading it as "off" is the only useful meaning left.
+ *    wants, and reading it as "off" is the only useful meaning left. ANYTHING UNDER `MIN_CAP` reads
+ *    the same way, for the reason given at that constant: a window with one usable slot has only
+ *    one behaviour available to it, and it is the one he reported as a bug.
  *  - AN ACTIVE TAB IS NEVER EVICTED, in ANY pane. Closing the document somebody is looking at to
  *    make room for one they just asked for is a trade nobody would accept, and with a split
  *    standing there are two of them.
@@ -150,7 +171,9 @@ export function writeMax(pc, n) {
  */
 export function trim(state, cap) {
   const max = Math.max(0, Math.floor(Number(cap) || 0));
-  if (!max) return state;
+  // THE ONE PLACE THE FLOOR IS APPLIED, so no caller can disagree with it — `writeMax` trims
+  // through here, the centre's URL effect trims through here, and a reload trims through here.
+  if (!max || max < MIN_CAP) return state;
   const all = (state.panes || []).flatMap((p, pi) =>
     (p.tabs || []).map((t) => ({ key: t.key, pane: pi, at: Number(t.at) || 0, active: p.active === t.key })),
   );

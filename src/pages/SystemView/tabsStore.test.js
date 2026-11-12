@@ -1,4 +1,4 @@
-import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes, trim, readMax, writeMax, capFrom, MAX_KEY, DEFAULT_MAX } from "./tabsStore";
+import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes, trim, readMax, writeMax, capFrom, MAX_KEY, DEFAULT_MAX, MIN_CAP } from "./tabsStore";
 
 // the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
@@ -491,8 +491,8 @@ describe("trim — which tabs a cap takes", () => {
   it("takes the least recently touched, not the ones on the left", () => {
     // He reorders the strip by hand — it is his desk — so position says nothing about what he has
     // finished with. `at` is the only evidence of attention the store holds.
-    const s = { panes: [pane([t("a", 300), t("b", 100), t("c", 200), t("d", 400)], "d")], focus: 0 };
-    expect(trim(s, 2).panes[0].tabs.map((x) => x.key)).toEqual(["a", "d"]);
+    const s = { panes: [pane([t("a", 300), t("b", 100), t("c", 200), t("d", 400), t("e", 500)], "e")], focus: 0 };
+    expect(trim(s, 3).panes[0].tabs.map((x) => x.key)).toEqual(["a", "d", "e"]);
   });
 
   it("NEVER evicts an active tab — in either pane", () => {
@@ -502,10 +502,12 @@ describe("trim — which tabs a cap takes", () => {
       panes: [pane([t("a", 1), t("b", 900)], "a"), pane([t("c", 2), t("d", 950)], "c")],
       focus: 0,
     };
-    const got = trim(s, 2).panes.flatMap((p) => p.tabs.map((x) => x.key));
+    // Four tabs, a cap of 3: one has to go, and the two OLDEST are the two active ones — so what
+    // leaves is a recent inactive tab rather than either document being looked at.
+    const got = trim(s, 3).panes.flatMap((p) => p.tabs.map((x) => x.key));
     expect(got).toContain("a");
     expect(got).toContain("c");
-    expect(got).toHaveLength(2);
+    expect(got).toHaveLength(3);
   });
 
   it("treats a cap of 0 as NO cap, never as close-everything", () => {
@@ -521,8 +523,24 @@ describe("trim — which tabs a cap takes", () => {
   it("treats a tab with no stamp as the oldest thing there is", () => {
     // Tabs from before this existed carry no `at`. Reading an unknown as recent would make the cap
     // do nothing at all on the one store that most needs it.
-    const s = { panes: [pane([t("old"), t("b", 5), t("c", 6)], "c")], focus: 0 };
-    expect(trim(s, 2).panes[0].tabs.map((x) => x.key)).toEqual(["b", "c"]);
+    const s = { panes: [pane([t("old"), t("b", 5), t("c", 6), t("d", 7)], "d")], focus: 0 };
+    expect(trim(s, 3).panes[0].tabs.map((x) => x.key)).toEqual(["b", "c", "d"]);
+  });
+
+  // MEASURED IN HIS WINDOW, 2026-11-12: the strip held `Dashboard` plus exactly one file, and the
+  // file was different an hour later. A cap of 2 evicting on every open, which from the strip reads
+  // as "I can only open one, every time it's being replaced."
+  it("treats anything UNDER THE FLOOR as no cap, because one usable slot has only one behaviour", () => {
+    const s = {
+      panes: [{ tabs: [{ key: "dash", at: 1 }, { key: "a", at: 2 }, { key: "b", at: 3 }], active: "b" }],
+      focus: 0,
+      sizes: [1],
+    };
+    expect(trim(s, 1).panes[0].tabs).toHaveLength(3);
+    expect(trim(s, 2).panes[0].tabs).toHaveLength(3);
+    expect(trim(s, MIN_CAP).panes[0].tabs).toHaveLength(3);
+    // and the floor is not a blanket exemption — AT the floor it still bites when it should
+    expect(trim({ ...s, panes: [{ ...s.panes[0], tabs: [...s.panes[0].tabs, { key: "c", at: 4 }] }] }, MIN_CAP).panes[0].tabs).toHaveLength(3);
   });
 
   it("changes nothing when the window is already inside the cap", () => {
@@ -554,12 +572,19 @@ describe("the cap he sets", () => {
 
   it("applies immediately when he lowers it, so the number means something the moment he sets it", () => {
     const pc = "trimnow";
-    openTab(pc, { key: "a", kind: "doc" });
-    openTab(pc, { key: "b", kind: "doc" });
-    openTab(pc, { key: "c", kind: "doc" });
-    expect(getTabs(pc).panes[0].tabs).toHaveLength(3);
+    ["a", "b", "c", "d"].forEach((key) => openTab(pc, { key, kind: "doc" }));
+    expect(getTabs(pc).panes[0].tabs).toHaveLength(4);
+    writeMax(pc, MIN_CAP);
+    expect(getTabs(pc).panes[0].tabs).toHaveLength(MIN_CAP);
+  });
+
+  it("does NOT apply a number under the floor — which is what heals a window already carrying one", () => {
+    const pc = "underfloor";
+    ["a", "b", "c", "d"].forEach((key) => openTab(pc, { key, kind: "doc" }));
     writeMax(pc, 2);
-    expect(getTabs(pc).panes[0].tabs).toHaveLength(2);
+    // The number is still his to read back in the cog; it just has no force, and the hint says so.
+    expect(readMax(pc)).toBe(2);
+    expect(getTabs(pc).panes[0].tabs).toHaveLength(4);
   });
 });
 
@@ -588,9 +613,11 @@ describe("capFrom — is the typed value a setting yet", () => {
     expect(capFrom("12.7")).toBe(12);
   });
 
-  it("DOES NOT protect him from a small number he really chose — 1 is a legal cap", () => {
-    // The fix is about WHEN a keystroke becomes a setting, not about overriding his number. If he
-    // types 1 and stops, 1 is what he asked for and the strip will hold one tab.
+  it("parses a small number rather than second-guessing it — the FLOOR is a separate decision", () => {
+    // Two questions, deliberately answered in two places. `capFrom` asks "is this a number he
+    // typed", and 1 is. Whether 1 has any FORCE is `trim`'s question, and MIN_CAP is its answer.
+    // Folding the floor in here would make the cog's hint unable to read back what he set.
     expect(capFrom("1")).toBe(1);
+    expect(capFrom("2")).toBe(2);
   });
 });
