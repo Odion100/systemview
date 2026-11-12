@@ -1065,7 +1065,7 @@ function useSubagentIdleMin() {
   return mins;
 }
 
-function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null, brief = "", onDelete = null }) {
+function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null, brief = "", onDelete = null, muted = false, onMute = null }) {
   const [open, setOpen] = useState(false);
   const done0 = (items || []).filter((t) => t.state === "done").length;
   const complete0 = items && items.length ? done0 === items.length : true;
@@ -1074,7 +1074,10 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
   // ending; "abandoned — no account" is a declaration the nudging rightly ignores.
   const abandoned = status && /abandon/i.test(String(status.text || ""));
   const accounted = isAccounted(attachments);
-  const eta = useNudgeEta({ source, runKey, projectCode, off: complete0 || (abandoned && accounted) });
+  // A MUTED LIST SHOWS NO COUNTDOWN, because there is nothing coming. A clock still ticking beside
+  // a muted row would be the surface contradicting the record — the exact failure the whole nudge
+  // vocabulary is built to avoid.
+  const eta = useNudgeEta({ source, runKey, projectCode, off: complete0 || muted || (abandoned && accounted) });
   // His 🗑 — deletes the RECORD (the × beside it only clears the view). Done deletes plain;
   // not-done arms into the confirm. See useRunDelete.
   const runDel = useRunDelete({
@@ -1182,6 +1185,30 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
           ×
         </button>
       )}
+      {/* MUTE — a list that is LONG, which is not a list that stopped. His, 2026-11-12: *"I know
+          I'm not going to finish this today. This list is going to stay open… right now I have to
+          tell you to abandon it, but there could be a toggle displayed right on the list."*
+
+          IT IS ALWAYS VISIBLE WHEN MUTED and quiet otherwise. A mute that only showed on hover
+          would be silence nobody can see, which is the hole the nudge exists to fill — so the row
+          WEARS the state and the toggle is how it comes off. */}
+      {onMute ? (
+        <button
+          type="button"
+          className={`${CLASSNAME}__worklist-mute${muted ? ` ${CLASSNAME}__worklist-mute--on` : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMute(!muted);
+          }}
+          title={
+            muted
+              ? "Muted — this list is not being chased. Press to let the nudging resume."
+              : "Mute the nudging for this list — it stays open and keeps its place; nothing is abandoned."
+          }
+        >
+          {muted ? "muted" : "🔔"}
+        </button>
+      ) : null}
       {runDel.del}
       </div>
       {/* THE BRIEF IS NOT BEHIND A PRESS — his report, 2026-11-09: *"if the corrections has
@@ -7939,6 +7966,11 @@ const countdown = (str, now = Date.now()) => {
                         // file's, not a run's, and withDefaultList synthesises its row when there
                         // is none. A 🗑 there would be a control that deletes nothing.
                         onDelete={l.key === DEFAULT_LIST_KEY ? null : () => deleteRunRecord(l.key)}
+                        // MUTING REACHES EVERY ROW, the plan included — his words were "on and off
+                        // for each list", and the plan has its own chaser (`pickStaleList`). That
+                        // is why the mute is not gated on a run record the way the delete is.
+                        muted={!!(l.muted && l.muted.ts)}
+                        onMute={(on) => work.muteRun(l.key, on)}
                       />
                     ))}
               </>

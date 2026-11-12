@@ -151,6 +151,15 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     refreshLanes();
   }, [refreshLanes]);
 
+  // MUTE A LIST — his press. Mirrors `deleteLaneRun` exactly, including the refresh: the row's
+  // state is read back off the record rather than held optimistically, so a toggle that did not
+  // land reads as not having landed.
+  const muteRun = useCallback(async (id, muted) => {
+    const t = transportRef.current;
+    if (t && t.muteRun) await t.muteRun(id, muted);
+    refreshLanes();
+  }, [refreshLanes]);
+
   const answer = useCallback((id, allow) => {
     const t = transportRef.current;
     if (t && t.answerPermission) t.answerPermission(id, allow);
@@ -287,6 +296,7 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     wipeWhiteboard,
     standingRuns,
     deleteLaneRun,
+    muteRun,
     compact,
     showSaid,
     compactionPending,

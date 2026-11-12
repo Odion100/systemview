@@ -5988,3 +5988,33 @@ $sv-board-states: (
   margin: 0 -4px;
   &:hover { background: rgba(128, 128, 128, 0.12); }
 }
+
+// ── MUTE — A LIST THAT IS LONG, WHICH IS NOT A LIST THAT STOPPED ────────────────────────────────
+//
+// Quiet until it is ON, and then it WEARS the word. A mute that only showed on hover would be
+// silence nobody can see, which is the hole the nudge exists to fill — so an un-muted row offers a
+// faint bell and a muted one says so in plain text, permanently, next to the countdown it replaced.
+.agent-chat__worklist-mute {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--sv-text-muted);
+  font: inherit;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+
+  &:hover { opacity: 1; }
+
+  &--on {
+    opacity: 1;
+    border-color: var(--sv-border);
+    color: var(--sv-text);
+    font-weight: 700;
+  }
+}
