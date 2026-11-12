@@ -313,6 +313,17 @@ may decide, and what a revocation reaches. None of that is a mechanism; all of i
 for designing one.
 :::
 
+:::decision[Organization, business, household — one model or three?]{id=d-orgkinds owner=you}
+**why it belongs beside `d-orgdocs`** — the mission names all three and they are not obviously the
+same shape. A business has roles and an approval chain; a household has neither and would find both
+insulting. If they are ONE model, *organization* has to be thin enough that a household is not
+wearing a suit. If they are THREE, then membership, approval and who-may-decide each need three
+answers, and the documentation takes a section per kind — the form you reached for: *"you'd consider
+those, or you would have sections in documentation for each one."*
+
+**my position** — none. I want to know which you have in mind before I argue for thin.
+:::
+
 :::decision[Where does identity come from?]{id=d-identity owner=you}
 **the three roads** — a **keypair per install** (nothing central, you own your own name) · **accounts
 on something central** (a directory exists, and so does whoever runs it) · **the account we are
