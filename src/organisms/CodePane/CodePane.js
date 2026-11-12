@@ -431,10 +431,10 @@ const CodePane = ({ file, onClose }) => {
   // pause, on blur, or on Enter — and an EMPTY field commits nothing, because `Number("") || 0` is
   // 0, 0 means no cap, and silently turning the limit off because he selected the text to retype
   // is the same fault wearing the opposite sign.
-  const [maxTabs, setMaxTabs] = useState(() => readMax(file.projectCode || ""));
-  const [capDraft, setCapDraft] = useState(() => String(readMax(file.projectCode || "")));
+  const [maxTabs, setMaxTabs] = useState(() => readMax());
+  const [capDraft, setCapDraft] = useState(() => String(readMax()));
   useEffect(() => {
-    const at = readMax(file.projectCode || "");
+    const at = readMax();
     setMaxTabs(at);
     setCapDraft(String(at));
   }, [file.projectCode]);
@@ -1052,7 +1052,7 @@ const CodePane = ({ file, onClose }) => {
               mounted so its scroll survives, and all of that is paid for tabs nobody is looking
               at. */}
           <div className={`${CLASSNAME}__cog-row`}>
-            <span className={`${CLASSNAME}__cog-label`}>open tabs in {file.projectCode || "this project"}</span>
+            <span className={`${CLASSNAME}__cog-label`}>open tabs in this window</span>
           </div>
           <div className={`${CLASSNAME}__cog-row ${CLASSNAME}__cog-row--cap`}>
             <label className={`${CLASSNAME}__cog-cap`}>

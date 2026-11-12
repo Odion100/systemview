@@ -529,6 +529,43 @@
   animation: doc-tab-fresh 1.3s ease-out 1;
   border-radius: 5px;
 }
+
+// ── A TAB FROM ANOTHER PROJECT ───────────────────────────────────────────────────────────────────
+//
+// The strip is the WINDOW'S now (2026-11-12), not a project's — because the Dashboard he works from
+// always spanned every project while the strip did not, and the disagreement read as tabs being
+// destroyed. Which means two `README.md` tabs can stand side by side, and a chip that does not say
+// whose is a chip you cannot read.
+//
+// QUIET, NOT LOUD. A foreign tab is not a warning — it is the normal result of working from the
+// dashboard — so it gets a project tag and a slightly recessed face, and nothing that competes with
+// the active tab.
+.doc-tab__pc {
+  margin-right: 5px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--sv-inset);
+  color: var(--sv-text-muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.doc-tab--foreign .doc-tab__face {
+  opacity: 0.86;
+}
+
+// The one it is ON is never recessed, whatever project it belongs to.
+.doc-tab--foreign.doc-tab--active .doc-tab__face {
+  opacity: 1;
+}
+
+.doc-tab--active .doc-tab__pc {
+  background: var(--sv-bg);
+  color: var(--sv-text);
+}
 // Nothing moves for somebody who asked the window not to animate.
 @media (prefers-reduced-motion: reduce) {
   .doc-tab--fresh { animation: none; box-shadow: inset 0 0 0 1px var(--sv-blue); }

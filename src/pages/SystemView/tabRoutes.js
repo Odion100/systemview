@@ -2,7 +2,12 @@
 // Agents page can route the SAME tabs without copying the map. One grammar: every center tab kind
 // resolves to a /specs location; the caller pushes it. Pure: (tab, pc, currentSearch) → {pathname,
 // search} — no history, no window, so both pages and any future host can share it.
-export function buildRoute(t, pc, currentSearch) {
+export function buildRoute(t, fallbackPc, currentSearch) {
+  // ROUTED BY THE TAB'S OWN PROJECT. The strip spans projects now (the Dashboard always did), so
+  // the project in the URL is the project you are LEAVING — building a foreign tab's route from it
+  // lands on `/specs/<wrong>` with a `file=` that project does not have, which renders as an
+  // absence and reads as the tab being broken.
+  const pc = tabPc(t, fallbackPc);
   const p = new URLSearchParams(currentSearch || "");
   ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "fmachine", "help"].forEach((k) => p.delete(k));
   if (t.kind === "file") {
@@ -124,31 +129,58 @@ export function labelOfTab(t, pc) {
 // real answer (project level with no service selected opens no document; the landing is background).
 export function tabForUrl({ urlTab, sService, sModule, sMethod, reportPath, projectCode } = {}) {
   const ns = `${sService || ""}.${sModule || ""}.${sMethod || ""}`;
+  // EVERY TAB CARRIES ITS OWN PROJECT, and this is what made the strip able to span them.
+  //
+  // His bug, 2026-11-12: *"I got my dashboard, open up one file, open up another file. Nope, they
+  // all replacing each other."* Measured in two browsers: tabs accumulate correctly INSIDE a
+  // project (12 standing in one, 2→3 in another) — the strip was keyed PER PROJECT, while the
+  // DASHBOARD he works from spans every project by design. So opening a document from another
+  // project swapped the whole strip for that project's, and nothing anywhere said so.
+  //
+  // A file tab already knew its project (`file.projectCode`); `report`, `logs` and `doc` did not —
+  // their keys are a path or a namespace — so a foreign tab of those kinds could not be routed
+  // back to the project it belongs to. `pc` closes that, and `buildRoute` reads it instead of the
+  // project that happens to be in the URL.
+  const pc = projectCode || "";
   const docTab = () =>
     sService
-      ? { key: `doc:${ns}`, kind: "doc", doc: { serviceId: sService, moduleName: sModule, methodName: sMethod } }
+      ? { key: `doc:${ns}`, kind: "doc", pc, doc: { serviceId: sService, moduleName: sModule, methodName: sMethod } }
       : null;
 
   if (urlTab === "logs")
     // LOGS ACCUMULATE PER SCOPE — "logs here and logs there" are two different things you are
     // watching, so the key IS the place.
-    return { key: `logs:${ns}`, kind: "logs", logs: { serviceId: sService, moduleName: sModule, methodName: sMethod } };
-  if (urlTab === "links" || urlTab === "cmds") return { key: `${urlTab}:${projectCode}`, kind: urlTab };
-  if (urlTab === "dash") return { key: `dash:${projectCode}`, kind: "dash" };
-  if (urlTab === "how") return { key: `how:${projectCode}`, kind: "how" };
-  if (urlTab === "board") return { key: `board:${projectCode}`, kind: "board" };
-  if (urlTab === "stats") return { key: `stats:${projectCode}`, kind: "stats" };
+    return { key: `logs:${ns}`, kind: "logs", pc, logs: { serviceId: sService, moduleName: sModule, methodName: sMethod } };
+  if (urlTab === "links" || urlTab === "cmds") return { key: `${urlTab}:${projectCode}`, kind: urlTab, pc };
+  if (urlTab === "dash") return { key: `dash:${projectCode}`, kind: "dash", pc };
+  if (urlTab === "how") return { key: `how:${projectCode}`, kind: "how", pc };
+  if (urlTab === "board") return { key: `board:${projectCode}`, kind: "board", pc };
+  if (urlTab === "stats") return { key: `stats:${projectCode}`, kind: "stats", pc };
   if (urlTab === "reports")
     // A report OPEN gets its own tab, keyed by its path. Bare `tab=reports` is not a picker — his
     // ruling, loudly — so it falls back to whatever the scope would have shown.
-    return reportPath ? { key: `report:${reportPath}`, kind: "report", report: { path: reportPath } } : docTab();
+    return reportPath
+      ? { key: `report:${reportPath}`, kind: "report", pc, report: { path: reportPath } }
+      : docTab();
   return docTab();
+}
+
+// WHICH PROJECT A TAB BELONGS TO — `pc` when it has one, the file's own project for a file tab, and
+// the suffix of a project-keyed key for anything written before `pc` existed. Falls back to the
+// project in the URL, which is what every tab used to be routed by.
+export function tabPc(t, fallback) {
+  if (!t) return fallback || "";
+  if (t.pc) return t.pc;
+  if (t.kind === "file" && t.file && t.file.projectCode) return t.file.projectCode;
+  const keyed = /^(dash|how|board|stats|links|cmds):(.+)$/.exec(String(t.key || ""));
+  if (keyed) return keyed[2];
+  return fallback || "";
 }
 
 // THE FLOOR — How-we-work as a real, selected, closable tab rather than a page nobody can address.
 // Separate from `tabForUrl` on purpose: this is the only decision that needs to know the strip is
 // EMPTY, and keeping it out of the planner is what keeps the planner unable to feed back.
-export const floorTab = (projectCode) => ({ key: `how:${projectCode}`, kind: "how" });
+export const floorTab = (projectCode) => ({ key: `how:${projectCode}`, kind: "how", pc: projectCode });
 
 // IS THIS A PROJECT WORTH SEEDING A FLOOR INTO? `@none` is the placeholder `tabsPc` wears before
 // the project resolves on a cold start, and seeding it wrote a tab into a store no surface will

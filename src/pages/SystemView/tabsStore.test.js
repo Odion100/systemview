@@ -1,15 +1,21 @@
-import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes, trim, readMax, writeMax, capFrom, MAX_KEY, DEFAULT_MAX, MIN_CAP } from "./tabsStore";
+import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes, trim, readMax, writeMax, capFrom, mergeLegacy, __resetStore, MAX_KEY, DEFAULT_MAX, MIN_CAP } from "./tabsStore";
 
 // the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
 // and the strip survives a reload because the set is cached.
-// ONE PROJECT PER TEST — the in-memory store deliberately outlives localStorage clears (a project's
-// store lives for the session in the app too), so tests isolate by project code, not by cleanup.
+// THE STRIP IS THE WINDOW'S, NOT A PROJECT'S (2026-11-12) — so isolating by project code no longer
+// isolates anything, and each case resets the module's one cached store instead. The project
+// argument is still passed on every verb because every caller still has it; it names the project
+// being acted IN, which is what a tab's own `pc` records.
 let n = 0;
 let PC;
 const file = (path) => ({ key: fileKey({ projectCode: PC, path }), kind: "file", file: { path, projectCode: PC } });
 
-beforeEach(() => { PC = `test-proj-${n++}`; localStorage.removeItem(`sv.tabs.${PC}`); });
+beforeEach(() => {
+  PC = `test-proj-${n++}`;
+  localStorage.clear();
+  __resetStore();
+});
 
 describe("the open set", () => {
   it("starts EMPTY — nothing is open until he opens something (his rule, after the seeded doc tab kept resurrecting a namespace nobody chose)", () => {
@@ -72,7 +78,7 @@ describe("the open set", () => {
 
   it("the set survives a reload — cached whole, shaped for panes", () => {
     openTab(PC, file("a.js"));
-    const raw = JSON.parse(localStorage.getItem(`sv.tabs.${PC}`));
+    const raw = JSON.parse(localStorage.getItem("sv.tabs"));
     expect(Array.isArray(raw.panes)).toBe(true);
     expect(raw.panes[0].tabs.some((t) => t.kind === "file")).toBe(true);
   });
@@ -392,7 +398,7 @@ describe("resizing between the panes", () => {
   it("survives a reload, because the divider is state and not a component's memory", () => {
     split();
     setPaneSizes(PC, [0.6, 0.4]);
-    const raw = JSON.parse(localStorage.getItem(`sv.tabs.${PC}`));
+    const raw = JSON.parse(localStorage.getItem("sv.tabs"));
     expect(raw.sizes).toEqual([0.6, 0.4]);
     expect(raw.panes).toHaveLength(2);
   });
@@ -550,24 +556,23 @@ describe("trim — which tabs a cap takes", () => {
 });
 
 describe("the cap he sets", () => {
-  beforeEach(() => window.localStorage.clear());
-
   it("defaults to a number rather than to unlimited", () => {
-    expect(readMax("p")).toBe(DEFAULT_MAX);
+    expect(readMax()).toBe(DEFAULT_MAX);
   });
 
-  it("remembers what he set, per project", () => {
+  it("is the WINDOW'S number, not a project's — the cost being capped is the window's", () => {
     writeMax("alpha", 4);
+    expect(readMax()).toBe(4);
     writeMax("beta", 30);
-    expect(readMax("alpha")).toBe(4);
-    expect(readMax("beta")).toBe(30);
+    expect(readMax()).toBe(30);
+    expect(MAX_KEY()).toBe("sv.tabs.max");
   });
 
   it("refuses junk rather than disabling itself silently", () => {
-    window.localStorage.setItem(MAX_KEY("p"), "banana");
-    expect(readMax("p")).toBe(DEFAULT_MAX);
-    window.localStorage.setItem(MAX_KEY("p"), "-5");
-    expect(readMax("p")).toBe(DEFAULT_MAX);
+    window.localStorage.setItem(MAX_KEY(), "banana");
+    expect(readMax()).toBe(DEFAULT_MAX);
+    window.localStorage.setItem(MAX_KEY(), "-5");
+    expect(readMax()).toBe(DEFAULT_MAX);
   });
 
   it("applies immediately when he lowers it, so the number means something the moment he sets it", () => {
@@ -583,7 +588,7 @@ describe("the cap he sets", () => {
     ["a", "b", "c", "d"].forEach((key) => openTab(pc, { key, kind: "doc" }));
     writeMax(pc, 2);
     // The number is still his to read back in the cog; it just has no force, and the hint says so.
-    expect(readMax(pc)).toBe(2);
+    expect(readMax()).toBe(2);
     expect(getTabs(pc).panes[0].tabs).toHaveLength(4);
   });
 });
@@ -619,5 +624,108 @@ describe("capFrom — is the typed value a setting yet", () => {
     // Folding the floor in here would make the cog's hint unable to read back what he set.
     expect(capFrom("1")).toBe(1);
     expect(capFrom("2")).toBe(2);
+  });
+});
+
+// ── THE STRIP IS THE WINDOW'S ────────────────────────────────────────────────────────────────────
+//
+// His bug, 2026-11-12: *"I got my dashboard, open up one file, open up another file. Nope, they all
+// replacing each other."* Measured in two browsers before anything changed: tabs accumulated
+// correctly INSIDE a project, and the Dashboard he works from spans every project — so a
+// cross-project open swapped the whole strip for the other project's.
+describe("tabs from different projects stand in ONE strip", () => {
+  it("does not replace the strip when the next document belongs to another project", () => {
+    openTab("alpha", { key: "file:alpha:a.js", kind: "file", file: { path: "a.js", projectCode: "alpha" } });
+    openTab("beta", { key: "file:beta:b.js", kind: "file", file: { path: "b.js", projectCode: "beta" } });
+    const keys = getTabs("beta").panes.flatMap((p) => p.tabs.map((t) => t.key));
+    expect(keys).toEqual(["file:alpha:a.js", "file:beta:b.js"]);
+    // and asking from EITHER project's side answers the same window
+    expect(getTabs("alpha").panes[0].tabs).toHaveLength(2);
+  });
+
+  it("keeps each project's own dashboard as its own tab rather than one that follows you", () => {
+    openTab("alpha", { key: "dash:alpha", kind: "dash", pc: "alpha" });
+    openTab("beta", { key: "dash:beta", kind: "dash", pc: "beta" });
+    expect(getTabs("beta").panes[0].tabs.map((t) => t.key)).toEqual(["dash:alpha", "dash:beta"]);
+  });
+
+  it("writes ONE key, so there is no per-project store to disagree with it", () => {
+    openTab("alpha", { key: "file:alpha:a.js", kind: "file", file: { path: "a.js", projectCode: "alpha" } });
+    expect(Object.keys(localStorage).filter((k) => k.startsWith("sv.tabs"))).toEqual(["sv.tabs"]);
+  });
+});
+
+// WHAT HE ALREADY HAD OPEN SURVIVES THE CHANGE. The per-project stores on disk are merged once,
+// and left in place afterwards — if the merge is wrong the originals are still readable.
+describe("mergeLegacy — the per-project stores he was already carrying", () => {
+  const store = (tabs, active) => JSON.stringify({ v: 6, panes: [{ tabs, active }], focus: 0, sizes: [1] });
+
+  it("brings every project's tabs across into one pane", () => {
+    const disk = {
+      "sv.tabs.alpha": store([{ key: "a", at: 10 }, { key: "b", at: 20 }], "b"),
+      "sv.tabs.beta": store([{ key: "c", at: 30 }], "c"),
+    };
+    const got = mergeLegacy((k) => disk[k], Object.keys(disk));
+    expect(got.panes).toHaveLength(1);
+    expect(got.panes[0].tabs.map((t) => t.key)).toEqual(["a", "b", "c"]);
+  });
+
+  it("lands you on the most recently touched, which is the closest thing to where you were", () => {
+    const disk = {
+      "sv.tabs.alpha": store([{ key: "a", at: 10 }], "a"),
+      "sv.tabs.beta": store([{ key: "c", at: 999 }], "c"),
+    };
+    expect(mergeLegacy((k) => disk[k], Object.keys(disk)).panes[0].active).toBe("c");
+  });
+
+  it("keeps one of a key held by two stores, never two", () => {
+    const disk = {
+      "sv.tabs.alpha": store([{ key: "same", at: 1 }], "same"),
+      "sv.tabs.beta": store([{ key: "same", at: 2 }], "same"),
+    };
+    expect(mergeLegacy((k) => disk[k], Object.keys(disk)).panes[0].tabs).toHaveLength(1);
+  });
+
+  it("is not fooled by the CAP keys, which are not stores", () => {
+    const disk = { "sv.tabs.max": "4", "sv.tabs.max.alpha": "2" };
+    expect(mergeLegacy((k) => disk[k], Object.keys(disk))).toBe(null);
+  });
+
+  it("answers null when there is nothing to bring across, and survives unparseable junk", () => {
+    expect(mergeLegacy(() => null, [])).toBe(null);
+    expect(mergeLegacy(() => "{not json", ["sv.tabs.alpha"])).toBe(null);
+  });
+
+  // MEASURED IN A REAL BROWSER BEFORE THIS EXISTED: 12 tabs in one project + 3 in another merged to
+  // 15, and the next open trimmed to the default 12 — three documents gone on the first load of the
+  // change that exists so documents stop disappearing.
+  it("RAISES the cap to fit what it brought across, so the migration never costs him a document", () => {
+    const st = (tabs) => JSON.stringify({ v: 6, panes: [{ tabs, active: tabs[0] && tabs[0].key }], focus: 0, sizes: [1] });
+    const many = Array.from({ length: DEFAULT_MAX + 3 }, (_, i) => ({ key: `k${i}`, at: i + 1 }));
+    localStorage.setItem("sv.tabs.alpha", st(many));
+    __resetStore();
+    expect(getTabs("alpha").panes[0].tabs).toHaveLength(DEFAULT_MAX + 3);
+    expect(readMax()).toBe(DEFAULT_MAX + 3);
+    // and the cap still BITES from there — it was raised to fit, not switched off
+    openTab("alpha", { key: "one-more", kind: "doc" });
+    expect(getTabs("alpha").panes[0].tabs).toHaveLength(DEFAULT_MAX + 3);
+  });
+
+  it("leaves a cap alone when the merge fits inside it", () => {
+    const st = (tabs) => JSON.stringify({ v: 6, panes: [{ tabs, active: tabs[0].key }], focus: 0, sizes: [1] });
+    localStorage.setItem("sv.tabs.alpha", st([{ key: "a", at: 1 }, { key: "b", at: 2 }]));
+    __resetStore();
+    expect(getTabs("alpha").panes[0].tabs).toHaveLength(2);
+    expect(readMax()).toBe(DEFAULT_MAX);
+  });
+
+  it("is never consulted once the window store exists — a merge happens once", () => {
+    localStorage.setItem("sv.tabs.alpha", store([{ key: "legacy", at: 1 }], "legacy"));
+    openTab("alpha", { key: "fresh", kind: "doc" });
+    __resetStore();
+    // the window store now exists, so the legacy one is left alone rather than folded in again
+    expect(getTabs("alpha").panes[0].tabs.map((t) => t.key)).toEqual(["legacy", "fresh"]);
+    __resetStore();
+    expect(getTabs("alpha").panes[0].tabs.map((t) => t.key)).toEqual(["legacy", "fresh"]);
   });
 });

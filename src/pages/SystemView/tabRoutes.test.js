@@ -2,7 +2,7 @@
 // one routing opinion; these claims are what "share" means. Pure functions, no render: every kind's
 // route and label, and the params a route must CLEAR so a file's leftovers never ride into a stats
 // tab. Written while the proof of the extraction was still "press it and see".
-import { buildRoute, labelOfTab, tabForUrl, floorTab, seedable } from "./tabRoutes";
+import { buildRoute, labelOfTab, tabForUrl, floorTab, seedable, tabPc } from "./tabRoutes";
 
 const q = (r) => Object.fromEntries(new URLSearchParams(r.search));
 
@@ -13,7 +13,10 @@ describe("buildRoute", () => {
       "pc",
       ""
     );
-    expect(r.pathname).toBe("/specs/pc");
+    // THIS LINE USED TO EXPECT `/specs/pc` — the project in the URL — and that expectation WAS the
+    // bug: a file belonging to pc2 was routed into pc, where that path does not exist. It only
+    // looked right while the strip could never hold another project's document.
+    expect(r.pathname).toBe("/specs/pc2");
     expect(q(r)).toMatchObject({ tab: "docs", file: "cli/index.js", fproj: "pc2", flang: "js", flines: "40-80", fside: "right" });
     expect(q(r).fmachine).toBeUndefined();
   });
@@ -142,7 +145,7 @@ describe("tabForUrl — which tab a URL state wants", () => {
   });
 
   it("the floor is a real addressable tab, and @none is never seeded into", () => {
-    expect(floorTab("p")).toEqual({ key: "how:p", kind: "how" });
+    expect(floorTab("p")).toEqual({ key: "how:p", kind: "how", pc: "p" });
     expect(seedable("p")).toBe(true);
     // `@none` is what tabsPc wears before the project resolves on a cold start — a real cached
     // store with its own localStorage key that no surface will ever show again.
@@ -156,5 +159,73 @@ describe("tabForUrl — which tab a URL state wants", () => {
     const two = tabForUrl(S).key;
     expect(one).not.toBe(two);
     expect(tabForUrl(S).key).toBe(two);
+  });
+});
+
+// ── A TAB IS ROUTED BY ITS OWN PROJECT ───────────────────────────────────────────────────────────
+//
+// The strip spans projects now (2026-11-12), so the project in the URL is the one you are LEAVING.
+// Building a foreign tab's route from it lands on /specs/<wrong> with a file= that project does not
+// have — which renders as an absence and reads as the tab being broken.
+describe("tabPc — which project a tab belongs to", () => {
+  it("prefers the pc the tab was opened with", () => {
+    expect(tabPc({ key: "report:reports/x.md", kind: "report", pc: "alpha" }, "beta")).toBe("alpha");
+  });
+
+  it("falls back to a FILE tab's own project, which it always carried", () => {
+    expect(tabPc({ key: "file:alpha:a.js", kind: "file", file: { projectCode: "alpha" } }, "beta")).toBe("alpha");
+  });
+
+  it("reads it off a project-keyed key, for tabs written before pc existed", () => {
+    expect(tabPc({ key: "dash:alpha", kind: "dash" }, "beta")).toBe("alpha");
+    expect(tabPc({ key: "board:alpha", kind: "board" }, "beta")).toBe("alpha");
+    expect(tabPc({ key: "how:alpha", kind: "how" }, "beta")).toBe("alpha");
+  });
+
+  it("falls back to the URL's project when the tab cannot say — which is what everything used to do", () => {
+    expect(tabPc({ key: "logs:A.B.c", kind: "logs" }, "beta")).toBe("beta");
+    expect(tabPc(null, "beta")).toBe("beta");
+  });
+});
+
+describe("buildRoute follows the tab, not the URL", () => {
+  it("sends a foreign FILE tab to its own project", () => {
+    const r = buildRoute(
+      { kind: "file", file: { path: "a.js", projectCode: "alpha", language: "js" } },
+      "beta",
+      "?tab=docs",
+    );
+    expect(r.pathname).toBe("/specs/alpha");
+    expect(q(r).fproj).toBe("alpha");
+  });
+
+  it("sends a foreign REPORT tab to its own project, which its key could never say", () => {
+    const r = buildRoute({ kind: "report", pc: "alpha", report: { path: "reports/x.md" } }, "beta", "");
+    expect(r.pathname).toBe("/specs/alpha");
+    expect(q(r).rdoc).toBe("reports/x.md");
+  });
+
+  it("sends a foreign DASHBOARD tab to its own project", () => {
+    expect(buildRoute({ kind: "dash", key: "dash:alpha", pc: "alpha" }, "beta", "").pathname).toBe("/specs/alpha");
+  });
+
+  it("still uses the URL's project for a tab that belongs to no particular one", () => {
+    expect(buildRoute({ kind: "logs", key: "logs:A.B.c", logs: { serviceId: "A" } }, "beta", "").pathname).toBe(
+      "/specs/beta/A",
+    );
+  });
+});
+
+describe("tabForUrl stamps the project on every tab it plans", () => {
+  it("puts pc on the kinds whose key cannot carry it", () => {
+    expect(tabForUrl({ urlTab: "reports", reportPath: "reports/x.md", projectCode: "alpha" }).pc).toBe("alpha");
+    expect(tabForUrl({ urlTab: "logs", sService: "A", projectCode: "alpha" }).pc).toBe("alpha");
+    expect(tabForUrl({ urlTab: "docs", sService: "A", projectCode: "alpha" }).pc).toBe("alpha");
+  });
+
+  it("and on the ones whose key already did, so nothing has to parse a key to find out", () => {
+    expect(tabForUrl({ urlTab: "dash", projectCode: "alpha" }).pc).toBe("alpha");
+    expect(tabForUrl({ urlTab: "board", projectCode: "alpha" }).pc).toBe("alpha");
+    expect(floorTab("alpha").pc).toBe("alpha");
   });
 });

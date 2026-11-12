@@ -5,7 +5,15 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import CenterTabs from "./CenterTabs";
-import { openTab, getTabs, fileKey } from "../../pages/SystemView/tabsStore";
+import { openTab, getTabs, fileKey, __resetStore } from "../../pages/SystemView/tabsStore";
+
+// THE STORE IS THE WINDOW'S NOW, not one per project (2026-11-12) — so these cases share it, and
+// each one starts from an empty strip rather than inheriting the last one's tabs. Before the change
+// a different `tabsPc` per case was isolation enough; it is not any more.
+beforeEach(() => {
+  localStorage.clear();
+  __resetStore();
+});
 
 let n = 0;
 const freshPc = () => `ct-test-${++n}`;
@@ -302,6 +310,10 @@ describe("two strips, one store", () => {
     // extra steps — so the row is absent rather than offered dead.
     expect(screen.queryByText(/Split/)).not.toBeInTheDocument();
 
+    // A SECOND SCENARIO IN THE SAME CASE, and the strip is the window's — so a fresh project code
+    // no longer gives it a fresh strip. Resetting is what `freshPc()` used to buy on its own.
+    localStorage.clear();
+    __resetStore();
     const pc = freshPc();
     seed(pc, ["src/a.js", "src/b.js"]);
     const unsplit = mount(pc);

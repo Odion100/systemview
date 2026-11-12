@@ -34,9 +34,23 @@
 // remembers WHAT IS OPEN, which is exactly the split he asked for: "the URL should include what
 // type someone is in the center", and the cache brings the strip back after a reload.
 
-const stores = new Map(); // projectCode → { state, subs }
+// ONE STORE FOR THE WINDOW, not one per project — and this was a measured bug, not a tidy-up.
+//
+// His, 2026-11-12: *"I got my dashboard, open up one file, open up another file. Nope, they all
+// replacing each other."* Measured in two browsers before changing anything: tabs accumulate
+// correctly INSIDE a project — 12 standing in one store, 2→3 on a second open in another — and the
+// strip was keyed per project while the DASHBOARD he works from spans every project by design.
+// So opening a document from another project swapped the whole strip for that project's. Nothing
+// was deleted and nothing said so, which is the worst shape a surface can take: it looked exactly
+// like tabs being destroyed.
+//
+// The two surfaces disagreed and the Dashboard is the one he works from, so the strip is the
+// WINDOW'S now. The enabling fact is that a tab key already carries its project where it needs to
+// (`file:<pc>:<path>`, `dash:<pc>`, `how:<pc>`) — so one store can hold several projects' tabs
+// without collision — and `tabPc` answers for the kinds whose key is a path or a namespace.
+let store = null; // { state, subs } — one, for the whole window
 
-const KEY = (pc) => `sv.tabs.${pc}`;
+const KEY = () => "sv.tabs";
 
 export const fileKey = (file) => `file:${file.projectCode || ""}:${file.path}`;
 
@@ -88,7 +102,12 @@ export function fileBranch(urlFile, codePath) {
 //
 // THE CAP IS HIS NUMBER, NOT A GOOD ONE I PICKED. `0` means no cap, which is what the window did
 // before this existed and what anyone who wants the old behaviour sets.
-export const MAX_KEY = (pc) => `sv.tabs.max.${pc}`;
+// THE CAP IS THE WINDOW'S TOO, for the same reason the store is: the cost being capped is the
+// window's — every open tab mounts its own editor — and a per-project number over a shared strip
+// could not mean anything. A window with no cap set starts at the default rather than inheriting
+// the largest per-project number it can find: those numbers were never statements about the
+// window, and one of them was the accident that started this whole thread.
+export const MAX_KEY = () => "sv.tabs.max";
 export const DEFAULT_MAX = 12;
 
 // THE FLOOR, AND IT IS A JUDGEMENT I AM MAKING RATHER THAN A NUMBER HE CHOSE.
@@ -109,9 +128,9 @@ export const DEFAULT_MAX = 12;
 // because a number that is set and does nothing is the other half of this same fault.
 export const MIN_CAP = 3;
 
-export function readMax(pc) {
+export function readMax() {
   try {
-    const raw = localStorage.getItem(MAX_KEY(pc));
+    const raw = localStorage.getItem(MAX_KEY());
     if (raw == null) return DEFAULT_MAX;
     const n = Number(raw);
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_MAX;
@@ -142,10 +161,9 @@ export function capFrom(raw) {
 export function writeMax(pc, n) {
   const v = Math.max(0, Math.floor(Number(n) || 0));
   try {
-    localStorage.setItem(MAX_KEY(pc), String(v));
+    localStorage.setItem(MAX_KEY(), String(v));
   } catch {}
-  const s = storeOf(pc);
-  write(pc, trim(s.state, v));
+  write(pc, trim(storeOf().state, v));
   return v;
 }
 
@@ -196,6 +214,43 @@ const touch = (tab) => ({ ...tab, at: Date.now() });
 const V = 6; // v6: panes are plural — `focus` says which one the verbs act on, `sizes` is the divider
 const EMPTY = () => ({ v: V, panes: [{ tabs: [], active: null }], focus: 0, sizes: [1] });
 
+// EVERY PER-PROJECT STORE THIS WINDOW EVER WROTE, so the change costs him no open document.
+//
+// Merged ONCE, the first time the window store is absent, and the old keys are LEFT ON DISK
+// deliberately: if this merge is wrong, the originals are still there to read. They are never
+// merged twice, because after the first write `sv.tabs` exists and is loaded instead.
+const LEGACY = /^sv\.tabs\.(?!max$)(?!max\.)(.+)$/;
+
+export function mergeLegacy(read, keys) {
+  const tabs = [];
+  const seen = new Set();
+  keys
+    .filter((k) => LEGACY.test(k))
+    .sort()
+    .forEach((k) => {
+      let got = null;
+      try {
+        got = JSON.parse(read(k));
+      } catch {
+        got = null;
+      }
+      if (!got || !Array.isArray(got.panes)) return;
+      got.panes.forEach((pn) => {
+        (pn && Array.isArray(pn.tabs) ? pn.tabs : []).forEach((t) => {
+          if (!t || !t.key || seen.has(t.key)) return;
+          seen.add(t.key);
+          tabs.push(t);
+        });
+      });
+    });
+  if (!tabs.length) return null;
+  // ONE PANE. A split belonged to one project's store, and there is no honest answer to "which
+  // project's divider survives" — so the documents come across and the layout does not.
+  // ACTIVE IS THE MOST RECENTLY TOUCHED, which is the closest thing to "where he was".
+  const active = tabs.slice().sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0))[0];
+  return { v: V, panes: [{ tabs, active: active ? active.key : null }], focus: 0, sizes: [1] };
+}
+
 // THE NARROWEST A PANE MAY BE — a fraction of the centre, not pixels, because the store knows
 // nothing about the viewport. At 12% a pane is still a visible strip with a grabbable tab on it,
 // which is the only property that matters: a pane he cannot grab is a pane he cannot get back.
@@ -214,10 +269,30 @@ const migrate = (raw) => {
   return null; // older than v5 — the shapes really did change meaning, so start fresh
 };
 
-const load = (pc) => {
+const load = () => {
   try {
-    const got = migrate(JSON.parse(localStorage.getItem(KEY(pc))));
+    const got = migrate(JSON.parse(localStorage.getItem(KEY())));
     if (got) return normalize(got);
+  } catch {}
+  // NO WINDOW STORE YET — gather whatever the per-project stores hold, once.
+  try {
+    const merged = mergeLegacy((k) => localStorage.getItem(k), Object.keys(localStorage));
+    if (merged) {
+      // THE CAP MUST NOT EAT THE MIGRATION, and this was measured before it shipped: a browser
+      // carrying 12 tabs in one project and 3 in another merged to 15 and the next open trimmed it
+      // to 12 — three documents gone on the first load of a change whose whole purpose is that
+      // documents stop disappearing. So the merge RAISES the cap to fit what it brought across,
+      // once. The number lands in the cog where he can see it and lower it himself; what it must
+      // never do is enforce a limit he set for one project against the sum of all of them.
+      const n = merged.panes.reduce((a, pn) => a + pn.tabs.length, 0);
+      const cap = readMax();
+      if (cap && n > cap) {
+        try {
+          localStorage.setItem(MAX_KEY(), String(n));
+        } catch {}
+      }
+      return normalize(merged);
+    }
   } catch {}
   return EMPTY();
 };
@@ -301,9 +376,19 @@ function normalize(next) {
   return { v: V, panes: panesOut, focus, sizes };
 }
 
-function storeOf(pc) {
-  if (!stores.has(pc)) stores.set(pc, { state: load(pc), subs: new Set() });
-  return stores.get(pc);
+// THE PROJECT ARGUMENT IS KEPT ON EVERY VERB AND IGNORED HERE. Eight call sites pass it and they
+// are all still correct — they are naming the project they are acting IN, which is what a tab's
+// own `pc` records. Dropping the parameter would have been a rename across five files for no
+// behaviour, and keeping it means a caller that genuinely needs the project later still has it.
+function storeOf() {
+  if (!store) store = { state: load(), subs: new Set() };
+  return store;
+}
+
+// TEST SEAM ONLY — the module caches one store for the life of the page, which is right in a
+// browser and wrong in a suite where each case needs a fresh localStorage.
+export function __resetStore() {
+  store = null;
 }
 
 // THE CAP BITES ON OPEN — AND A RELOAD IS AN OPEN, which is worth saying because the first version
@@ -316,26 +401,26 @@ function storeOf(pc) {
 // at 12. That is the cap doing what it was asked to do, but it happens at a moment he did not
 // obviously cause, so it is stated here rather than left to be discovered.
 function writeCapped(pc, next) {
-  write(pc, trim(next, readMax(pc)));
+  write(pc, trim(next, readMax()));
 }
 
 function write(pc, next) {
-  const s = storeOf(pc);
+  const s = storeOf();
   // NORMALIZED ON THE WAY IN, so no reader ever has to defend itself against an empty pane, a
   // focus pointing past the end, or sizes that do not add up.
   s.state = normalize(next);
   try {
-    localStorage.setItem(KEY(pc), JSON.stringify(s.state));
+    localStorage.setItem(KEY(), JSON.stringify(s.state));
   } catch {}
   s.subs.forEach((f) => f(s.state));
 }
 
 export function getTabs(pc) {
-  return storeOf(pc).state;
+  return storeOf().state;
 }
 
 export function subscribeTabs(pc, fn) {
-  const s = storeOf(pc);
+  const s = storeOf();
   s.subs.add(fn);
   return () => s.subs.delete(fn);
 }
@@ -345,27 +430,27 @@ export function subscribeTabs(pc, fn) {
 // older callers kept working; with two they are not, and `panes[0]` would silently mean "the left
 // one" at every site that happened to be written before the split existed.
 export function focusedPane(pc) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   return s.panes[s.focus] || s.panes[0];
 }
 
 export function paneCount(pc) {
-  return storeOf(pc).state.panes.length;
+  return storeOf().state.panes.length;
 }
 
 export function paneSizes(pc) {
-  return storeOf(pc).state.sizes.slice();
+  return storeOf().state.sizes.slice();
 }
 
 // WHICH PANE HOLDS A TAB — the question the split creates. Returns -1 when nothing does.
 export function paneOf(pc, key) {
-  return storeOf(pc).state.panes.findIndex((p) => p.tabs.some((t) => t.key === key));
+  return storeOf().state.panes.findIndex((p) => p.tabs.some((t) => t.key === key));
 }
 
 // Replace one pane and write. `at` defaults to the focused one, which is what makes every verb
 // below read the same as it did when there was only ever one.
 function onPane(pc, at, fn, focus, cap) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   const i = Number.isInteger(at) ? at : s.focus;
   const pane = s.panes[i];
   if (!pane) return null;
@@ -406,7 +491,7 @@ function onPane(pc, at, fn, focus, cap) {
  * one side, and asking for it again takes you to it.
  */
 export function openTab(pc, tab, opts = {}) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   const already = paneOf(pc, tab.key);
   const want = Number.isInteger(opts.pane) ? opts.pane : s.focus;
   if (already !== -1 && already !== want) {
@@ -454,13 +539,13 @@ export function openTab(pc, tab, opts = {}) {
 export function focusTab(pc, key) {
   const at = paneOf(pc, key);
   if (at === -1) return;
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   if (s.panes[at].active === key && s.focus === at) return;
   onPane(pc, at, (pane) => ({ tabs: pane.tabs.map((t) => (t.key === key ? touch(t) : t)), active: key }), at);
 }
 
 export function focusPane(pc, at) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   if (!s.panes[at] || s.focus === at) return;
   write(pc, { ...s, focus: at });
 }
@@ -468,7 +553,7 @@ export function focusPane(pc, at) {
 // THE DIVIDER. Fractions, in pane order; `normalize` is what makes them legal, so a caller can hand
 // over pixel ratios mid-drag without arithmetic of its own.
 export function setPaneSizes(pc, sizes) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   if (s.panes.length < 2) return;
   write(pc, { ...s, sizes });
 }
@@ -480,7 +565,7 @@ export function setPaneSizes(pc, sizes) {
 // two is what he asked for, and the shape allows more only so that the verbs did not have to assume
 // otherwise.
 export function splitTab(pc, key) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   const from = paneOf(pc, key);
   if (from === -1) return null;
   const tab = s.panes[from].tabs.find((t) => t.key === key);
@@ -502,7 +587,7 @@ export function splitTab(pc, key) {
 // reorder inside one strip does, so dropping onto the far side is as precise as dropping onto this
 // one. A drop that empties the source side collapses it, which is `normalize`'s job, not this one's.
 export function moveTabToPane(pc, key, to, beforeKey) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   const from = paneOf(pc, key);
   if (from === -1 || !s.panes[to] || from === to) return;
   const tab = s.panes[from].tabs.find((t) => t.key === key);
@@ -525,7 +610,7 @@ export function moveTabToPane(pc, key, to, beforeKey) {
 export function closeTab(pc, key) {
   const at = paneOf(pc, key);
   if (at === -1) return null;
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   const pane = s.panes[at];
   const idx = pane.tabs.findIndex((t) => t.key === key);
   const tabs = pane.tabs.filter((t) => t.key !== key);
@@ -566,7 +651,7 @@ export function moveTab(pc, key, beforeKey) {
 //
 // Returns the key now active (null when nothing is left), so the caller knows whether to navigate.
 function closeMany(pc, at, keep, anchorKey) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   const pane = s.panes[at];
   if (!pane) return null;
   const tabs = pane.tabs.filter(keep);
@@ -585,7 +670,7 @@ function closeMany(pc, at, keep, anchorKey) {
 export function closeRight(pc, key) {
   const at = paneOf(pc, key);
   if (at === -1) return focusedPane(pc).active;
-  const idx = storeOf(pc).state.panes[at].tabs.findIndex((t) => t.key === key);
+  const idx = storeOf().state.panes[at].tabs.findIndex((t) => t.key === key);
   return closeMany(pc, at, (_t, i) => i <= idx, key);
 }
 
@@ -598,7 +683,7 @@ export function closeOthers(pc, key) {
 // CLOSE ALL — the focused side. With a split standing, that is his *"close all the tabs on one side
 // and it goes back to regular"* in one press.
 export function closeAll(pc, pane) {
-  const s = storeOf(pc).state;
+  const s = storeOf().state;
   const at = Number.isInteger(pane) ? pane : s.focus;
   return closeMany(pc, at, () => false, null);
 }
@@ -608,7 +693,7 @@ export function closeAll(pc, pane) {
 export function countRight(pc, key) {
   const at = paneOf(pc, key);
   if (at === -1) return 0;
-  const tabs = storeOf(pc).state.panes[at].tabs;
+  const tabs = storeOf().state.panes[at].tabs;
   const idx = tabs.findIndex((t) => t.key === key);
   return idx === -1 ? 0 : tabs.length - idx - 1;
 }

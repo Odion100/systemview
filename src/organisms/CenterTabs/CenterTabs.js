@@ -18,7 +18,7 @@ import {
 } from "../../pages/SystemView/tabsStore";
 import { dropPlan } from "./paneDrag";
 import { iconForTab, TAB_ICONS } from "../../utils/fileIcons";
-import { labelOfTab } from "../../pages/SystemView/tabRoutes";
+import { labelOfTab, tabPc } from "../../pages/SystemView/tabRoutes";
 import "../WallPanel/styles.scss";
 import { hostFiles, machineFiles } from "../../utils/hostFiles";
 import { browseSplit, browseMatch, browseJoin } from "./browse";
@@ -254,7 +254,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
                 ref={active ? (el) => { if (el) try { el.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch {} } : null}
                 className={`doc-tab doc-tab--kind-${t.kind} ${active ? "doc-tab--active" : ""}${fresh.has(t.key) ? " doc-tab--fresh" : ""}${
                   caret === t.key ? " doc-tab--caret" : ""
-                }`}
+                }${tabPc(t, tabsPc) !== tabsPc ? " doc-tab--foreign" : ""}`}
                 // DRAG TO REORDER — the tab is the handle, dropping on a tab puts you where IT
                 // sat, dropping past the row's end sends you last. The store owns the order.
                 draggable
@@ -304,6 +304,14 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
                       </span>
                     );
                   })()}
+                  {/* WHICH PROJECT, WHEN IT IS NOT THIS ONE. The strip spans projects now, so two
+                      `README.md` tabs are otherwise indistinguishable — and a tab whose project is
+                      unsaid is a tab you cannot tell you are about to leave the project for. Shown
+                      only for a FOREIGN tab: stamping every tab with the project you are already in
+                      is noise on the common case. */}
+                  {tabPc(t, tabsPc) !== tabsPc ? (
+                    <span className="doc-tab__pc">{tabPc(t, tabsPc)}</span>
+                  ) : null}
                   {label}
                 </button>
                 <button
