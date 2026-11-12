@@ -635,6 +635,9 @@
   // here, eight were redeclared and these four were not. `themeTokens.test.js` now holds that
   // comparison as a claim, so the next one cannot be added silently.
   --sv-inset: #eef1f7;
+  // The report kind's own green, redeclared here for the same reason as the four above: the glance
+  // header wears it as its stripe, and a document pane is fixed-light whatever mode the app is in.
+  --sv-kind-report: #0d8065;
   --sv-hover: #f1f3fa;
   --sv-blue: #6886ba;
   --sv-blue-deep: #46608f;
@@ -660,6 +663,9 @@
     --sv-blue-deep: #9ab3e2;
     --sv-amber: #d89a2b;
     --sv-accent: #6c74dd;
+    // The report kind's green, dark-mode value — the asymmetry guard exists because a token
+    // redeclared on one side only reaches past this scope on the other and takes the APP's.
+    --sv-kind-report: #3fb795;
   }
 
   // (the .md-chip block moved to TOP LEVEL — chips render outside .markdown too, e.g. chat)
@@ -2750,6 +2756,184 @@
   .md-ask__mark { background: #d9a441; }
 }
 
+// THE REPORT HEADER — the same eight fields, in the same order, at the top of every report.
+//
+// A SPEC SHEET, NOT A CARD: eight hairline-ruled rows, a fixed label column, and as little vertical
+// space as eight fields can occupy. His ask is SCANNING — *"my eyes can easily go to the parts that
+// I want to see and then decide if I want to read the whole thing"* — and a header he has to scroll
+// past has already cost him the decision it exists to make. Density is the brief, so every unit of
+// comfort here is spent on getting the block shorter.
+//
+// IT IS WRITTEN AT `.markdown` DEPTH, AND THAT IS NOT STYLE. The document's own typography styles
+// `& dl dt` and `& dl dd` — 14px bold italic, 15px margins, 15px padding — right for a definition
+// list in prose and wrong here. A single class loses to it (0,1,1 beats 0,1,0), and the first
+// version of this block lost: measured in a browser, the labels rendered at 14px in the markdown
+// scope's GREEN while the rows carried the prose list's double spacing, and eight fields filled
+// half the pane.
+//
+// This shape came out of three hands drawing it independently against one brief, on real reports,
+// and he picked it by looking. The others were a roomy card and a borderless masthead.
+.markdown dl.md-glance {
+  display: grid;
+  // FIXED, NOT `max-content`. max-content measures THIS report's labels, so the value column starts
+  // at a different x in a report whose longest label happened to be shorter. The eight labels never
+  // change, so the column can be a constant — and a constant is what lets him learn the position
+  // once and stop reading labels. 6.8rem clears "NEW FEATURES" at 10.5px tracked, with its padding.
+  // THE FIELDS ARE PLURAL — his catch: a report routinely lands several fixes and more than one
+  // correction, and a singular label quietly argues that it should only have one.
+  grid-template-columns: 6.8rem minmax(0, 1fr);
+  // No gap: the hairlines do the separating, and gutters would just be air to scroll past.
+  gap: 0;
+  // STRETCH, NOT BASELINE. Each cell draws its own row rule, and baseline-aligned cells have
+  // different box heights the moment a value wraps — which puts the label's hairline and the
+  // value's hairline at two different y's and shreds the grid exactly when it is needed most.
+  // Measured in a browser before this was understood: every rule broke in the middle of every row.
+  align-items: stretch;
+  margin: 0.55rem 0 1rem;
+  padding: 0;
+  border: 1px solid var(--sv-border-soft);
+  // The one piece of colour — it identifies the block as the report family's (the hue the registry
+  // row already wears) at the lowest volume that still registers.
+  border-left: 2px solid var(--sv-kind-report, var(--sv-accent));
+  border-radius: 3px;
+  // TRANSPARENT, not a fill. A filled panel is a second band competing with `::callout`'s grey and
+  // `::ask`'s blue; a hairline frame on the page's own ground reads as structure and recedes.
+  background: transparent;
+  // READABLE FIRST, DENSE SECOND. The shape came in at 11.5px and his call on seeing it was that
+  // the structure was right and the text was too small — so the type goes up and the TIGHTNESS
+  // stays: the density in this block is bought with padding and hairlines, not by shrinking the
+  // only part of it anybody reads word by word.
+  font-size: 13.5px;
+  line-height: 1.45;
+  overflow: hidden; // the radius has to clip the row rules, or they poke out at the corners
+
+  // THE QUIET LEFT COLUMN — a key, and after two reports not read at all. Each of these undoes the
+  // prose rule rather than decorating. NOT `--sv-text-faint`: this scope redeclares that token as
+  // #42a942, a green, and eight green labels is the opposite of quiet. Seen in a browser, which is
+  // the only place it was visible.
+  dt.md-glance__label {
+    margin: 0;
+    padding: 0.32rem 0.5rem 0.32rem 0.6rem;
+    border-top: 1px solid var(--sv-border-soft);
+    // The vertical rule is what makes it a table instead of a list — one edge the eye drops down.
+    border-right: 1px solid var(--sv-border-soft);
+    color: var(--sv-text-muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    font-style: normal;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  dd.md-glance__value {
+    margin: 0;
+    padding: 0.32rem 0.6rem 0.32rem 0.55rem;
+    border-top: 1px solid var(--sv-border-soft);
+    min-width: 0;
+    color: var(--sv-text-strong); // the only thing here he actually reads, so it carries the weight
+    overflow-wrap: anywhere;
+  }
+
+  // The first row's rule is the frame's own top border — drawing it twice makes a 2px seam.
+  dt.md-glance__label:first-of-type,
+  dd.md-glance__value:first-of-type {
+    border-top: 0;
+  }
+
+  // COLOUR ON THE FIELDS THEMSELVES, never on a badge above them — his correction after I put a
+  // derived headline at the top and he threw it out: *"get rid of that stupid thing that says
+  // correction at the top… you could potentially use colours on the fields themselves."*
+  //
+  // The LABEL takes it, never the value: the value is prose and has to stay readable; the label is
+  // a key, and a coloured key is how the eye finds one field in eight without reading any of them.
+  // The palette is the document family's — amber is what a gap wears, green a report, blue an RFC.
+  dt.md-glance__label[data-field="corrections"] { color: var(--sv-amber); }
+  dt.md-glance__label[data-field="decisions"] { color: var(--sv-amber); }
+  dt.md-glance__label[data-field="new-features"] { color: var(--sv-kind-report); }
+  dt.md-glance__label[data-field="fixes"] { color: var(--sv-blue); }
+
+  // AND THE COLOUR COMES OFF WHEN THE FIELD IS EMPTY, which is the half that makes it worth having.
+  // An amber `correction` that is amber whether or not there was one is decoration; one that only
+  // lights when the agent broke something is a signal he can scan for.
+  dt.md-glance__label:has(+ dd.md-glance__value--empty) {
+    color: var(--sv-text-muted);
+  }
+
+  // A tint instead of a bordered chip: at this density a box inside a box is noise, and
+  // `--sv-hover` is the one token that sits a half-step off the ground in BOTH modes.
+  .md-glance__code {
+    font-family: Monaco, Consolas, monospace;
+    font-size: 0.88em;
+    padding: 0 0.25em;
+    border: 0;
+    border-radius: 2px;
+    background: var(--sv-hover);
+  }
+
+  // MUTED, NEVER HIDDEN — his *"even if these sections are empty, they're there"*. Eight rows stay
+  // eight rows or the header is a different shape in every report, which is the thing it prevents.
+  // No italic: a spec sheet has no italics, and the colour drop already carries it.
+  dd.md-glance__value--empty {
+    color: var(--sv-text-muted);
+    font-style: normal;
+    opacity: 0.65;
+  }
+}
+
+// The half-written state, while the list is being typed — a DIV, not a `dl`, so the rules above
+// leave it alone and the markdown renders as itself rather than as an empty box.
+.markdown .md-glance--raw {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+// A SPLIT CENTRE (~380px) KEEPS THE TABLE. Stacking would double eight rows into sixteen and throw
+// away the column that is the entire design. A constant label column costs 6.6rem at any width, so
+// the tabular read survives the split; only the padding gives ground.
+@media (max-width: 620px) {
+  .markdown dl.md-glance {
+    grid-template-columns: 6.6rem minmax(0, 1fr);
+
+    dt.md-glance__label {
+      padding: 0.24rem 0.35rem 0.24rem 0.45rem;
+      letter-spacing: 0.05em;
+    }
+
+    dd.md-glance__value {
+      padding: 0.24rem 0.45rem 0.24rem 0.4rem;
+    }
+  }
+}
+
+// A NARROW CENTRE — with the pane split in two, a max-content label column plus a long value
+// leaves the value a few characters wide. Below the split it stacks: label over value, the stripe
+// still carrying the shape.
+@media (max-width: 620px) {
+  .markdown .md-glance {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+
+    dt.md-glance__label { margin-top: 0.55rem; }
+    dt.md-glance__label:first-child { margin-top: 0; }
+  }
+}
+
+// NARROW CENTRE — with a pane split in two, a max-content label column plus a long value is a
+// two-character-wide value column. Below the split the block stacks: label over value, the stripe
+// still carrying the shape.
+@media (max-width: 620px) {
+  .md-glance {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0 0;
+
+    &__label { margin-top: 0.5rem; }
+    &__label:first-child { margin-top: 0; }
+  }
+}
+
 // A CALLOUT is the same band as `::ask`, one weight down: not a thing to do, a thing to know.
 // Neutral rather than blue or amber, so the two asks keep their pull.
 .md-ask--note {
@@ -4230,7 +4414,7 @@
     background: none;
     cursor: pointer;
     font: inherit;
-    font-size: 10px;
+    font-size: 10.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;

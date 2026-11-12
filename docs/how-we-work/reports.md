@@ -1,5 +1,30 @@
 # Reports
 
+
+## Every report opens with the same eight fields
+
+`:::glance`, directly under the leaf — **agent · run · new features · fixes · corrections ·
+decisions · live · checked** — all eight, in that order, in every report, including the ones with
+nothing to say.
+
+The fixed shape is the whole feature. A reader learns the positions once and after two reports
+stops reading the labels at all; a header that changes shape per report gives that up and makes
+every report a fresh act of decoding. His ask, 2026-11-11: *"I want to be able to look and see the
+same things across every report… when reports all follow the same procedure, it becomes easy to
+consume any report."*
+
+Three rules that are not style:
+
+- **`none` is not `not stated`.** One says there was none; the other says this report does not say.
+- **`corrections` is the author's OWN work that was wrong and got put right** — kept apart from
+  `fixes` because it is the field worth scanning for, and because an account that repairs its
+  author's work does not otherwise admit it. Measured across 34 reports: the field came back empty
+  on reports that were corrections.
+- **`run` is what opened the work** — the job, the skill, the RFC execution, or his ask. On those
+  same 34, not one had recorded it.
+
+`report-authoring` §1 is the procedure; `agents/markdown.md` has the block's syntax.
+
 ## A report is a document that goes away
 
 That is the whole of it, and every other rule here answers to it. Reports exist so work can be

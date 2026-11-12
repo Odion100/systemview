@@ -2,6 +2,7 @@ import React from "react";
 import NsLink from "./blocks/NsLink";
 import FileLink from "./blocks/FileLink";
 import { Callout, Details, Columns, Col, Tabs, Tab, Carousel, Slide } from "./blocks/Structure";
+import Glance from "./blocks/Glance";
 import UiLink from "./blocks/UiLink";
 import ChartEmbed from "./blocks/ChartEmbed";
 import TestEmbed from "./blocks/TestEmbed";
@@ -148,6 +149,11 @@ export const BLOCKS = {
   branch: { Component: BranchBlock },
   // structure
   callout: { Component: Callout },
+  // THE REPORT HEADER — the same fields in the same order in every report, so a reader's eye lands
+  // in the same place twice. Its own block rather than a dressed-up callout: a callout is a thing
+  // to KNOW and this is neither that nor an ask, and borrowing one would have cost the two asks
+  // their pull. See blocks/Glance.js for why an empty field is muted rather than hidden.
+  glance: { Component: Glance },
   details: { Component: Details },
   columns: { Component: Columns },
   col: { Component: Col },

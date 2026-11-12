@@ -726,6 +726,40 @@ read the answer. There is no second store to consult.
 Clicking a chosen answer or verdict again CLEARS it — the attribute is removed, not blanked. So
 "absent" always means "not answered", never "answered with nothing".
 
+## `:::glance` — the fixed header every report opens with
+
+```markdown
+:::glance
+- **agent** — systemview-test
+- **run** — the proactive-development job
+- **new features** — none
+- **fixes** — the URL decides whether a file is open, not a prop a render behind
+- **corrections** — none
+- **decisions** — none
+- **live** — `src/` only, the bundle is rebuilt and swapped
+- **checked** — 2675 window · 453 hub · 23 cli · verify green
+:::
+```
+
+Renders as a ruled label/value table directly under the report's leaf. **Eight fields, in that
+order, in every report, including the ones with nothing to say** — the fixed shape is the point: a
+reader learns the positions once and stops reading labels.
+
+- **`none` and `not stated` are different.** `none` says there was none; `not stated` says the
+  report does not say. The renderer mutes both and they read differently, because collapsing them
+  lets a gap in the writing pass as an answer about the work.
+- **`corrections` is work of your OWN that was wrong and got put right** — separate from `fixes` on
+  purpose. Its label lights amber when it has something, so it can be scanned for.
+- **Colour rides the label and only when the field has content** — `fixes` blue, `new features`
+  green, `corrections` and `decisions` amber. An always-coloured label is decoration; one that
+  lights only when there is something is a signal.
+- **Backtick any `word:word` value** — `` `job:proactive-development` ``. Bare, it parses as a
+  directive and is eaten.
+- It reads the list out of the document's own source, so the file still reads as a plain markdown
+  list in an editor or a diff.
+
+Writing one is `report-authoring`'s step 1; it is not optional there.
+
 ## The document right-click menu (what a human has, so you know what they'll do)
 
 - **🎧 Listen to this** / **🎧 Listen to the whole document** — reads aloud in the voice of the chat
