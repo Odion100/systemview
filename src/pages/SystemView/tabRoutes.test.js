@@ -124,8 +124,11 @@ describe("tabForUrl — which tab a URL state wants", () => {
 
   it("maps each kind to the key that identifies it", () => {
     expect(tabForUrl({ ...S, urlTab: "logs" }).key).toBe("logs:svc.Mod.fn");
-    expect(tabForUrl({ ...S, urlTab: "dash" }).key).toBe("dash:p");
-    expect(tabForUrl({ ...S, urlTab: "how" }).key).toBe("how:p");
+    // ONE DASHBOARD AND ONE HANDBOOK FOR THE WINDOW. These used to be `dash:p` / `how:p`, and that
+    // put a project name on two surfaces that span every project — his: "How the fuck the dashboard
+    // is across all the projects? It says manager."
+    expect(tabForUrl({ ...S, urlTab: "dash" }).key).toBe("dash");
+    expect(tabForUrl({ ...S, urlTab: "how" }).key).toBe("how");
     expect(tabForUrl({ ...S, urlTab: "board" }).key).toBe("board:p");
     expect(tabForUrl({ ...S, urlTab: "stats" }).key).toBe("stats:p");
     expect(tabForUrl({ ...S, urlTab: "cmds" }).key).toBe("cmds:p");
@@ -145,7 +148,7 @@ describe("tabForUrl — which tab a URL state wants", () => {
   });
 
   it("the floor is a real addressable tab, and @none is never seeded into", () => {
-    expect(floorTab("p")).toEqual({ key: "how:p", kind: "how", pc: "p" });
+    expect(floorTab()).toEqual({ key: "how", kind: "how" });
     expect(seedable("p")).toBe(true);
     // `@none` is what tabsPc wears before the project resolves on a cold start — a real cached
     // store with its own localStorage key that no surface will ever show again.
@@ -177,9 +180,16 @@ describe("tabPc — which project a tab belongs to", () => {
   });
 
   it("reads it off a project-keyed key, for tabs written before pc existed", () => {
-    expect(tabPc({ key: "dash:alpha", kind: "dash" }, "beta")).toBe("alpha");
     expect(tabPc({ key: "board:alpha", kind: "board" }, "beta")).toBe("alpha");
-    expect(tabPc({ key: "how:alpha", kind: "how" }, "beta")).toBe("alpha");
+    expect(tabPc({ key: "stats:alpha", kind: "stats" }, "beta")).toBe("alpha");
+  });
+
+  it("answers NOTHING for the dashboard and the handbook, which belong to no project", () => {
+    // Even for a legacy `dash:manager` key, and especially then: that suffix is the project that
+    // happened to be in the URL when the tab was made, and showing it is the bug he reported.
+    expect(tabPc({ key: "dash", kind: "dash" }, "beta")).toBe("");
+    expect(tabPc({ key: "dash:manager", kind: "dash", pc: "manager" }, "beta")).toBe("");
+    expect(tabPc({ key: "how", kind: "how" }, "beta")).toBe("");
   });
 
   it("falls back to the URL's project when the tab cannot say — which is what everything used to do", () => {
@@ -205,8 +215,9 @@ describe("buildRoute follows the tab, not the URL", () => {
     expect(q(r).rdoc).toBe("reports/x.md");
   });
 
-  it("sends a foreign DASHBOARD tab to its own project", () => {
-    expect(buildRoute({ kind: "dash", key: "dash:alpha", pc: "alpha" }, "beta", "").pathname).toBe("/specs/alpha");
+  it("leaves the DASHBOARD where you already are — it shows the same thing from any project", () => {
+    expect(buildRoute({ kind: "dash", key: "dash" }, "beta", "").pathname).toBe("/specs/beta");
+    expect(buildRoute({ kind: "how", key: "how" }, "beta", "").pathname).toBe("/specs/beta");
   });
 
   it("still uses the URL's project for a tab that belongs to no particular one", () => {
@@ -224,8 +235,13 @@ describe("tabForUrl stamps the project on every tab it plans", () => {
   });
 
   it("and on the ones whose key already did, so nothing has to parse a key to find out", () => {
-    expect(tabForUrl({ urlTab: "dash", projectCode: "alpha" }).pc).toBe("alpha");
     expect(tabForUrl({ urlTab: "board", projectCode: "alpha" }).pc).toBe("alpha");
-    expect(floorTab("alpha").pc).toBe("alpha");
+    expect(tabForUrl({ urlTab: "stats", projectCode: "alpha" }).pc).toBe("alpha");
+  });
+
+  it("stamps NO project on the dashboard or the handbook", () => {
+    expect(tabForUrl({ urlTab: "dash", projectCode: "alpha" }).pc).toBeUndefined();
+    expect(tabForUrl({ urlTab: "how", projectCode: "alpha" }).pc).toBeUndefined();
+    expect(floorTab().pc).toBeUndefined();
   });
 });

@@ -220,7 +220,7 @@ export default function Documentation({
     const open = getTabs(tabsPc);
     if (open.panes.every((pn) => pn.tabs.length === 0)) {
       seeded.current = tabsPc;
-      openTab(tabsPc, floorTab(tabsPc));
+      openTab(tabsPc, floorTab());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabsPc, urlTab, urlFile, reportPath, sService, sModule, sMethod, codeFile && codeFile.path, codeFile && codeFile.projectCode, codeFile && String(codeFile.lines), codeFile && codeFile.side]);
@@ -660,13 +660,13 @@ export default function Documentation({
             One element in between and that rule stopped matching, so the panel lost the one
             property that lets a flex child scroll instead of stretching. He found it in a minute:
             *"suddenly the dashboard cannot be scrolled, or is stretching too long."* */}
-        {!hidden && holdsKey(pn, `dash:${tabsPc}`) && (
-          <div className={`documentation-view__data-table${showsKey(pn, i, `dash:${tabsPc}`, tab === "dash") ? "" : " doc-kept-away"}`}>
+        {!hidden && holdsKey(pn, "dash") && (
+          <div className={`documentation-view__data-table${showsKey(pn, i, "dash", tab === "dash") ? "" : " doc-kept-away"}`}>
             <DashboardSwitch projectCode={tabsPc} />
           </div>
         )}
-        {!hidden && holdsKey(pn, `how:${tabsPc}`) && (
-          <div className={`documentation-view__data-table${showsKey(pn, i, `how:${tabsPc}`, tab === "how") ? "" : " doc-kept-away"}`}>
+        {!hidden && holdsKey(pn, "how") && (
+          <div className={`documentation-view__data-table${showsKey(pn, i, "how", tab === "how") ? "" : " doc-kept-away"}`}>
             <HowWeWork />
           </div>
         )}

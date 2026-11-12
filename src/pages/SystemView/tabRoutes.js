@@ -7,7 +7,9 @@ export function buildRoute(t, fallbackPc, currentSearch) {
   // the project in the URL is the project you are LEAVING — building a foreign tab's route from it
   // lands on `/specs/<wrong>` with a `file=` that project does not have, which renders as an
   // absence and reads as the tab being broken.
-  const pc = tabPc(t, fallbackPc);
+  // A TAB THAT BELONGS TO NO PROJECT still has to land somewhere, and where it lands is wherever
+  // you already are — the dashboard shows the same thing from any of them.
+  const pc = tabPc(t, fallbackPc) || fallbackPc;
   const p = new URLSearchParams(currentSearch || "");
   ["file", "fproj", "fsvc", "flang", "flines", "fside", "fnav", "ftab", "fmachine", "help"].forEach((k) => p.delete(k));
   if (t.kind === "file") {
@@ -152,8 +154,21 @@ export function tabForUrl({ urlTab, sService, sModule, sMethod, reportPath, proj
     // watching, so the key IS the place.
     return { key: `logs:${ns}`, kind: "logs", pc, logs: { serviceId: sService, moduleName: sModule, methodName: sMethod } };
   if (urlTab === "links" || urlTab === "cmds") return { key: `${urlTab}:${projectCode}`, kind: urlTab, pc };
-  if (urlTab === "dash") return { key: `dash:${projectCode}`, kind: "dash", pc };
-  if (urlTab === "how") return { key: `how:${projectCode}`, kind: "how", pc };
+  // THE DASHBOARD AND HOW-WE-WORK BELONG TO NO PROJECT, so they are ONE TAB EACH for the window.
+  //
+  // His, 2026-11-12: *"How the fuck the dashboard is across all the projects? So how is it ending
+  // up on the dashboard? It says manager."* The dashboard lists every arc, RFC, gap and report
+  // ACROSS every project — it has always said so in its own tooltip — and it was nevertheless
+  // keyed `dash:<pc>`, so the window could hold four of them, each wearing the project that
+  // happened to be in the URL when it was opened. Same for how-we-work: one handbook, and a copy
+  // of it per project is the same page four times.
+  //
+  // And his wider ruling, which is what this whole slice is: *"there shouldn't be any set of tabs
+  // per project… this should be able to open any file in the system."* A board or a stats page is
+  // a view OF a project and legitimately differs between them, the way two files do. A dashboard
+  // that spans projects is not.
+  if (urlTab === "dash") return { key: "dash", kind: "dash" };
+  if (urlTab === "how") return { key: "how", kind: "how" };
   if (urlTab === "board") return { key: `board:${projectCode}`, kind: "board", pc };
   if (urlTab === "stats") return { key: `stats:${projectCode}`, kind: "stats", pc };
   if (urlTab === "reports")
@@ -170,9 +185,13 @@ export function tabForUrl({ urlTab, sService, sModule, sMethod, reportPath, proj
 // project in the URL, which is what every tab used to be routed by.
 export function tabPc(t, fallback) {
   if (!t) return fallback || "";
+  // THE TWO THAT BELONG TO NOBODY. Answering a project for these is what put `manager` on his
+  // dashboard — a label naming the project he happened to be in when the tab was made, on a
+  // surface whose whole point is that it spans them.
+  if (t.kind === "dash" || t.kind === "how") return "";
   if (t.pc) return t.pc;
   if (t.kind === "file" && t.file && t.file.projectCode) return t.file.projectCode;
-  const keyed = /^(dash|how|board|stats|links|cmds):(.+)$/.exec(String(t.key || ""));
+  const keyed = /^(board|stats|links|cmds):(.+)$/.exec(String(t.key || ""));
   if (keyed) return keyed[2];
   return fallback || "";
 }
@@ -180,7 +199,7 @@ export function tabPc(t, fallback) {
 // THE FLOOR — How-we-work as a real, selected, closable tab rather than a page nobody can address.
 // Separate from `tabForUrl` on purpose: this is the only decision that needs to know the strip is
 // EMPTY, and keeping it out of the planner is what keeps the planner unable to feed back.
-export const floorTab = (projectCode) => ({ key: `how:${projectCode}`, kind: "how", pc: projectCode });
+export const floorTab = () => ({ key: "how", kind: "how" });
 
 // IS THIS A PROJECT WORTH SEEDING A FLOOR INTO? `@none` is the placeholder `tabsPc` wears before
 // the project resolves on a cold start, and seeding it wrote a tab into a store no surface will

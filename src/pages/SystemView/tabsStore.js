@@ -311,11 +311,47 @@ const load = () => {
 //   2. `focus` names a pane that exists.
 //   3. `sizes` has one entry per pane, each > 0, summing to 1.
 //   4. A pane's `active` names one of its own tabs, or is null.
+// THE TWO KEYS THAT USED TO CARRY A PROJECT AND SHOULD NOT. A window that merged four per-project
+// stores came out holding four dashboards, each badged with whichever project was in the URL when
+// it was made — his: *"How the fuck the dashboard is across all the projects?"* Collapsing them
+// here rather than only at the merge is deliberate: a window that ALREADY merged has them on disk,
+// and `normalize` is the one thing every load and every write passes through, so the heal reaches
+// a store that was written before this existed.
+const canonKey = (key) => {
+  const k = String(key || "");
+  if (/^dash:/.test(k)) return "dash";
+  if (/^how:/.test(k)) return "how";
+  return k;
+};
+
 function normalize(next) {
   const panes = (next.panes || []).map((p) => ({
     tabs: Array.isArray(p.tabs) ? p.tabs : [],
     active: p.active || null,
   }));
+  // CANONICALISE, THEN DEDUPE ACROSS THE WHOLE WINDOW — four `dash:<pc>` tabs become one `dash`,
+  // and the survivor is the most recently touched, because that is the one he was last on.
+  const bestAt = new Map();
+  panes.forEach((p) =>
+    p.tabs.forEach((t) => {
+      const k = canonKey(t.key);
+      const at = Number(t.at) || 0;
+      if (!bestAt.has(k) || at > bestAt.get(k)) bestAt.set(k, at);
+    }),
+  );
+  const taken = new Set();
+  panes.forEach((p) => {
+    p.tabs = p.tabs
+      .map((t) => (canonKey(t.key) === t.key ? t : { ...t, key: canonKey(t.key), kind: t.kind, pc: undefined }))
+      .filter((t) => {
+        if (taken.has(t.key)) return false;
+        // Of several copies, keep the one carrying the newest stamp.
+        if (bestAt.get(t.key) !== (Number(t.at) || 0) && bestAt.get(t.key) > 0) return false;
+        taken.add(t.key);
+        return true;
+      });
+    p.active = p.active ? canonKey(p.active) : null;
+  });
   // 1 · prune the empty ones, remembering where focus was pointing so it can follow its pane.
   const keep = [];
   const kept = [];

@@ -254,7 +254,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
                 ref={active ? (el) => { if (el) try { el.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch {} } : null}
                 className={`doc-tab doc-tab--kind-${t.kind} ${active ? "doc-tab--active" : ""}${fresh.has(t.key) ? " doc-tab--fresh" : ""}${
                   caret === t.key ? " doc-tab--caret" : ""
-                }${tabPc(t, tabsPc) !== tabsPc ? " doc-tab--foreign" : ""}`}
+                }`}
                 // DRAG TO REORDER — the tab is the handle, dropping on a tab puts you where IT
                 // sat, dropping past the row's end sends you last. The store owns the order.
                 draggable
@@ -304,14 +304,16 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
                       </span>
                     );
                   })()}
-                  {/* WHICH PROJECT, WHEN IT IS NOT THIS ONE. The strip spans projects now, so two
-                      `README.md` tabs are otherwise indistinguishable — and a tab whose project is
-                      unsaid is a tab you cannot tell you are about to leave the project for. Shown
-                      only for a FOREIGN tab: stamping every tab with the project you are already in
-                      is noise on the common case. */}
-                  {tabPc(t, tabsPc) !== tabsPc ? (
-                    <span className="doc-tab__pc">{tabPc(t, tabsPc)}</span>
-                  ) : null}
+                  {/* WHICH PROJECT THIS DOCUMENT IS FROM — ALWAYS, or never.
+                      It was shown only on a FOREIGN tab, and his: *"it goes away when you go into
+                      the tab, which is weird… either it's showing all the time or it's not."* He is
+                      right, and the cause is that clicking a foreign tab NAVIGATES to its project,
+                      so by the time you are looking at it it is not foreign any more. A label that
+                      disappears when you select the thing it labels is worse than no label.
+                      `tabPc` answers "" for the dashboard and how-we-work, which belong to no
+                      project — so those two carry nothing rather than wearing whichever project
+                      happened to be in the URL when they were opened. */}
+                  {tabPc(t, "") ? <span className="doc-tab__pc">{tabPc(t, "")}</span> : null}
                   {label}
                 </button>
                 <button
@@ -385,7 +387,7 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
               const d = { kind: "dash", projectCode: tabsPc };
               window.dispatchEvent(new CustomEvent("sv:openCenterKind", { detail: d }));
               if (d.handled) return;
-              const t = { key: `dash:${tabsPc}`, kind: "dash" };
+              const t = { key: "dash", kind: "dash" };
               openTab(tabsPc, t);
               if (onOpen) onOpen(t);
             }}

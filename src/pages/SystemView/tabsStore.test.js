@@ -643,10 +643,45 @@ describe("tabs from different projects stand in ONE strip", () => {
     expect(getTabs("alpha").panes[0].tabs).toHaveLength(2);
   });
 
-  it("keeps each project's own dashboard as its own tab rather than one that follows you", () => {
+  // THIS TEST USED TO ASSERT THE OPPOSITE — "keeps each project's own dashboard as its own tab" —
+  // and it was wrong the moment the strip became the window's. His, 2026-11-12: *"How the fuck the
+  // dashboard is across all the projects? So how is it ending up on the dashboard? It says
+  // manager."* A dashboard that spans every project cannot have four copies wearing four project
+  // names. Same for how-we-work: one handbook.
+  it("holds ONE dashboard and ONE how-we-work, because neither belongs to a project", () => {
     openTab("alpha", { key: "dash:alpha", kind: "dash", pc: "alpha" });
     openTab("beta", { key: "dash:beta", kind: "dash", pc: "beta" });
-    expect(getTabs("beta").panes[0].tabs.map((t) => t.key)).toEqual(["dash:alpha", "dash:beta"]);
+    openTab("alpha", { key: "how:alpha", kind: "how" });
+    openTab("beta", { key: "how:beta", kind: "how" });
+    expect(getTabs("beta").panes[0].tabs.map((t) => t.key)).toEqual(["dash", "how"]);
+  });
+
+  it("collapses the per-project copies a MERGED window is already carrying on disk", () => {
+    // The heal lives in `normalize`, not only in the merge, because a window that merged before
+    // this existed has four dashboards written to `sv.tabs` already.
+    localStorage.setItem(
+      "sv.tabs",
+      JSON.stringify({
+        v: 6,
+        panes: [
+          {
+            tabs: [
+              { key: "dash:manager", kind: "dash", at: 5 },
+              { key: "dash:BUApp", kind: "dash", at: 9 },
+              { key: "file:alpha:a.js", kind: "file", at: 7, file: { path: "a.js", projectCode: "alpha" } },
+            ],
+            active: "dash:manager",
+          },
+        ],
+        focus: 0,
+        sizes: [1],
+      }),
+    );
+    __resetStore();
+    const got = getTabs("alpha");
+    expect(got.panes[0].tabs.map((t) => t.key)).toEqual(["dash", "file:alpha:a.js"]);
+    // and the tab he was ON is still the one selected, under its new key
+    expect(got.panes[0].active).toBe("dash");
   });
 
   it("writes ONE key, so there is no per-project store to disagree with it", () => {
