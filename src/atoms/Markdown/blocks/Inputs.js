@@ -9,7 +9,7 @@ import { useMarkdownWrite } from "../context";
 //   ::question[Do embeds complement panes, or replace them?]{id=fork options=complement|replace}
 // An answered question keeps `answer=…` in its own attributes, which is also how an agent reads the
 // verdict back off disk.
-export const Question = ({ label, attrs = {}, line, children = null }) => {
+export const Question = ({ label, attrs = {}, line, kind = "leaf", children = null }) => {
   const { editable, setAttr } = useMarkdownWrite();
   const options = String(attrs.options || "")
     .split("|")
@@ -61,7 +61,7 @@ export const Question = ({ label, attrs = {}, line, children = null }) => {
           A question with no context is the one most likely to be answered wrongly, and the author
           had nowhere to put the context except the paragraph before the block, where it is not
           part of the question and does not travel with it. */}
-      {children ? <div className="md-input__body">{children}</div> : null}
+      {kind === "container" && children ? <div className="md-input__body">{children}</div> : null}
       <div className="md-input__options">
         {unquoted ? (
           <span className="md-input__hint">

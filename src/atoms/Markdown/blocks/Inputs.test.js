@@ -9,7 +9,7 @@ describe("a question can carry prose", () => {
   it("renders a body when it has one, and the leaf form is untouched", () => {
     const { container, rerender } = render(
       <MarkdownWriteProvider value={{ editable: true, setAttr: () => {} }}>
-        <Question label="host or sender?" attrs={{ options: "host|sender" }} line={3}>
+        <Question label="host or sender?" attrs={{ options: "host|sender" }} line={3} kind="container">
           <p>why it matters</p>
         </Question>
       </MarkdownWriteProvider>,
@@ -23,10 +23,26 @@ describe("a question can carry prose", () => {
     expect(container.querySelector(".md-input__body")).toBeNull();
   });
 
+  // THE REGRESSION, PINNED. A LEAF directive's children ARE its label text — so rendering children
+  // without checking the form printed every one-line question a second time underneath itself.
+  // His: "drop one without prose and see that the question repeats itself in the body."
+  it("does NOT echo the label when the one-line form is given its own label as children", () => {
+    const { container } = render(
+      <MarkdownWriteProvider value={{ editable: true, setAttr: () => {} }}>
+        <Question label="host or sender?" attrs={{ options: "host|sender" }} line={3} kind="leaf">
+          host or sender?
+        </Question>
+      </MarkdownWriteProvider>,
+    );
+    expect(container.querySelector(".md-input__body")).toBeNull();
+    expect(container.querySelectorAll(".md-input__label")).toHaveLength(1);
+    expect(container.textContent.match(/host or sender\?/g)).toHaveLength(1);
+  });
+
   it("puts the body AFTER the question and BEFORE the options", () => {
     const { container } = render(
       <MarkdownWriteProvider value={{ editable: true, setAttr: () => {} }}>
-        <Question label="q" attrs={{ options: "a|b" }} line={1}>
+        <Question label="q" attrs={{ options: "a|b" }} line={1} kind="container">
           <p>context</p>
         </Question>
       </MarkdownWriteProvider>,
