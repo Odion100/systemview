@@ -85,7 +85,30 @@ const Decision = ({ attrs = {}, label = "", line, children }) => {
           lose the thing worth keeping — the reader a year out is asking what the choice WAS. */}
       {label ? <div className="md-decision__question">{label}</div> : null}
       {state === "open" ? (
-        <div className="md-decision__pending">Open — nothing chosen yet</div>
+        // AN OPEN DECISION THAT ALREADY CARRIES AN ANSWER IS A REAL STATE, and rendering it as
+        // "nothing chosen yet" was this block LYING about its own contents. Found by reading the
+        // first live meeting that used it (BUApp, 2026-11-12): a block carrying `chose=`, `over=`
+        // and `by=odion` — his answer, written down, not yet closed — drew as though nobody had
+        // said anything. That is the worst failure available to a record: contradicting the data
+        // it is displaying.
+        //
+        // It is a legitimate thing to want: an answer captured in the room, left open because it
+        // has not been confirmed. So it says both — what was answered, and that it is not closed.
+        chose ? (
+          <div className="md-decision__outcome md-decision__outcome--unclosed">
+            <span className="md-decision__chose">{chose}</span>
+            {over.length ? (
+              <span className="md-decision__over">
+                over {over.map((o) => (
+                  <span key={o} className="md-decision__alt">{o}</span>
+                ))}
+              </span>
+            ) : null}
+            <span className="md-decision__unclosed">answered, not closed</span>
+          </div>
+        ) : (
+          <div className="md-decision__pending">Open — nothing chosen yet</div>
+        )
       ) : (
         <div className="md-decision__outcome">
           {chose ? (

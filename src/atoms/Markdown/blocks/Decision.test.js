@@ -124,9 +124,47 @@ describe("the ::decisions roll-up", () => {
         "::decision[c]{id=d3 state=decided chose=right ratify=autobot}",
       ].join("\n"),
     );
-    expect(screen.getByText("1 open")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("2 decided")).toBeInTheDocument();
+    expect(screen.getByText("1 open")).toBeInTheDocument();
     expect(screen.getByText("1 awaiting approval")).toBeInTheDocument();
+  });
+
+  // His, 2026-11-12: "just like claims, a planning report has decisions… you can add a progress bar
+  // there." And then, after I copied the claims ledger wholesale: *"it had its own look and with
+  // slight modification it could have showed progress too. You went and copied."* So the bar is
+  // THIS block's — segments in the colours of the chips below it, which are its own vocabulary —
+  // and these assertions pin that it is not wearing `pl`.
+  it("carries a progress bar made of its OWN chips, not the claims ledger", () => {
+    const { container } = roll(
+      [
+        "::decision[a]{id=d1 state=decided chose=x}",
+        '::decision[b]{id=d2 state=open chose="said, not closed"}',
+        "::decision[c]{id=d3}",
+        "::decision[d]{id=d4}",
+      ].join("\n"),
+    );
+    expect(container.querySelector(".pl__bar")).toBeNull();
+    const bar = container.querySelector(".md-decisions__bar");
+    expect(bar).toBeTruthy();
+    // 1 of 4 closed, 1 of 4 answered-not-closed — two separate segments, never summed into one
+    expect(bar.querySelector(".is-decided").style.width).toBe("25%");
+    expect(bar.querySelector(".is-answered").style.width).toBe("25%");
+    expect(screen.getByText("1 answered, not closed")).toBeInTheDocument();
+  });
+
+  it("leaves OPEN as the empty remainder of the track, never as a segment", () => {
+    const { container } = roll(["::decision[a]{id=d1 state=decided chose=x}", "::decision[b]{id=d2}"].join("\n"));
+    const bar = container.querySelector(".md-decisions__bar");
+    expect(bar.querySelector(".is-decided").style.width).toBe("50%");
+    expect(bar.querySelector(".is-open")).toBeNull();
+  });
+
+  it("gives a REVERSED decision its own segment, because it is not progress", () => {
+    const { container } = roll(["::decision[a]{id=d1 state=decided chose=x}", "::decision[b]{id=d2 state=reversed chose=y}"].join("\n"));
+    const bar = container.querySelector(".md-decisions__bar");
+    expect(bar.querySelector(".is-reversed").style.width).toBe("50%");
+    expect(screen.getByText("1 reversed")).toBeInTheDocument();
   });
 
   it("says WHOSE answer is missing, and keeps the unowned visible", () => {

@@ -1,6 +1,7 @@
 import React from "react";
 import { useDocMembers } from "../context";
 import { decisionsOf, owedBy } from "../decisions";
+import { fillStyle } from "../../meterWidth";
 
 // `::decisions` — WHAT THIS DOCUMENT HAS SETTLED AND WHAT IT STILL OWES, recounted off the
 // `::decision` blocks in the same document on every render.
@@ -45,11 +46,29 @@ const Decisions = () => {
         <span className="md-decisions__kind">decisions</span>
         <span className="md-decisions__total">{got.total}</span>
       </div>
+      {/* THE BAR IS THE CHIPS, LAID OUT TO SCALE — and that is the whole idea, because the chips
+          below it are already this block's own vocabulary. Each segment is the colour of the chip
+          it belongs to, so the row underneath IS the legend and nothing has to be explained.
+          There is no percentage beside it: the head already carries the total, and a `%` next to a
+          big number is `::claims`' idea, not this one's. His, after I made exactly that mistake by
+          wholesale-copying the claims ledger: *"it had its own look and with slight modification it
+          could have showed progress too."* */}
+      <div className="md-decisions__bar" aria-hidden="true">
+        <i className="is-decided" style={fillStyle(got.decided, got.total)} />
+        <i className="is-answered" style={fillStyle(got.answered, got.total)} />
+        <i className="is-awaiting" style={fillStyle(got.awaiting, got.total)} />
+        <i className="is-reversed" style={fillStyle(got.reversed, got.total)} />
+      </div>
       <div className="md-decisions__counts">
         <span className="md-decisions__count md-decisions__count--decided">{got.decided} decided</span>
         <span className={`md-decisions__count md-decisions__count--open${got.open ? "" : " is-zero"}`}>
           {got.open} open
         </span>
+        {got.answered ? (
+          <span className="md-decisions__count md-decisions__count--answered">
+            {got.answered} answered, not closed
+          </span>
+        ) : null}
         {got.awaiting ? (
           <span className="md-decisions__count md-decisions__count--awaiting">
             {got.awaiting} awaiting approval

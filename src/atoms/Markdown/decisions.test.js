@@ -42,6 +42,24 @@ describe("a decision is a record, not an approval", () => {
     expect(d.by).toEqual(["systemview-test"]);
   });
 
+  // FOUND BY READING THE FIRST LIVE MEETING THAT USED THIS BLOCK (BUApp, 2026-11-12): a block
+  // carrying chose=, over= and by=odion while still state=open — his answer, captured in the room,
+  // not yet closed. The renderer drew it as "nothing chosen yet", contradicting its own contents.
+  it("knows an OPEN decision can already carry the answer somebody gave in the room", () => {
+    const [d] = parseDecisions('::decision[q]{state=open chose="the host" by=odion}');
+    expect(d.state).toBe("open");
+    expect(d.answered).toBe(true);
+    expect(d.chose).toBe("the host");
+  });
+
+  it("is not 'answered' when it is merely open", () => {
+    expect(parseDecisions("::decision[q]{}")[0].answered).toBe(false);
+  });
+
+  it("is not 'answered' once it is closed — that is just decided", () => {
+    expect(parseDecisions('::decision[q]{state=decided chose=x}')[0].answered).toBe(false);
+  });
+
   it("says out loud that a decision was recorded with nothing chosen", () => {
     const [d] = parseDecisions('::decision[q]{state=decided}');
     expect(d.unsaid).toBe(true);
@@ -97,6 +115,22 @@ describe("the count a ::decisions block draws", () => {
 
   it("counts a decision recorded with nothing chosen, because that record is the wrong half", () => {
     expect(decisionsOf(src).unsaid).toBe(1);
+  });
+
+  it("counts what was answered in the room but not closed, apart from what is simply open", () => {
+    const got = decisionsOf(
+      ["::decision[a]{id=d1}", '::decision[b]{id=d2 state=open chose="his words" by=odion}'].join("\n"),
+    );
+    expect(got.open).toBe(2);
+    expect(got.answered).toBe(1);
+  });
+
+  it("counts what was answered in the room but not closed, apart from what is simply open", () => {
+    const got = decisionsOf(
+      ["::decision[a]{id=d1}", '::decision[b]{id=d2 state=open chose="his words" by=odion}'].join("\n"),
+    );
+    expect(got.open).toBe(2);
+    expect(got.answered).toBe(1);
   });
 
   it("is all zeroes for a document with none, rather than throwing", () => {

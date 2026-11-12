@@ -110,6 +110,11 @@ export function parseDecisions(source) {
       // unexplained blocked objective is. A reader cannot otherwise tell "nobody wrote what was
       // chosen" from "there was nothing to choose".
       unsaid: state === "decided" && !chose,
+      // THE MIRROR OF `unsaid`, and it came out of the first live meeting that used this block: an
+      // OPEN decision already carrying the answer somebody gave in the room. It is a legitimate
+      // state — captured, not confirmed — and counting it as plainly "open" told him 12 were owed
+      // by him when one of them had his own words in it.
+      answered: state === "open" && !!chose,
       by: names(attrOf(attrs, "by")),
       at: Number(attrOf(attrs, "at")) || 0,
       ratify,
@@ -134,9 +139,13 @@ export function decisionsOf(source) {
     // a decision and an approval are different acts.
     awaiting: decided.filter((d) => d.awaiting).length,
     // MADE AND NOT EXPLAINED. Counted separately rather than folded into `decided`, because a
-    // decision with no `chose=` is a record of the wrong half: it says the fork closed and not
+    // decision with no `chose=` is a record of the wrong half: it says the choice was made and not
     // which way, which is worse than leaving it open.
     unsaid: decided.filter((d) => d.unsaid).length,
+    // ANSWERED IN THE ROOM, NOT YET CLOSED. Subtracted from what is genuinely waiting on somebody,
+    // because "12 open and all owed by him" is a different sentence when one of them already holds
+    // his answer.
+    answered: all.filter((d) => d.answered).length,
   };
 }
 

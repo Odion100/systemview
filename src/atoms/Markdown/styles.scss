@@ -5274,6 +5274,36 @@
     font-style: italic;
   }
 
+  // THE CHIPS, LAID OUT TO SCALE. Segments sit side by side in the order the chips read, each in
+  // the chip's own colour — so the row below is the legend and nothing needs a key. Deliberately
+  // NOT the `pl` ledger track that `::claims` and `::progress` share: this block had its own look
+  // before it had progress, and wearing the ledger's made it unrecognisable from claims.
+  //
+  // The remainder of the track is OPEN. It is the only count with no segment, because open is the
+  // absence of a decision rather than a kind of one — and a track that fills as forks close is the
+  // whole thing a reader wants off one glance.
+  &__bar {
+    display: flex;
+    height: 5px;
+    margin: 0 0 7px;
+    border-radius: 3px;
+    background: var(--sv-inset);
+    overflow: hidden;
+
+    i {
+      display: block;
+      height: 100%;
+      transition: width 0.35s ease;
+    }
+
+    .is-decided { background: var(--sv-blue-deep); }
+    // Answered-not-closed is the same blue, held back — it is the same answer without the press,
+    // and a different hue would claim it is a different KIND of thing.
+    .is-answered { background: var(--sv-blue); opacity: 0.45; }
+    .is-awaiting { background: var(--sv-amber); }
+    .is-reversed { background: var(--sv-dead); }
+  }
+
   &__counts {
     display: flex;
     flex-wrap: wrap;
@@ -5294,6 +5324,7 @@
       color: #c0801c;
       font-weight: 600;
     }
+    &--answered { border-style: dashed; border-color: var(--sv-blue); color: var(--sv-blue); }
     &--reversed { border-color: var(--sv-dead); color: var(--sv-dead); }
     &--unsaid {
       border-color: var(--sv-danger);
@@ -5333,6 +5364,3 @@
   }
 }
 
-:root.sv-dark {
-  .md-decisions__count--awaiting { color: #efac47; }
-}
