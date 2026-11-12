@@ -1065,7 +1065,7 @@ function useSubagentIdleMin() {
   return mins;
 }
 
-function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null, brief = "", onDelete = null, muted = false, onMute = null }) {
+function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", status = null, attachments = null, brief = "", onDelete = null, muted = false, onMute = null, mutes = "run" }) {
   const [open, setOpen] = useState(false);
   const done0 = (items || []).filter((t) => t.state === "done").length;
   const complete0 = items && items.length ? done0 === items.length : true;
@@ -1133,7 +1133,12 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
         ) : (
           <span
             className={`${CLASSNAME}__worklist-source ${CLASSNAME}__worklist-source--default`}
-            title="the session's own plan — working memory, never nudged, no run record"
+            // "NEVER NUDGED" WAS TRUE AND STOPPED BEING TRUE. The plan has no RUN record and is
+            // not chased by the run chaser — but `pickStaleList` wakes the agent when it sits
+            // still for `planStaleMin`, which is 90 minutes and on. A tooltip that tells him a
+            // list cannot nudge him, beside a toggle for muting it, is the surface contradicting
+            // itself on the one question the control exists to answer.
+            title="the session's own plan — working memory, no run record. Not chased like a run, but it does nudge when it sits still"
           >
             default
           </span>
@@ -1200,10 +1205,26 @@ function WorkList({ items, onClear, source = "", projectCode = "", runKey = "", 
             e.stopPropagation();
             onMute(!muted);
           }}
+          // TWO ROWS, TWO NUDGES, AND THEY ARE NOT THE SAME NUDGE — his correction: *"the default
+          // has a completely different behaviour."* He is right, and the triggers are opposites.
+          //
+          //   A RUN is chased when the agent has gone QUIET with steps left — `pickNudge` requires
+          //   `quietMin >= idleMin`. It means: this procedure stalled.
+          //
+          //   THE PLAN is chased when the agent is STILL WORKING and the plan has not moved —
+          //   `pickStaleList` requires `quietMin < idleMin` and 90 minutes of stillness. It means:
+          //   you are busy and your list no longer describes what you are doing.
+          //
+          // One flag silences whichever applies to the row it is on, and the words have to say
+          // which, or the control claims to do one thing while doing another.
           title={
-            muted
-              ? "Muted — this list is not being chased. Press to let the nudging resume."
-              : "Mute the nudging for this list — it stays open and keeps its place; nothing is abandoned."
+            mutes === "plan"
+              ? muted
+                ? "Muted — nothing will ask the agent to bring this plan up to date. Press to let it resume."
+                : "Mute the stale-plan nudge for this list. It fires while the agent is WORKING and the plan has not moved in 90 minutes — a different thing from a stalled run."
+              : muted
+              ? "Muted — this run is not being chased. Press to let the nudging resume."
+              : "Mute the nudging for this run — it stays open and keeps its place; nothing is abandoned."
           }
         >
           {muted ? "muted" : "🔔"}
@@ -7940,6 +7961,20 @@ const countdown = (str, now = Date.now()) => {
                         brief={plan.brief || ""}
                         onClear={() => setClearedLists((c) => ({ ...c, [plan.key]: JSON.stringify(plan.items) }))}
                         onDelete={null}
+                        // THE PLAN GETS THE TOGGLE TOO, and it is the row that most needs it.
+                        //
+                        // It has no run record to DELETE, which is why `onDelete` is null here —
+                        // and that absence is what made it look like a row with nothing to control.
+                        // But it IS chased: `pickStaleList` wakes the agent when the plan sits
+                        // still for `planStaleMin` (90 minutes, on in his settings), which is a
+                        // different clock from the run chaser and answers to the same mute.
+                        //
+                        // Missed on the first pass because the plan renders from its OWN block
+                        // rather than the map below — two call sites for one component, and a
+                        // capability added to one of them is a capability half the rows do not have.
+                        muted={!!(plan.muted && plan.muted.ts)}
+                        onMute={(on) => work.muteRun(plan.key, on)}
+                        mutes="plan"
                       />
                     </div>
                   );
