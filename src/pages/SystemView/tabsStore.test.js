@@ -1,4 +1,4 @@
-import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes, trim, readMax, writeMax, MAX_KEY, DEFAULT_MAX } from "./tabsStore";
+import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes, trim, readMax, writeMax, capFrom, MAX_KEY, DEFAULT_MAX } from "./tabsStore";
 
 // the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
@@ -560,5 +560,37 @@ describe("the cap he sets", () => {
     expect(getTabs(pc).panes[0].tabs).toHaveLength(3);
     writeMax(pc, 2);
     expect(getTabs(pc).panes[0].tabs).toHaveLength(2);
+  });
+});
+
+// WHAT HE TYPED IS NOT YET WHAT HE SET — the guard between a keystroke and a write that closes
+// documents. His bug, 2026-11-12: *"I only got one open. I try to open another tab and it's
+// switching."* The field applied on every keystroke, so reaching for 15 applied 1 on the way.
+describe("capFrom — is the typed value a setting yet", () => {
+  it("is nothing while the field is empty, rather than zero — because zero means NO CAP", () => {
+    expect(capFrom("")).toBe(null);
+    expect(capFrom("   ")).toBe(null);
+    expect(capFrom(null)).toBe(null);
+    expect(capFrom(undefined)).toBe(null);
+  });
+
+  it("is nothing for a value a number input can hand over mid-type", () => {
+    expect(capFrom("-")).toBe(null);
+    expect(capFrom("e")).toBe(null);
+    expect(capFrom("-5")).toBe(null);
+  });
+
+  it("is the number when the number is real, zero included", () => {
+    expect(capFrom("0")).toBe(0);
+    expect(capFrom("1")).toBe(1);
+    expect(capFrom("15")).toBe(15);
+    expect(capFrom(12)).toBe(12);
+    expect(capFrom("12.7")).toBe(12);
+  });
+
+  it("DOES NOT protect him from a small number he really chose — 1 is a legal cap", () => {
+    // The fix is about WHEN a keystroke becomes a setting, not about overriding his number. If he
+    // types 1 and stops, 1 is what he asked for and the strip will hold one tab.
+    expect(capFrom("1")).toBe(1);
   });
 });

@@ -102,6 +102,25 @@ export function readMax(pc) {
   }
 }
 
+// IS WHAT HE TYPED A SETTING YET? — pure, because this is the whole judgement and the judgement is
+// what went wrong. `writeMax` TRIMS as it saves, so every value that reaches it closes documents:
+// the question "is this a number he chose" has to be answered BEFORE the write, not inside it.
+//
+//  - An EMPTY field is not a setting. `Number("") || 0` is 0, 0 means no cap, so a field he cleared
+//    in order to retype would have silently turned the limit off.
+//  - Whitespace is empty. Same reason.
+//  - Anything that is not a finite number ≥ 0 is not a setting either — a number input can still
+//    hand over "e" or "-" mid-type.
+//
+// Returns the number to write, or `null` for "nothing he has chosen yet".
+export function capFrom(raw) {
+  const text = String(raw == null ? "" : raw).trim();
+  if (text === "") return null;
+  const n = Number(text);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
 export function writeMax(pc, n) {
   const v = Math.max(0, Math.floor(Number(n) || 0));
   try {

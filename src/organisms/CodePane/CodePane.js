@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { readMax, writeMax, DEFAULT_MAX } from "../../pages/SystemView/tabsStore";
+import { capFrom, readMax, writeMax, DEFAULT_MAX } from "../../pages/SystemView/tabsStore";
 import ServiceContext from "../../ServiceContext";
 import { hostFiles, machineFiles } from "../../utils/hostFiles";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
@@ -37,6 +37,12 @@ let at = -1;
 // a new place to remember. Without it, pressing back would push where you came from all over again.
 let moving = null;
 const sameFile = (a, b) => a && b && a.path === b.path && a.projectCode === b.projectCode;
+
+// HOW LONG THE TAB CAP WAITS FOR HIM TO FINISH TYPING. Long enough to get a second digit out —
+// the whole reason this delay exists is that `1` is a legal cap and also the first half of `15`,
+// and applying it trims the window irreversibly. Blur and Enter commit at once, so the wait is
+// only ever paid by somebody who typed and then sat still.
+const CAP_SETTLE = 900;
 
 const CodePane = ({ file, onClose }) => {
   const { connectedServices } = useContext(ServiceContext);
@@ -410,8 +416,46 @@ const CodePane = ({ file, onClose }) => {
   //
   // It lives per PROJECT, beside the searches this cog already remembers per project, because a
   // sensible number for a repo he is reading through is not the number for one he is building in.
+  // THE TYPED VALUE IS HELD AS A STRING AND COMMITTED SEPARATELY — his bug, 2026-11-12: *"I only
+  // got one open. I try to open another tab and it's switching."*
+  //
+  // This input wrote on EVERY KEYSTROKE, and the comment beside it claimed that was the honest
+  // thing to do. It is not. `writeMax` TRIMS the window as it saves, and typing `15` passes
+  // through `1` — so reaching for a cap of fifteen closed every document but the one he was
+  // looking at, on the first digit, with nothing to undo it. After that every open evicted the
+  // last tab, which from the strip reads exactly as a tab SWITCHING instead of opening. The
+  // intermediate state of a number input is not a setting anybody chose.
+  //
+  // So: `capDraft` is what he is typing and `maxTabs` is what is actually in force (the hint reads
+  // the latter, so it never describes a rule that is not applied yet). The draft commits on a
+  // pause, on blur, or on Enter — and an EMPTY field commits nothing, because `Number("") || 0` is
+  // 0, 0 means no cap, and silently turning the limit off because he selected the text to retype
+  // is the same fault wearing the opposite sign.
   const [maxTabs, setMaxTabs] = useState(() => readMax(file.projectCode || ""));
-  useEffect(() => { setMaxTabs(readMax(file.projectCode || "")); }, [file.projectCode]);
+  const [capDraft, setCapDraft] = useState(() => String(readMax(file.projectCode || "")));
+  useEffect(() => {
+    const at = readMax(file.projectCode || "");
+    setMaxTabs(at);
+    setCapDraft(String(at));
+  }, [file.projectCode]);
+  const capTimer = useRef(0);
+  useEffect(() => () => clearTimeout(capTimer.current), []);
+  const commitCap = useCallback((raw) => {
+    const n = capFrom(raw);
+    if (n === null) return;
+    const at = writeMax(file.projectCode || "", n);
+    setMaxTabs(at);
+    setCapDraft(String(at));
+  }, [file.projectCode]);
+  const typeCap = useCallback((raw) => {
+    setCapDraft(raw);
+    clearTimeout(capTimer.current);
+    capTimer.current = setTimeout(() => commitCap(raw), CAP_SETTLE);
+  }, [commitCap]);
+  const settleCap = useCallback((raw) => {
+    clearTimeout(capTimer.current);
+    commitCap(raw);
+  }, [commitCap]);
   // ONE SEARCH THAT ALSO TRACES CODE. The term is the pane's, not the editor's, because it has to
   // SURVIVE THE FILE — his ask: "the search follows you if you navigate to another file". Kept per
   // project, so opening the next file already has it running.
@@ -1017,11 +1061,15 @@ const CodePane = ({ file, onClose }) => {
                 type="number"
                 min="0"
                 max="99"
-                value={maxTabs}
-                // IT APPLIES ON THE SPOT. A number he typed that does nothing until some later
-                // open is a setting he cannot tell he has set — `writeMax` trims the window as it
-                // saves, so the strip answers him immediately.
-                onChange={(e) => setMaxTabs(writeMax(file.projectCode || "", e.target.value))}
+                value={capDraft}
+                // IT APPLIES WHEN THE NUMBER IS HIS, NOT WHILE HE IS REACHING FOR IT — a pause, a
+                // blur, or Enter. The strip still answers him without a press; what it no longer
+                // does is answer the first digit of a two-digit number by closing his documents.
+                onChange={(e) => typeCap(e.target.value)}
+                onBlur={(e) => settleCap(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") settleCap(e.target.value);
+                }}
               />
               <span>tabs</span>
             </label>
