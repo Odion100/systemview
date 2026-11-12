@@ -1,79 +1,128 @@
-import { decisionSummary, isDecision, DECIDING } from "./decisions";
+import { parseDecisions, decisionsOf, owedBy, normalizeState, nextState } from "./decisions";
 
-describe("what a press SAYS", () => {
-  // The failure these replace: every send was shaped "a thread you are in moved", which autobot
-  // filed as a bug the first time it got one — it had to open the document to learn nothing had.
-  it("names the verdict and what was being decided", () => {
-    expect(
-      decisionSummary({ kind: "approval", attrs: { ask: "Approve RFC-072 — arcs as trackable documents?" }, value: "approved", by: "odion" })
-    ).toBe("odion approved: Approve RFC-072 — arcs as trackable documents?");
+describe("a decision is a record, not an approval", () => {
+  it("is OPEN until somebody chooses — the empty state is the honest one", () => {
+    const [d] = parseDecisions('::decision[host or sender?]{id=d1}');
+    expect(d.state).toBe("open");
+    expect(d.chose).toBe("");
   });
 
-  it("says rejected just as plainly", () => {
-    expect(decisionSummary({ kind: "approval", attrs: { ask: "Ship it?" }, value: "rejected", by: "odion" }))
-      .toBe("odion rejected: Ship it?");
+  it("keeps the QUESTION after the answer, because the fork is what makes the record worth having", () => {
+    const [d] = parseDecisions('::decision[host or sender?]{id=d1 state=decided chose="the host"}');
+    expect(d.question).toBe("host or sender?");
+    expect(d.chose).toBe("the host");
   });
 
-  // "I take that back" is expressible in these blocks, so it has to be expressible in the message
-  // — otherwise the room is told the opposite of what happened.
-  it("says a verdict was WITHDRAWN rather than announcing an empty one", () => {
-    expect(decisionSummary({ kind: "approval", attrs: { ask: "Ship it?" }, value: "", by: "odion" }))
-      .toBe("odion withdrew a verdict on: Ship it?");
+  it("carries the ROAD NOT TAKEN, which is the half git cannot give you", () => {
+    const [d] = parseDecisions('::decision[where?]{state=decided chose="host" over="sender|a relay in the middle"}');
+    expect(d.over).toEqual(["sender", "a relay in the middle"]);
   });
 
-  it("carries a question's answer and its question", () => {
-    expect(decisionSummary({ kind: "question", attrs: { ask: "Which engine?" }, value: "kokoro", by: "odion" }))
-      .toBe("odion answered kokoro to: Which engine?");
+  // HIS POINT, 2026-11-12: "making a decision doesn't mean you have the approval."
+  it("can be DECIDED and still owe somebody's ratification", () => {
+    const [d] = parseDecisions('::decision[q]{state=decided chose=host ratify=autobot}');
+    expect(d.state).toBe("decided");
+    expect(d.awaiting).toBe(true);
   });
 
-  it("truncates a long question rather than pushing a wall of text into somebody's session", () => {
-    const long = "x".repeat(300);
-    const out = decisionSummary({ kind: "approval", attrs: { ask: long }, value: "approved", by: "o" });
-    expect(out.length).toBeLessThan(140);
-    expect(out.endsWith("…")).toBe(true);
+  it("stops awaiting once every named ratifier has signed", () => {
+    const [d] = parseDecisions('::decision[q]{state=decided chose=host ratify="autobot|buapi" approved="autobot|buapi"}');
+    expect(d.awaiting).toBe(false);
   });
 
-  it("collapses the newlines a wrapped attribute brings with it", () => {
-    expect(decisionSummary({ kind: "approval", attrs: { ask: "one\n  two" }, value: "approved", by: "o" }))
-      .toBe("o approved: one two");
+  it("is not awaiting anything when nobody was asked to ratify — a decision is not pending by default", () => {
+    const [d] = parseDecisions('::decision[q]{state=decided chose=host}');
+    expect(d.ratify).toEqual([]);
+    expect(d.awaiting).toBe(false);
   });
 
-  it("still says something true with no author and no question", () => {
-    expect(decisionSummary({ kind: "approval", value: "approved" })).toBe("approved something in this document");
+  it("separates who OWED the answer from who MADE the call", () => {
+    const [d] = parseDecisions('::decision[q]{owner=you state=decided chose=host by=systemview-test}');
+    expect(d.owner).toEqual(["you"]);
+    expect(d.by).toEqual(["systemview-test"]);
   });
 
-  // A send with no summary is the "moved" problem wearing a different hat.
-  it("never returns an empty sentence, even for a block it does not know", () => {
-    expect(decisionSummary({ kind: "slider", value: 4, by: "o" })).toBe("o changed slider in this document");
-    expect(decisionSummary({}).length).toBeGreaterThan(0);
+  it("says out loud that a decision was recorded with nothing chosen", () => {
+    const [d] = parseDecisions('::decision[q]{state=decided}');
+    expect(d.unsaid).toBe(true);
+  });
+
+  it("reads a quoted value whole, rather than finding an attribute inside it", () => {
+    const [d] = parseDecisions('::decision[q]{state=decided chose="state= stays as it is"}');
+    expect(d.state).toBe("decided");
+    expect(d.chose).toBe("state= stays as it is");
+  });
+
+  it("is a container as happily as a leaf, and the state lives on the opening line either way", () => {
+    const src = [':::decision[q]{id=d4 state=decided chose=host}', "**why** — it is their hardware.", ":::"].join("\n");
+    const [d] = parseDecisions(src);
+    expect(d.id).toBe("d4");
+    expect(d.state).toBe("decided");
+    expect(d.line).toBe(1);
+  });
+
+  it("ignores a fenced example — a quotation is not a decision", () => {
+    const src = ["```markdown", "::decision[not real]{state=decided}", "```", "::decision[real]{}"].join("\n");
+    const all = parseDecisions(src);
+    expect(all).toHaveLength(1);
+    expect(all[0].question).toBe("real");
+  });
+
+  it("numbers them in the order written and remembers the line a press writes to", () => {
+    const src = ["::decision[a]{}", "", "text", "::decision[b]{}"].join("\n");
+    expect(parseDecisions(src).map((d) => [d.n, d.line])).toEqual([[1, 1], [2, 4]]);
   });
 });
 
-describe("which writes are decisions at all", () => {
-  // Not every setAttr is news. A slider being dragged is a value being explored, and announcing it
-  // is the keystroke flood the quiet period exists to prevent.
-  it("knows the two that are", () => {
-    expect(isDecision("approval", "verdict")).toBe(true);
-    expect(isDecision("question", "answer")).toBe(true);
-    // A TICKED BOX IS NOT ONE. He ticked one item off a review checklist and it woke a member:
-    // *"why would you get an update just because I click the check?"* Same ruling as the commit
-    // record — keeping your place in a list decides nothing.
-    expect(isDecision("task", "checked")).toBe(false);
+describe("the count a ::decisions block draws", () => {
+  const src = [
+    "::decision[a]{id=d1 owner=you}",
+    "::decision[b]{id=d2 state=decided chose=left}",
+    "::decision[c]{id=d3 state=decided chose=right ratify=autobot}",
+    "::decision[d]{id=d4 state=reversed chose=left}",
+    "::decision[e]{id=d5 state=decided}",
+  ].join("\n");
+
+  it("derives every number from the blocks, so it cannot disagree with them", () => {
+    const got = decisionsOf(src);
+    expect(got.total).toBe(5);
+    expect(got.open).toBe(1);
+    expect(got.decided).toBe(3);
+    expect(got.reversed).toBe(1);
   });
 
-  it("refuses a different attribute on a deciding block", () => {
-    expect(isDecision("approval", "label")).toBe(false);
-    expect(isDecision("question", "options")).toBe(false);
+  it("counts what is awaiting ratification separately from what is open", () => {
+    expect(decisionsOf(src).awaiting).toBe(1);
   });
 
-  it("refuses blocks that are not decisions", () => {
-    expect(isDecision("slider", "value")).toBe(false);
-    expect(isDecision("members", "sent")).toBe(false);
-    expect(isDecision("", "verdict")).toBe(false);
-    expect(isDecision(undefined, undefined)).toBe(false);
+  it("counts a decision recorded with nothing chosen, because that record is the wrong half", () => {
+    expect(decisionsOf(src).unsaid).toBe(1);
   });
 
-  it("is a short explicit list rather than anything that writes back", () => {
-    expect(Object.keys(DECIDING).sort()).toEqual(["approval", "question"]);
+  it("is all zeroes for a document with none, rather than throwing", () => {
+    expect(decisionsOf("# just prose").total).toBe(0);
+    expect(decisionsOf(undefined).total).toBe(0);
+  });
+
+  it("groups what is still owed by who owes it, and keeps the UNOWNED visible", () => {
+    const owed = owedBy(["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2}"].join("\n"));
+    expect(owed.get("you")).toEqual(["d1"]);
+    expect(owed.get("nobody named")).toEqual(["d2"]);
+  });
+});
+
+describe("the states, and the press between them", () => {
+  it("takes the words somebody would actually write", () => {
+    expect(normalizeState("made")).toBe("decided");
+    expect(normalizeState("overturned")).toBe("reversed");
+    expect(normalizeState("superseded")).toBe("reversed");
+    expect(normalizeState("")).toBe("open");
+    expect(normalizeState("banana")).toBe("open");
+  });
+
+  it("only offers REVERSED on something already decided — you cannot overturn a choice nobody made", () => {
+    expect(nextState("open")).toBe("decided");
+    expect(nextState("decided")).toBe("reversed");
+    expect(nextState("reversed")).toBe("open");
   });
 });

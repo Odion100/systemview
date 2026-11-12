@@ -29,6 +29,8 @@ import Gap from "./blocks/Gap";
 import Progress from "./blocks/Progress";
 import Claim from "./blocks/Claim";
 import Claims from "./blocks/Claims";
+import Decision from "./blocks/Decision";
+import Decisions from "./blocks/Decisions";
 import CmdBlock from "./blocks/CmdBlock";
 
 // `file` is TWO things depending on how it's written — the same split `run` has. Inline is a
@@ -132,8 +134,19 @@ export const BLOCKS = {
   // recounts them, so the status at the top of a document is derived, never typed. See claims.js.
   claim: { Component: Claim },
   claims: { Component: Claims },
-  // decision — a story's approve/reject verdict, wrapped around whatever is being proposed
+  // A VERDICT — one party SANCTIONING something, wrapped around whatever is being proposed. This
+  // comment used to call it "a decision", and that word is now taken by a different block for a
+  // reason worth keeping here: *"making a decision doesn't mean you have the approval. And when you
+  // think about it in an organization, it's different."* An approval gates the document and is
+  // binary; a decision gates nothing, is n-way, and stands whether or not anybody ratified it.
   approval: { Component: Approval },
+  // `::decision[the fork]{id= state= chose= over= owner= by= ratify=}` — THE RECORD OF A CHOICE,
+  // and the half of a planning document that had no block. The question stays the question after
+  // the answer lands, the choice sits beside the road NOT taken (the part a rewritten section
+  // destroys and git cannot recover), and `::decisions` recounts the lot so the first screen says
+  // what is still owed and by whom. See decisions.js for why it is not an approval.
+  decision: { Component: Decision },
+  decisions: { Component: Decisions },
   // a commit message you press instead of copy. An agent writes it, a human clicks it;
   // the sha lands back in the document like any other input block's answer.
   commit: { Component: CommitBlock },

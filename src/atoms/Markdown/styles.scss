@@ -5039,3 +5039,300 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+// ── A DECISION, AS A RECORD ──────────────────────────────────────────────────────────────────────
+//
+// Same vocabulary as `.md-objective` on purpose — head band, uppercase kind, state pill — because
+// both are "a block whose attributes are the record and whose body is prose", and one concept
+// wearing two appearances is how a vocabulary stops being one.
+//
+// WHAT IS DIFFERENT IS THE OUTCOME LINE, and it is the only new visual idea here: the choice in
+// full weight with the roads NOT taken struck through beside it. That pairing is the whole reason
+// the block exists — a rewritten section keeps the answer and destroys the alternatives, so the
+// record has to show them together or it is just a sentence with an id.
+//
+// NO CONNECTORS, NO DIAGRAM. His verdict on the last attempt at making a block interesting:
+// *"get rid of that stupid connection… you could use fucking lines. Like a table, and you could
+// potentially use colors on the shits themselves."* Lines and colour, nothing drawn between things.
+.md-decision {
+  margin: 8px 0;
+  border: 1px solid var(--sv-border-soft);
+  border-left: 3px solid var(--sv-border);
+  border-radius: 8px;
+  overflow: hidden;
+
+  // THE STATE IS A PROPERTY OF THE WHOLE CARD, not 3px on an edge the eye never reaches.
+  &--decided {
+    border-left-color: var(--sv-blue-deep);
+    background: color-mix(in srgb, var(--sv-blue) 4%, transparent);
+  }
+  &--reversed {
+    border-left-color: var(--sv-dead);
+    background: color-mix(in srgb, var(--sv-dead) 5%, transparent);
+  }
+  // AWAITING IS AMBER BECAUSE AMBER MEANS SOMEBODY HAS TO ACT — the same meaning it carries on a
+  // blocked objective. It beats `--decided` deliberately: decided-and-unratified is the state his
+  // correction exists to make visible, so it must not read as simply done.
+  &--awaiting {
+    border-left-color: var(--sv-amber);
+    background: color-mix(in srgb, var(--sv-amber) 6%, transparent);
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 11px;
+    background: var(--sv-inset);
+    border-bottom: 1px solid var(--sv-border-soft);
+    font-size: 11px;
+  }
+
+  &__kind {
+    color: var(--sv-text-muted);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  &__id {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--sv-bg);
+    color: var(--sv-text-muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  &__state {
+    padding: 0 7px;
+    border: 1px solid var(--sv-border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--sv-text-muted);
+    font: inherit;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+
+    &:hover:not(:disabled) { border-color: var(--sv-blue); color: var(--sv-blue); }
+    &:disabled { cursor: default; }
+    &--decided { border-color: var(--sv-blue-deep); color: var(--sv-blue-deep); }
+    &--reversed { border-color: var(--sv-dead); color: var(--sv-dead); }
+  }
+
+  &__when,
+  &__owner,
+  &__by {
+    color: var(--sv-text-muted);
+    font-size: 10.5px;
+  }
+
+  // WHO OWES IT GOES TO THE RIGHT EDGE, where the eye finishes the head line — the same place an
+  // objective puts what it is waiting on.
+  &__owner { margin-left: auto; }
+  &__by { margin-left: auto; }
+
+  // THE QUESTION, AND IT STAYS THE QUESTION. Full reading size: this is the sentence somebody is
+  // actually here for, and the last design pass learned the hard way that shrinking the prose to
+  // make the labels tidy makes the block unreadable — *"you got the labels okay, but the prose
+  // text is not okay. It's supposed to be easy to read."*
+  &__question {
+    padding: 9px 11px 0;
+    font-size: 14px;
+    line-height: 1.4;
+    color: var(--sv-text);
+  }
+
+  &__pending {
+    padding: 5px 11px 9px;
+    color: var(--sv-text-muted);
+    font-size: 12px;
+    font-style: italic;
+  }
+
+  // ── THE OUTCOME LINE ──
+  &__outcome {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 11px 9px;
+    font-size: 13.5px;
+    line-height: 1.4;
+  }
+
+  &__chose {
+    font-weight: 700;
+    color: var(--sv-text);
+
+    // A RECORD OF THE WRONG HALF reads as a defect, because it is one: the fork closed and nobody
+    // wrote which way.
+    &.is-unsaid {
+      font-weight: 400;
+      font-style: italic;
+      color: var(--sv-danger);
+    }
+  }
+
+  &__over {
+    color: var(--sv-text-muted);
+    font-size: 12px;
+  }
+
+  // STRUCK THROUGH, NOT HIDDEN. The road not taken is the half git cannot give you — it was never
+  // in the file — so it is shown, and shown as rejected.
+  &__alt {
+    margin-left: 5px;
+    padding: 0 5px;
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 4px;
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+    opacity: 0.75;
+  }
+
+  &__reversed,
+  &__ratify,
+  &__ratified {
+    margin: 0 11px 9px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  &__reversed {
+    background: color-mix(in srgb, var(--sv-dead) 10%, transparent);
+    color: var(--sv-text);
+  }
+
+  // DECIDED, NOT APPROVED — his distinction, and the one line on this card that asks somebody for
+  // something.
+  &__ratify {
+    background: color-mix(in srgb, var(--sv-amber) 12%, transparent);
+    color: var(--sv-text);
+    font-weight: 600;
+  }
+
+  &__ratified {
+    background: color-mix(in srgb, var(--sv-blue) 8%, transparent);
+    color: var(--sv-text-muted);
+  }
+
+  &__body {
+    padding: 0 11px 9px;
+    font-size: 13px;
+
+    &:empty { padding: 0; }
+  }
+}
+
+// ── THE ROLL-UP ──────────────────────────────────────────────────────────────────────────────────
+//
+// `::decisions` recounts the blocks above it. Counts as a row of chips with colour ON the chip,
+// then one line per party who still owes an answer — because "17 open" is information and
+// "3 yours" is an ask, and only the second one gets acted on.
+.md-decisions {
+  margin: 8px 0;
+  padding: 8px 11px;
+  border: 1px solid var(--sv-border-soft);
+  border-radius: 8px;
+  font-size: 12px;
+
+  &--none {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 6px;
+  }
+
+  &__kind {
+    color: var(--sv-text-muted);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  &__total {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--sv-text);
+  }
+
+  &__empty {
+    color: var(--sv-text-muted);
+    font-style: italic;
+  }
+
+  &__counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  &__count {
+    padding: 1px 7px;
+    border: 1px solid var(--sv-border-soft);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--sv-text-muted);
+
+    &--decided { border-color: var(--sv-blue-deep); color: var(--sv-blue-deep); }
+    &--open { border-color: var(--sv-border); color: var(--sv-text); }
+    &--awaiting {
+      border-color: var(--sv-amber);
+      color: #c0801c;
+      font-weight: 600;
+    }
+    &--reversed { border-color: var(--sv-dead); color: var(--sv-dead); }
+    &--unsaid {
+      border-color: var(--sv-danger);
+      color: var(--sv-danger);
+    }
+    // NOTHING OPEN IS WORTH SEEING AS ZERO, not worth hiding — a plan reading `0 open` is the
+    // thing you want to be able to see from across the room.
+    &.is-zero { opacity: 0.5; }
+  }
+
+  &__owed {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 7px;
+    padding-top: 6px;
+    border-top: 1px solid var(--sv-border-soft);
+  }
+
+  &__owes {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+  }
+
+  &__who {
+    min-width: 7rem;
+    color: var(--sv-text);
+    font-weight: 600;
+    font-size: 11.5px;
+  }
+
+  &__ids {
+    color: var(--sv-text-muted);
+    font-size: 11px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+}
+
+:root.sv-dark {
+  .md-decisions__count--awaiting { color: #efac47; }
+}
