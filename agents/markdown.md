@@ -317,6 +317,17 @@ itself once a section is written stays prose. And **a section says its own subst
 what landed**; one that opens with its decisions has lost its own voice. How a planning discussion
 uses all of this is `planning.md` → *Capturing what lands*.
 
+**It takes PROSE when it needs to.** Written with one more colon it is a container, and the body
+sits BETWEEN the question and the options — what is being asked, what you need to know, then the
+choice. The one-line form is unchanged and carries no body.
+
+```markdown
+:::question[Host's machine or sender's machine?]{id=q1 options="host|sender"}
+On the host's hardware a visitor is a process somebody else is paying for. On the sender's it is a
+remote hand reaching in, and every verb has to cross the wire with its identity attached.
+:::
+```
+
 ## `:::approval{…}` — ask for a decision
 
 ```markdown

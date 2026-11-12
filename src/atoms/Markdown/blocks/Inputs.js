@@ -9,7 +9,7 @@ import { useMarkdownWrite } from "../context";
 //   ::question[Do embeds complement panes, or replace them?]{id=fork options=complement|replace}
 // An answered question keeps `answer=…` in its own attributes, which is also how an agent reads the
 // verdict back off disk.
-export const Question = ({ label, attrs = {}, line }) => {
+export const Question = ({ label, attrs = {}, line, children = null }) => {
   const { editable, setAttr } = useMarkdownWrite();
   const options = String(attrs.options || "")
     .split("|")
@@ -51,6 +51,17 @@ export const Question = ({ label, attrs = {}, line }) => {
         <span className="md-input__kind">question</span>
         <span className="md-input__label">{label || attrs.ask || "…"}</span>
       </div>
+      {/* THE QUESTION MAY CARRY PROSE — his ask, 2026-11-12: *"it seems like it only can take just
+          a question, it can't take prose… can't it take a paragraph above the question, or under?"*
+          AUGMENTING, NOT CHANGING: the leaf form (`::question[…]{options=a|b}`) is untouched and
+          renders exactly as it did. Written with one more colon it becomes a container, and the
+          body sits between the question and the options — which is the order somebody answering
+          reads in: what is being asked, then what you need to know, then the choice.
+      
+          A question with no context is the one most likely to be answered wrongly, and the author
+          had nowhere to put the context except the paragraph before the block, where it is not
+          part of the question and does not travel with it. */}
+      {children ? <div className="md-input__body">{children}</div> : null}
       <div className="md-input__options">
         {unquoted ? (
           <span className="md-input__hint">

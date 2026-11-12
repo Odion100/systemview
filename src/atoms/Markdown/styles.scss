@@ -5392,3 +5392,15 @@
   }
 }
 
+// PROSE IN A QUESTION — his, 2026-11-12: the body sits between the question and the options, so
+// the reading order is what is being asked, what you need to know, then the choice. The leaf form
+// carries no body and is untouched.
+.md-input__body {
+  margin: 6px 0 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--sv-text);
+
+  p { margin: 0 0 6px; }
+  p:last-child { margin-bottom: 0; }
+}
