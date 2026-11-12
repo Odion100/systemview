@@ -6,7 +6,7 @@
 - **new features** — `::decision` and `::decisions`, a block for the record of a choice
 - **fixes** — the tab cap applied every keystroke, and a cap of 2 was still in force in your window
 - **corrections** — the tab cap was mine; so was the registry comment that called `::approval` a decision
-- **decisions** — four, carried as blocks below, which is also how this report shows you the thing
+- **decisions** — carried as blocks below, which is also how this report shows you the thing. The count is the roll-up, never this line
 - **live** — `src/` only; the bundle is rebuilt and swapped three times over
 - **checked** — 176 suites · 2715 window · 453 hub · 23 cli · `yarn verify` green bare
 :::
@@ -54,32 +54,58 @@ it also heals a window already carrying the accident without you having to find 
 left you exactly where you were when you reported this.
 :::
 
-:::decision[Does the decision block go into doctrine?]{id=d4 owner=you state=open chose="yes — it needs a corpus" over="leave it undocumented until it has been used longer" by=odion at=1794534000000}
-**how it stood** — your instruction when it was built, verbatim: *"It doesn't mean that we're going
-to update any doctrine around it yet. And if it just do it, then I could decide to use it or not."*
-So nothing went into `report-authoring`, `arc-planning`, `agents/markdown.md` or `reports.md`.
+:::decision[The SYNTAX — does `agents/markdown.md` document the block?]{id=d4a owner=you}
+**what changes** — the agent-facing reference gains an entry for `::decision` and `::decisions`:
+attributes, states, what `over=` is for, and why it is not `::approval`. Descriptive only; it makes
+no planning document behave differently.
 
-**what you said after using it** — *"the whole thing is that there needs to be a corpus on that,
-right, and capture those things we just got — decisions."* You have used it in two live meetings
-since, which is the condition the original instruction implied.
+**my position** — yes, and it is the cheapest of the three. Measured today: `::decision` appears in
+**zero** skills, **zero** handbooks and **zero** agent docs, so the only way an agent learns the
+block exists is by reading `registry.js` — the exact failure the agent docs exist to prevent.
+:::
 
-**answered, not closed, deliberately** — because it is not one question. A corpus entry is the
-PRACTICE (how a planning document captures what lands); `agents/markdown.md` is the SYNTAX; and
-whether `arc-planning` starts REQUIRING the block is a third thing that would change how every
-planning document gets written. I would rather you close those separately than have me read one
-sentence as three permissions.
+:::decision[The PRACTICE — does a how-we-work chapter describe capturing what lands?]{id=d4b owner=you}
+**what changes** — a chapter on conducting a planning discussion: the document opens first, the
+talking happens inside it, what settles becomes a `::decision` where it settled, and **a section
+says its own substance before it says what landed.**
+
+**my position** — yes. This is the part you have been teaching me all day and none of it is written
+down anywhere, including the correction that a section cannot lead with its decisions.
+:::
+
+:::decision[The REQUIREMENT — does `arc-planning` start DEMANDING the block?]{id=d4c owner=you}
+**what changes** — §1 and §3 would say *capture what lands as a `::decision`* instead of leaving
+`**DECIDE HERE:**` prose as an option. Every planning document written after that is a different
+shape, and so is every agent's behaviour in a meeting.
+
+**why it is separate** — this one has teeth and the other two do not. A reference entry and a
+handbook chapter describe; a skill line obliges.
+
+**my position** — yes, but after `d4b`: a skill demanding a block with no written practice behind it
+produces forty blocks and no argument.
+
+**what was ALREADY true, and the correction that goes with it** — `arc-planning` §1 has read *"Open
+the planning report FIRST — the discussion happens inside it"* since 2026-11-10, at your
+instruction. I argued otherwise earlier today from the skill body injected into this session, which
+was captured before that edit. You were right; I was quoting my own superseded text back at you.
+
+**how it stood before** — *"It doesn't mean that we're going to update any doctrine around it yet.
+And if it just do it, then I could decide to use it or not."* And after two live meetings using it:
+*"the whole thing is that there needs to be a corpus on that, right, and capture those things we
+just got — decisions."*
 :::
 
 ::decisions
 
-**The roll-up above is counting the four blocks in this file, not a number I typed.** Press this to
-see the same four from outside the window:
+**The roll-up above counts the blocks in this file, not a number I typed.** Press this to see the
+same count from outside the window:
 
 :::cmd
 cd ~/Systemly/systemview && F=reports/a-decision-is-a-record-not-an-approval.md && echo "blocks: $(grep -c '^:::decision\[' $F)" && echo "decided: $(grep -c '^:::decision\[.*state=decided' $F)"
 :::
 
-Expect `blocks: 4` and `decided: 3` — and the first version of this very command said `decided: 4`,
+Expect the block count to match the roll-up — and the first version of this very command said one
+more `decided` than there were,
 because `grep -o 'state=decided'` matched the pattern printed in its own command line. Anchoring it
 to the block's opening line is the fix, and it is worth leaving here: a pressable check that
 disagrees with the document is worse than no check, and this one did for about a minute.
