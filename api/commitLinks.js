@@ -528,5 +528,4 @@ const logLine = ({ projectCode, window: win, dangling = [], unclaimed = [], unli
 };
 
 module.exports = {
-  logLine,
   logLine, TRAILER, servesOf, strayServes, shasIn, recordsIn, stripFences, sameSha, audit, windowFacts };
