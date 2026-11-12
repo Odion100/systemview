@@ -475,6 +475,56 @@
   45% { background: var(--sv-hover); box-shadow: inset 0 0 0 1px var(--sv-blue); }
   100% { background: transparent; box-shadow: inset 0 0 0 1px transparent; }
 }
+// WHERE THE TAB WILL LAND — a caret at the seam, drawn only while a tab is being dragged.
+//
+// His ask, 2026-11-11: *"tabs can be rearranged, but it doesn't show you a line where you're
+// dropping it."* The strip already took the drop correctly — dropping ON a tab takes that tab's
+// place, dropping past them goes last — but it took it blind, so the only way to learn which was
+// about to happen was to let go and look.
+//
+// IT DRAWS ON THE TAB RATHER THAN BETWEEN THEM, and that is not a shortcut: there is no element
+// between two tabs to style, and inserting one would change the strip's layout for a state that
+// exists for half a second. A pseudo-element on the tab the drop would displace sits at exactly
+// the seam the drop happens at, and it tells the truth about this strip's rule — the caret marks
+// the position the dragged tab is about to take.
+.doc-tab--caret::before,
+.doc-tabs__scroll--caret-end::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--sv-accent);
+  // Above the tab's own background and its active underline, below the label — a caret the label
+  // can hide is a caret that is not there when the strip is full.
+  z-index: 3;
+  pointer-events: none;
+}
+
+.doc-tab--caret {
+  position: relative;
+
+  &::before {
+    // ON THE LEADING EDGE, half outside, so it reads as sitting BETWEEN this tab and the one
+    // before it rather than as a stripe belonging to this tab.
+    left: -1px;
+  }
+}
+
+// PAST THE LAST TAB. The row's own drop puts it last, so the caret goes at the row's end — and the
+// row has to be positioned for it, which it is not by default.
+.doc-tabs__scroll {
+  position: relative;
+}
+
+.doc-tabs__scroll--caret-end::after {
+  right: 0;
+  // `sticky` would be wrong here: the strip SCROLLS, and a caret that floats at the viewport edge
+  // would claim a position that is not the end of the list.
+  position: absolute;
+}
+
 .doc-tab--fresh {
   animation: doc-tab-fresh 1.3s ease-out 1;
   border-radius: 5px;

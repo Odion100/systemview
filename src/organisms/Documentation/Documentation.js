@@ -714,6 +714,46 @@ export default function Documentation({
   // the outline off a dozen times crossing one document. `relatedTarget` is where the pointer went:
   // still inside this pane means it never left.
   const [dropPane, setDropPane] = useState(null);
+  // THE OUTLINE COMES OFF WHEN THE DRAG ENDS, HOWEVER IT ENDED.
+  //
+  // His bug, 2026-11-11: *"when you transfer a tab from one pane to another, it shows this
+  // selection as you hover over the pane — well, that selection REMAINS after you do that."*
+  //
+  // `bodyDrop` clears it, and that is why this looked covered: dropping into the pane's BODY works.
+  // But a tab dragged across lands on the other side's TAB STRIP far more often, and the strip's
+  // drop handler lives in `CenterTabs` and knows nothing about this state — so the outline it was
+  // dropped past stayed lit. Escape, and a drop outside the window, leave it the same way.
+  //
+  // `dragend` is the one event that fires on EVERY ending — dropped here, dropped there, dropped
+  // nowhere, cancelled — so the highlight comes off once, in one place, instead of being cleared
+  // at each of the handlers that happen to know about it. A drop-target outline is a statement
+  // about a drag in progress; when there is no drag, there is nothing true for it to say.
+  useEffect(() => {
+    const off = () => setDropPane(null);
+    // CAPTURE, ON BOTH, AND NEITHER IS OPTIONAL.
+    //
+    // His repro, 2026-11-11, and it is the whole diagnosis: *"drop it across, it doesn't go away.
+    // Pick it up, drop it where it is, it goes away."*
+    //
+    //   `dragend` FIRES ON THE SOURCE ELEMENT — and a cross-pane move DESTROYS that element. The
+    //   tab is removed from one pane and re-created in the other, so the node that would have
+    //   fired it is gone before it can. Dropped where it started, the node survives and the event
+    //   arrives, which is exactly the asymmetry he saw.
+    //
+    //   `drop` BUBBLES, and the strip's own handler calls `stopPropagation()` on purpose — the
+    //   pane body is a drop target too and would otherwise take the same drop twice. A listener
+    //   on `window` in the bubble phase is downstream of that and never runs.
+    //
+    // Capture runs window → target, before any handler can stop it, and a drop anywhere in the
+    // window ends the drag whatever element survives it. Between the two, the only ending left
+    // uncovered is one that fires neither event, and there is no such ending.
+    window.addEventListener("dragend", off, true);
+    window.addEventListener("drop", off, true);
+    return () => {
+      window.removeEventListener("dragend", off, true);
+      window.removeEventListener("drop", off, true);
+    };
+  }, []);
   const bodyDrop = useCallback(
     (e, i) => {
       const key = e.dataTransfer.getData("text/sv-tab");

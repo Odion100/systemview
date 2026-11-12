@@ -70,6 +70,48 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
     },
     [afterClose]
   );
+  // WHERE IT WILL LAND, SHOWN WHILE YOU DRAG. His ask, 2026-11-11: *"tabs can be rearranged, but
+  // it doesn't show you a line where you're dropping it."*
+  //
+  // The strip already took the drop correctly — a tab dropped ON another takes that one's place,
+  // and past the end goes last — but it took it blind: nothing on screen said which of those two
+  // was about to happen, so the only way to find out was to let go and look. A caret at the seam
+  // is the whole of the feedback, and it needs no new rule: it draws exactly where the existing
+  // drop would put it.
+  //
+  // `null` = no drag over this strip · a KEY = the caret sits left of that tab · `"end"` = past
+  // the last one.
+  const [caret, setCaret] = useState(null);
+  useEffect(() => {
+    // The drag ends however it ends — dropped on a tab, dropped past them, dropped in another
+    // pane, dropped outside the window, cancelled with Escape. One listener, one clearing, rather
+    // than a clear at each handler that happens to know about it.
+    const off = () => setCaret(null);
+    // CAPTURE, ON BOTH, AND NEITHER IS OPTIONAL.
+    //
+    // His repro, 2026-11-11, and it is the whole diagnosis: *"drop it across, it doesn't go away.
+    // Pick it up, drop it where it is, it goes away."*
+    //
+    //   `dragend` FIRES ON THE SOURCE ELEMENT — and a cross-pane move DESTROYS that element. The
+    //   tab is removed from one pane and re-created in the other, so the node that would have
+    //   fired it is gone before it can. Dropped where it started, the node survives and the event
+    //   arrives, which is exactly the asymmetry he saw.
+    //
+    //   `drop` BUBBLES, and the strip's own handler calls `stopPropagation()` on purpose — the
+    //   pane body is a drop target too and would otherwise take the same drop twice. A listener
+    //   on `window` in the bubble phase is downstream of that and never runs.
+    //
+    // Capture runs window → target, before any handler can stop it, and a drop anywhere in the
+    // window ends the drag whatever element survives it. Between the two, the only ending left
+    // uncovered is one that fires neither event, and there is no such ending.
+    window.addEventListener("dragend", off, true);
+    window.addEventListener("drop", off, true);
+    return () => {
+      window.removeEventListener("dragend", off, true);
+      window.removeEventListener("drop", off, true);
+    };
+  }, []);
+
   const openTabMenu = useCallback(
     (e, t, label) => {
       e.preventDefault();
@@ -162,12 +204,23 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
         onMouseDown={() => focusPane(tabsPc, pane)}
       >
         <div
-          className="doc-tabs__scroll"
+          className={`doc-tabs__scroll${caret === "end" ? " doc-tabs__scroll--caret-end" : ""}`}
           onDragOver={(e) => {
-            if (e.dataTransfer.types.includes("text/sv-tab")) e.preventDefault();
+            if (!e.dataTransfer.types.includes("text/sv-tab")) return;
+            e.preventDefault();
+            // The tabs stop propagation on their own dragover, so reaching here means the pointer
+            // is in the strip but not over a tab — which is the "past the end" drop this row takes.
+            setCaret("end");
+          }}
+          onDragLeave={(e) => {
+            // `relatedTarget` is where the pointer went; still inside this strip means it never
+            // left, and clearing then would flicker the caret off a dozen times crossing one row.
+            if (e.currentTarget.contains(e.relatedTarget)) return;
+            setCaret(null);
           }}
           onDrop={(e) => {
             const key = e.dataTransfer.getData("text/sv-tab");
+            setCaret(null);
             if (!key) return;
             e.preventDefault();
             // STOPPED HERE. The pane's BODY is a drop target too, and a drop that bubbles out of
@@ -199,7 +252,9 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
                 // THE TAB YOU'RE ON IS ALWAYS IN VIEW — scrollIntoView(nearest) is a no-op when
                 // already visible, so this costs nothing except when it's needed.
                 ref={active ? (el) => { if (el) try { el.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch {} } : null}
-                className={`doc-tab doc-tab--kind-${t.kind} ${active ? "doc-tab--active" : ""}${fresh.has(t.key) ? " doc-tab--fresh" : ""}`}
+                className={`doc-tab doc-tab--kind-${t.kind} ${active ? "doc-tab--active" : ""}${fresh.has(t.key) ? " doc-tab--fresh" : ""}${
+                  caret === t.key ? " doc-tab--caret" : ""
+                }`}
                 // DRAG TO REORDER — the tab is the handle, dropping on a tab puts you where IT
                 // sat, dropping past the row's end sends you last. The store owns the order.
                 draggable
@@ -208,10 +263,15 @@ export default function CenterTabs({ tabsPc, tabs = [], isActive, onOpen, afterC
                   e.dataTransfer.effectAllowed = "move";
                 }}
                 onDragOver={(e) => {
-                  if (e.dataTransfer.types.includes("text/sv-tab")) e.preventDefault();
+                  if (!e.dataTransfer.types.includes("text/sv-tab")) return;
+                  e.preventDefault();
+                  // The row behind would otherwise claim "end" for every move across the strip.
+                  e.stopPropagation();
+                  setCaret(t.key);
                 }}
                 onDrop={(e) => {
                   const key = e.dataTransfer.getData("text/sv-tab");
+                  setCaret(null);
                   if (!key || key === t.key) return;
                   e.preventDefault();
                   e.stopPropagation(); // or the ROW's drop fires next and sends it to the end
