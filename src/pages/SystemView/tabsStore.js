@@ -73,6 +73,80 @@ export function fileBranch(urlFile, codePath) {
   return codePath && codePath === urlFile ? "file" : "wait";
 }
 
+
+// ── HOW MANY MAY BE OPEN AT ONCE ────────────────────────────────────────────────────────────────
+//
+// His ask, 2026-11-11: *"as I go through reports, 40 reports one at a time, I end up having 40 tabs
+// open. It doesn't really mean anything… I think it would be intelligent to limit how much tabs you
+// have open."*
+//
+// AND IT IS NOT FREE, WHICH IS THE PART WORTH RECORDING. Measured in a browser: every file tab
+// mounts its OWN `CodePane` and its own CodeMirror editor and keeps them alive — that is the design
+// that makes a scroll position survive leaving a document. One tab is 798 DOM nodes; thirty-four is
+// 11,882 nodes and 22 live editors, to show ONE visible document. Linear, and all of it for tabs
+// nobody is looking at.
+//
+// THE CAP IS HIS NUMBER, NOT A GOOD ONE I PICKED. `0` means no cap, which is what the window did
+// before this existed and what anyone who wants the old behaviour sets.
+export const MAX_KEY = (pc) => `sv.tabs.max.${pc}`;
+export const DEFAULT_MAX = 12;
+
+export function readMax(pc) {
+  try {
+    const raw = localStorage.getItem(MAX_KEY(pc));
+    if (raw == null) return DEFAULT_MAX;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_MAX;
+  } catch {
+    return DEFAULT_MAX;
+  }
+}
+
+export function writeMax(pc, n) {
+  const v = Math.max(0, Math.floor(Number(n) || 0));
+  try {
+    localStorage.setItem(MAX_KEY(pc), String(v));
+  } catch {}
+  const s = storeOf(pc);
+  write(pc, trim(s.state, v));
+  return v;
+}
+
+/**
+ * Drop the least-recently-touched tabs until the whole window is within `cap`.
+ *
+ * PURE, and separate from the verb that calls it, because the rule here is all judgement and the
+ * judgement is what somebody will disagree with:
+ *
+ *  - `cap` OF 0 IS NO CAP. Not "close everything" — a cap of zero open tabs is not a state anybody
+ *    wants, and reading it as "off" is the only useful meaning left.
+ *  - AN ACTIVE TAB IS NEVER EVICTED, in ANY pane. Closing the document somebody is looking at to
+ *    make room for one they just asked for is a trade nobody would accept, and with a split
+ *    standing there are two of them.
+ *  - OLDEST BY LAST TOUCH, not by position in the strip. He reorders the strip by hand — it is his
+ *    desk — so position says nothing about what he has finished with. `at` is stamped when a tab is
+ *    opened or focused, which is the only evidence of attention the store holds.
+ *  - A TAB WITH NO `at` IS OLDEST. Those are tabs from before this existed; treating an unknown as
+ *    recent would make the cap do nothing at all on the one store that most needs it.
+ */
+export function trim(state, cap) {
+  const max = Math.max(0, Math.floor(Number(cap) || 0));
+  if (!max) return state;
+  const all = (state.panes || []).flatMap((p, pi) =>
+    (p.tabs || []).map((t) => ({ key: t.key, pane: pi, at: Number(t.at) || 0, active: p.active === t.key })),
+  );
+  if (all.length <= max) return state;
+  const droppable = all.filter((t) => !t.active).sort((a, b) => a.at - b.at);
+  const doomed = new Set(droppable.slice(0, Math.max(0, all.length - max)).map((t) => t.key));
+  if (!doomed.size) return state;
+  return {
+    ...state,
+    panes: (state.panes || []).map((p) => ({ ...p, tabs: (p.tabs || []).filter((t) => !doomed.has(t.key)) })),
+  };
+}
+
+const touch = (tab) => ({ ...tab, at: Date.now() });
+
 // VERSIONED — the shape changed once mid-day (reports went from one tab to tab-per-document) and
 // the stale cache produced exactly the bug he replicated: a leftover "Stage" tab written under the
 // old meaning, wearing the new code's clothes. A cache that outlives its shape lies; on mismatch we
@@ -190,6 +264,19 @@ function storeOf(pc) {
   return stores.get(pc);
 }
 
+// THE CAP BITES ON OPEN — AND A RELOAD IS AN OPEN, which is worth saying because the first version
+// of this comment claimed the opposite and the browser disagreed. `load` itself does not trim: a
+// store read off disk comes back whole. But the centre's URL→store effect opens the document the
+// URL names on every load, and that open is an open — so a window carrying 20 tabs under a cap of
+// 12 comes back with 12.
+//
+// Measured, not reasoned: reloaded with 20 seeded tabs and an untouched cap, the strip came back
+// at 12. That is the cap doing what it was asked to do, but it happens at a moment he did not
+// obviously cause, so it is stated here rather than left to be discovered.
+function writeCapped(pc, next) {
+  write(pc, trim(next, readMax(pc)));
+}
+
 function write(pc, next) {
   const s = storeOf(pc);
   // NORMALIZED ON THE WAY IN, so no reader ever has to defend itself against an empty pane, a
@@ -235,7 +322,7 @@ export function paneOf(pc, key) {
 
 // Replace one pane and write. `at` defaults to the focused one, which is what makes every verb
 // below read the same as it did when there was only ever one.
-function onPane(pc, at, fn, focus) {
+function onPane(pc, at, fn, focus, cap) {
   const s = storeOf(pc).state;
   const i = Number.isInteger(at) ? at : s.focus;
   const pane = s.panes[i];
@@ -243,7 +330,9 @@ function onPane(pc, at, fn, focus) {
   const nextPane = fn(pane);
   if (!nextPane) return null;
   const panes = s.panes.map((p, j) => (j === i ? nextPane : p));
-  write(pc, { ...s, panes, focus: Number.isInteger(focus) ? focus : s.focus });
+  const next = { ...s, panes, focus: Number.isInteger(focus) ? focus : s.focus };
+  if (cap) writeCapped(pc, next);
+  else write(pc, next);
   return nextPane;
 }
 
@@ -279,7 +368,7 @@ export function openTab(pc, tab, opts = {}) {
   const already = paneOf(pc, tab.key);
   const want = Number.isInteger(opts.pane) ? opts.pane : s.focus;
   if (already !== -1 && already !== want) {
-    onPane(pc, already, (pane) => ({ tabs: pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t)), active: tab.key }), already);
+    onPane(pc, already, (pane) => ({ tabs: pane.tabs.map((t) => (t.key === tab.key ? touch({ ...t, ...tab }) : t)), active: tab.key }), already, true);
     return;
   }
   onPane(
@@ -291,7 +380,7 @@ export function openTab(pc, tab, opts = {}) {
       if (found) {
         // Same document, possibly a fresher address (new line range, a side) — the tab updates in
         // place rather than pretending the old address is still what you asked for.
-        const updated = pane.tabs.map((t) => (t.key === tab.key ? { ...t, ...tab } : t));
+        const updated = pane.tabs.map((t) => (t.key === tab.key ? touch({ ...t, ...tab }) : t));
         if (opts.move && opts.beside && opts.beside !== tab.key) {
           // NAVIGATED TO AN ALREADY-OPEN FILE — carry it over to sit right of where you are, rather
           // than leaving it wherever it happened to land the first time it was opened.
@@ -304,14 +393,16 @@ export function openTab(pc, tab, opts = {}) {
         }
       } else if (opts.beside) {
         const at = pane.tabs.findIndex((t) => t.key === opts.beside);
-        tabs = at < 0 ? [...pane.tabs, tab] : [...pane.tabs.slice(0, at + 1), tab, ...pane.tabs.slice(at + 1)];
+        const fresh = touch(tab);
+        tabs = at < 0 ? [...pane.tabs, fresh] : [...pane.tabs.slice(0, at + 1), fresh, ...pane.tabs.slice(at + 1)];
       } else {
-        tabs = [...pane.tabs, tab];
+        tabs = [...pane.tabs, touch(tab)];
       }
       const stay = opts.focus === false && pane.tabs.length > 0 && pane.active;
       return { tabs, active: stay || tab.key };
     },
     want,
+    true,
   );
 }
 
@@ -323,7 +414,7 @@ export function focusTab(pc, key) {
   if (at === -1) return;
   const s = storeOf(pc).state;
   if (s.panes[at].active === key && s.focus === at) return;
-  onPane(pc, at, (pane) => ({ tabs: pane.tabs, active: key }), at);
+  onPane(pc, at, (pane) => ({ tabs: pane.tabs.map((t) => (t.key === key ? touch(t) : t)), active: key }), at);
 }
 
 export function focusPane(pc, at) {

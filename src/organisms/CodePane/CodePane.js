@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { readMax, writeMax, DEFAULT_MAX } from "../../pages/SystemView/tabsStore";
 import ServiceContext from "../../ServiceContext";
 import { hostFiles, machineFiles } from "../../utils/hostFiles";
 import CodeEditor from "../../atoms/CodeView/CodeEditor";
@@ -404,6 +405,13 @@ const CodePane = ({ file, onClose }) => {
   // stuff". The same gear the terminal has, on the file: the keys this pane answers to (which were
   // invisible the moment they were built) and the searches it remembers, which had no home either.
   const [cog, setCog] = useState(false);
+  // HOW MANY TABS MAY BE OPEN — his ask, and he named the place: *"on top of every document is a
+  // cog right next to the light dot controls… just throw it in there."*
+  //
+  // It lives per PROJECT, beside the searches this cog already remembers per project, because a
+  // sensible number for a repo he is reading through is not the number for one he is building in.
+  const [maxTabs, setMaxTabs] = useState(() => readMax(file.projectCode || ""));
+  useEffect(() => { setMaxTabs(readMax(file.projectCode || "")); }, [file.projectCode]);
   // ONE SEARCH THAT ALSO TRACES CODE. The term is the pane's, not the editor's, because it has to
   // SURVIVE THE FILE — his ask: "the search follows you if you navigate to another file". Kept per
   // project, so opening the next file already has it running.
@@ -994,6 +1002,37 @@ const CodePane = ({ file, onClose }) => {
           carries across files — the whole point is that it follows you. */}
       {cog && (
         <div className={`${CLASSNAME}__cog`}>
+          {/* THE TAB CAP, first in the panel because it is the only thing here that CHANGES the
+              window rather than describing it. Measured before it was built: one file tab is 798
+              DOM nodes, thirty-four is 11,882 and 22 live editors — every tab keeps its own pane
+              mounted so its scroll survives, and all of that is paid for tabs nobody is looking
+              at. */}
+          <div className={`${CLASSNAME}__cog-row`}>
+            <span className={`${CLASSNAME}__cog-label`}>open tabs in {file.projectCode || "this project"}</span>
+          </div>
+          <div className={`${CLASSNAME}__cog-row ${CLASSNAME}__cog-row--cap`}>
+            <label className={`${CLASSNAME}__cog-cap`}>
+              <span>keep at most</span>
+              <input
+                type="number"
+                min="0"
+                max="99"
+                value={maxTabs}
+                // IT APPLIES ON THE SPOT. A number he typed that does nothing until some later
+                // open is a setting he cannot tell he has set — `writeMax` trims the window as it
+                // saves, so the strip answers him immediately.
+                onChange={(e) => setMaxTabs(writeMax(file.projectCode || "", e.target.value))}
+              />
+              <span>tabs</span>
+            </label>
+            <span className={`${CLASSNAME}__cog-hint`}>
+              {maxTabs === 0
+                ? "no limit — tabs accumulate until you close them"
+                : `the least recently opened go first; whatever you are looking at is never taken${
+                    maxTabs === DEFAULT_MAX ? " · 0 turns the limit off" : ""
+                  }`}
+            </span>
+          </div>
           <div className={`${CLASSNAME}__cog-row`}>
             <span className={`${CLASSNAME}__cog-label`}>keys</span>
           </div>

@@ -1,4 +1,4 @@
-import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes } from "./tabsStore";
+import { getTabs, openTab, focusTab, closeTab, activeTab, moveTab, fileKey, closeRight, closeOthers, closeAll, countRight, fileOpenPlan, fileBranch, splitTab, moveTabToPane, focusPane, focusedPane, paneOf, paneCount, paneSizes, setPaneSizes, trim, readMax, writeMax, MAX_KEY, DEFAULT_MAX } from "./tabsStore";
 
 // the open set. The rules under test are the ones his asks named: multiple files open at
 // once; open-or-focus (never duplicate); closing the active tab lands on a neighbor, never nowhere;
@@ -473,5 +473,92 @@ describe("fileBranch — the URL decides, and disagreement means wait", () => {
       fileBranch("", ""),
     ]);
     expect([...answers].sort()).toEqual(["file", "tabs", "wait"]);
+  });
+});
+
+// ─── THE CAP ON OPEN TABS ───────────────────────────────────────────────────────────────────────
+//
+// His ask: *"as I go through reports, 40 reports one at a time, I end up having 40 tabs open… I
+// think it would be intelligent to limit how much tabs you have open."*
+//
+// It is not free, and that is why it is here rather than a tidiness feature. Measured in a browser:
+// one file tab is 798 DOM nodes; thirty-four is 11,882 nodes and 22 live CodeMirror editors, all to
+// show ONE visible document. Every file tab keeps its own pane mounted so its scroll survives.
+describe("trim — which tabs a cap takes", () => {
+  const pane = (tabs, active) => ({ tabs, active });
+  const t = (key, at) => ({ key, kind: "file", at });
+
+  it("takes the least recently touched, not the ones on the left", () => {
+    // He reorders the strip by hand — it is his desk — so position says nothing about what he has
+    // finished with. `at` is the only evidence of attention the store holds.
+    const s = { panes: [pane([t("a", 300), t("b", 100), t("c", 200), t("d", 400)], "d")], focus: 0 };
+    expect(trim(s, 2).panes[0].tabs.map((x) => x.key)).toEqual(["a", "d"]);
+  });
+
+  it("NEVER evicts an active tab — in either pane", () => {
+    // Closing the document somebody is looking at to make room for one they just asked for is a
+    // trade nobody would accept, and with a split standing there are two of them.
+    const s = {
+      panes: [pane([t("a", 1), t("b", 900)], "a"), pane([t("c", 2), t("d", 950)], "c")],
+      focus: 0,
+    };
+    const got = trim(s, 2).panes.flatMap((p) => p.tabs.map((x) => x.key));
+    expect(got).toContain("a");
+    expect(got).toContain("c");
+    expect(got).toHaveLength(2);
+  });
+
+  it("treats a cap of 0 as NO cap, never as close-everything", () => {
+    const s = { panes: [pane([t("a", 1), t("b", 2), t("c", 3)], "a")], focus: 0 };
+    expect(trim(s, 0).panes[0].tabs).toHaveLength(3);
+  });
+
+  it("counts across BOTH panes, because the cost is the window's and not one side's", () => {
+    const s = { panes: [pane([t("a", 1), t("b", 2)], "a"), pane([t("c", 3), t("d", 4)], "d")], focus: 0 };
+    expect(trim(s, 3).panes.flatMap((p) => p.tabs).map((x) => x.key)).toEqual(["a", "c", "d"]);
+  });
+
+  it("treats a tab with no stamp as the oldest thing there is", () => {
+    // Tabs from before this existed carry no `at`. Reading an unknown as recent would make the cap
+    // do nothing at all on the one store that most needs it.
+    const s = { panes: [pane([t("old"), t("b", 5), t("c", 6)], "c")], focus: 0 };
+    expect(trim(s, 2).panes[0].tabs.map((x) => x.key)).toEqual(["b", "c"]);
+  });
+
+  it("changes nothing when the window is already inside the cap", () => {
+    const s = { panes: [pane([t("a", 1), t("b", 2)], "a")], focus: 0 };
+    expect(trim(s, 9)).toBe(s);
+  });
+});
+
+describe("the cap he sets", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("defaults to a number rather than to unlimited", () => {
+    expect(readMax("p")).toBe(DEFAULT_MAX);
+  });
+
+  it("remembers what he set, per project", () => {
+    writeMax("alpha", 4);
+    writeMax("beta", 30);
+    expect(readMax("alpha")).toBe(4);
+    expect(readMax("beta")).toBe(30);
+  });
+
+  it("refuses junk rather than disabling itself silently", () => {
+    window.localStorage.setItem(MAX_KEY("p"), "banana");
+    expect(readMax("p")).toBe(DEFAULT_MAX);
+    window.localStorage.setItem(MAX_KEY("p"), "-5");
+    expect(readMax("p")).toBe(DEFAULT_MAX);
+  });
+
+  it("applies immediately when he lowers it, so the number means something the moment he sets it", () => {
+    const pc = "trimnow";
+    openTab(pc, { key: "a", kind: "doc" });
+    openTab(pc, { key: "b", kind: "doc" });
+    openTab(pc, { key: "c", kind: "doc" });
+    expect(getTabs(pc).panes[0].tabs).toHaveLength(3);
+    writeMax(pc, 2);
+    expect(getTabs(pc).panes[0].tabs).toHaveLength(2);
   });
 });

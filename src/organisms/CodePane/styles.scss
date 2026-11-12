@@ -550,6 +550,47 @@
   &__cog-hint {
     font-style: italic;
   }
+  // THE TAB CAP. A row that CHANGES something sitting among rows that describe things, so it gets
+  // a little air above it and the control reads as a control rather than as another caption.
+  &__cog-row--cap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding-bottom: 6px;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--sv-border-soft);
+  }
+
+  &__cog-cap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--sv-text);
+    font-family: "SF Mono", Menlo, monospace;
+    cursor: pointer;
+
+    input {
+      // WIDE ENOUGH TO SHOW THE WHOLE NUMBER. 3.2em was sized for the digits alone and forgot the
+      // spinner the browser puts inside the field — so a two-digit value sat half under it and he
+      // could not read what he had set. The control has to show its own value before anything
+      // else it does matters.
+      width: 7em;
+      padding: 3px 8px;
+      border: 1px solid var(--sv-border);
+      border-radius: 3px;
+      background: var(--sv-surface);
+      color: var(--sv-text-strong);
+      font: inherit;
+      text-align: center;
+
+      &:focus {
+        outline: none;
+        border-color: var(--sv-accent);
+      }
+    }
+  }
+
   // Two columns so the keys line up down the left and the sentences all start together.
   &__cog-keys {
     display: grid;
