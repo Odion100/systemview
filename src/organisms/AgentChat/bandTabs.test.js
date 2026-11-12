@@ -343,3 +343,28 @@ describe("showsPlan — the session's own plan belongs to the runs tab alone", (
     expect(answered).toEqual(["all"]);
   });
 });
+
+// A READ THAT DIED IS NOT AN EMPTY PROJECT — measured 2026-11-12, when the door answered 64 rows
+// for his project and every tab in his band read 0 with "nothing in flight" above them.
+describe("the head says when it could not read", () => {
+  it("names the failure instead of asserting nothing is in flight", () => {
+    const segs = bandHead({ jobs: 0, lanes: 0, runs: 0, read: "no transport — the window is not attached to a session yet" });
+    expect(segs).toHaveLength(1);
+    expect(segs[0].key).toBe("unread");
+    expect(segs[0].text).toMatch(/can't read the runs/);
+    expect(segs[0].text).toMatch(/not attached/);
+  });
+
+  it("is the LOUD tone, because it is a thing to act on and not a status", () => {
+    expect(bandHead({ read: "boom" })[0].tone).toBe("open");
+  });
+
+  it("says nothing in flight only when the read actually SUCCEEDED and found nothing", () => {
+    expect(bandHead({ read: "ok" })[0].key).toBe("clear");
+    expect(bandHead({})[0].key).toBe("clear");
+  });
+
+  it("a successful read with work in it is unaffected", () => {
+    expect(bandHead({ runs: 2, read: "ok" }).map((s) => s.key)).toEqual(["runs"]);
+  });
+});

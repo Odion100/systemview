@@ -140,8 +140,13 @@ export const bandTabs = (counts = {}, stored = "") => {
 // moving — which can happen while the band still renders (finished runs he has not cleared, or a
 // whiteboard with no work beside it). It is text, not a door: a button that opens a tab that does
 // not exist is a press that answers nothing.
-export const bandHead = ({ jobs = 0, lanes = 0, subagents = 0, runs = 0 } = {}) => {
+export const bandHead = ({ jobs = 0, lanes = 0, subagents = 0, runs = 0, read = "ok" } = {}) => {
   const segs = [];
+  // A READ THAT DIED IS NOT AN EMPTY PROJECT. Until this existed the two were one sentence —
+  // "nothing in flight" — and the band asserted a fact it had no way of knowing. Measured
+  // 2026-11-12: the door answered 64 rows for his project while every tab read 0, and nothing on
+  // the surface could tell him which of the two he was looking at.
+  if (read && read !== "ok") return [{ key: "unread", tab: "", tone: "open", text: `can't read the runs — ${read}` }];
   if (jobs) segs.push({ key: "jobs", tab: "jobs", text: `${plural("job", jobs)} running` });
   if (lanes) segs.push({ key: "lanes", tab: "lanes", text: `${plural("lane", lanes)} out` });
   if (subagents) segs.push({ key: "subagents", tab: "lanes", text: `${plural("subagent", subagents)} running` });

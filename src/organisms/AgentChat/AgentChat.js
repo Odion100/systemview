@@ -6277,6 +6277,9 @@ const countdown = (str, now = Date.now()) => {
     // counting one pane here would have made the head quietly stop seeing whole kinds — a stalled
     // assignment would not have been "in flight" at all.
     runs: inFlight(bandAll),
+    // THE HEAD SAYS WHEN IT DOES NOT KNOW. Every count above is derived from rows that may never
+    // have arrived, and a zero derived from a failed read is a lie the surface tells confidently.
+    read: work.runsRead || "ok",
   });
   const todoShown = listsShown.length ? listsShown[listsShown.length - 1].items : null;
   // THE PLAN'S HEADER RIDES THE MINIMISED VIEW ONLY — his correction after I put it on the open

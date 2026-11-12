@@ -141,10 +141,29 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
   // A counter flipped when the transport lands gives the effect a dep that MOVES exactly once,
   // which is the one moment the read was missing.
   const [attached, setAttached] = useState(0);
+  // WHY THIS REPORTS ITS FAILURES. `.catch(() => {})` made a read that DIED indistinguishable from
+  // a project with nothing in flight — and the band then said "nothing in flight", which is a
+  // surface asserting something it does not know. Measured 2026-11-12: the door answered 64 rows
+  // for this project while his band read 0 across every tab, and there was no way from inside the
+  // window to tell a silent failure from an honest zero.
+  //
+  // `runsRead` is the three-way answer every reader needs: "" is never asked, "ok" is asked and
+  // answered, and anything else is what went wrong. A count of zero means zero only in the second.
+  const [runsRead, setRunsRead] = useState("");
   const refreshLanes = useCallback(() => {
     const t = transportRef.current;
     const read = t && (t.stripRuns || t.laneRuns);
-    if (read) read.call(t).then((rows) => setStandingRuns(Array.isArray(rows) ? rows : [])).catch(() => {});
+    if (!read) {
+      setRunsRead("no transport — the window is not attached to a session yet");
+      return;
+    }
+    read
+      .call(t)
+      .then((rows) => {
+        setStandingRuns(Array.isArray(rows) ? rows : []);
+        setRunsRead(Array.isArray(rows) ? "ok" : `the door answered ${typeof rows}, not a list of rows`);
+      })
+      .catch((e) => setRunsRead(String((e && e.message) || e) || "the read failed with no message"));
   }, []);
   // `lane.removed` IS WHY THIS LIST EXISTS. The other three kinds tick when a lane MOVES; nothing
   // ticked when one was removed, so the only reason a row ever disappeared is that his own press
@@ -311,6 +330,7 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
     interrupt,
     wipeWhiteboard,
     standingRuns,
+    runsRead,
     deleteLaneRun,
     muteRun,
     compact,
