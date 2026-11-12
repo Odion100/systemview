@@ -54,14 +54,20 @@ it also heals a window already carrying the accident without you having to find 
 left you exactly where you were when you reported this.
 :::
 
-:::decision[Does the decision block go into doctrine?]{id=d4 owner=you}
-**why** — your instruction, verbatim: *"It doesn't mean that we're going to update any doctrine
-around it yet. And if it just do it, then I could decide to use it or not."* So no RFC, no board
-card, nothing in `report-authoring`, `arc-planning`, `agents/markdown.md` or `reports.md`. The block
-exists and nothing requires it.
+:::decision[Does the decision block go into doctrine?]{id=d4 owner=you state=open chose="yes — it needs a corpus" over="leave it undocumented until it has been used longer" by=odion at=1794534000000}
+**how it stood** — your instruction when it was built, verbatim: *"It doesn't mean that we're going
+to update any doctrine around it yet. And if it just do it, then I could decide to use it or not."*
+So nothing went into `report-authoring`, `arc-planning`, `agents/markdown.md` or `reports.md`.
 
-**instead** — the planning skill still says `**DECIDE HERE:**` and will go on saying it until you say
-otherwise.
+**what you said after using it** — *"the whole thing is that there needs to be a corpus on that,
+right, and capture those things we just got — decisions."* You have used it in two live meetings
+since, which is the condition the original instruction implied.
+
+**answered, not closed, deliberately** — because it is not one question. A corpus entry is the
+PRACTICE (how a planning document captures what lands); `agents/markdown.md` is the SYNTAX; and
+whether `arc-planning` starts REQUIRING the block is a third thing that would change how every
+planning document gets written. I would rather you close those separately than have me read one
+sentence as three permissions.
 :::
 
 ::decisions

@@ -127,7 +127,7 @@ which is exactly the piece §2's clone question runs into:
 own RFC is a candidate first objective, and the arc either amends RFC-010 or supersedes it. It does
 not get a parallel design; two documents for one problem is two sources drifting.
 
-:::decision[Does this arc amend RFC-010, or supersede it?]{id=d-rfc010 owner=you}
+:::decision[Does this arc amend RFC-010, or supersede it?]{id=d-rfc010 owner=you state=open at=1794504697149}
 **why it is a fork** — two documents for one problem is two sources drifting, so one of them has to
 stop being the plan of record. Amending keeps its history and its approval; superseding lets the arc
 state the mechanism cleanly without carrying an argument nobody is making any more.
@@ -165,7 +165,7 @@ right about):
 visitor runs on your hardware or theirs; whether there is anything in the middle; what an
 organization *is*; and whether updates are in this arc at all or the one after.
 
-:::decision[Are agent, data AND update all inside the first arc?]{id=d-scope owner=you}
+:::decision[Are agent, data AND update all inside the first arc?]{id=d-scope owner=you state=open at=1794504488588}
 **why it is a fork** — it decides what gets built before anything is built. Three problems wearing
 one goal, and the update feedback loop is the one with no bottom.
 
@@ -180,9 +180,7 @@ you nothing when it stalls.
 **Also to settle, in passing:** is the definition above what you mean, or is it narrower or wider
 than the goal?
 
-::::thread{id=definition members=systemview-test}
 For telling the room when the definition of the goal itself moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -287,6 +285,39 @@ the **node** (an install on a machine — a person may hold several), and the **
 with a definition). When my agent appears on your screen, your window should be able to say all
 three: *Odion's* agent, from *Odion's studio machine*, acting as *systemview-test*.
 
+**And a thing that only appears once there is more than one of us in it.** Everything this system
+records today has ONE author: a claim has a marker, an objective has an owner, a decision has a
+decider. That is true because there has only ever been one person here. The moment an organization
+is real, the interesting content arrives BEFORE the decision — several parties each holding a view,
+one of which is *I don't know*, which is usually the most useful one in the room because it means
+the decision is not ready.
+
+:::decision[Does a decision collect POSITIONS from several parties, or only a decider's answer?]{id=d-positions owner=you}
+**why it is a decision and not a detail** — it decides whether this system has a governance model.
+A position is an input: an author, a leaning, a reason, several coexisting, none of them resolving
+anything. A VOTE is a RULE for turning positions into an answer — majority, unanimity,
+whoever-owns-it — and that is a different thing to build and a different thing to live with.
+
+**my position** — positions yes, votes **not yet**. Positions are additive and commit us to nothing;
+a tally is a governance model, and a mechanism that counts will make people count. Today you decide
+and agents propose. Build the tally and consensus starts looking like the default.
+
+**the part that is not this block at all** — *"sending it around the organization"* is DELIVERY. A
+decision owned by somebody says who owes it and tells them nothing. That is the members/audience
+machinery, and it is probably worth more than either positions or votes: a decision nobody was told
+about stays open however well the block models it.
+:::
+
+:::decision[Are organization, business and household one model or three?]{id=d-orgkinds owner=you}
+**why it is a decision** — the mission names all three and they are not obviously the same shape. A
+business has roles and an approval chain; a household has neither and would find both insulting. If
+they are one model, "organization" has to be thin enough that a household is not wearing a suit. If
+they are three, then membership, approval and who-may-decide each need three answers and the
+documentation needs a section per kind.
+
+**my position** — none, and I want to hear which one you have in mind before I argue for thin.
+:::
+
 :::decision[Where does identity come from?]{id=d-identity owner=you}
 **the three roads** — a **keypair per install** (nothing central, you own your own name) · **accounts
 on something central** (a directory exists, and so does whoever runs it) · **the account we are
@@ -309,9 +340,7 @@ harness, and I would rather you cut it than have me argue for the one I found la
 5. Is there a **human-readable directory** at all (find a colleague by name), or do you exchange
    addresses out of band the first time, like an invite?
 
-::::thread{id=identity members=systemview-test}
 For telling the room when the identity section moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -452,9 +481,7 @@ roads in `d-identity`.
 7. What does the host KEEP as the record of what a visitor did — and can the visitor's run be left
    died-in-place on their node, the way every other run is?
 
-::::thread{id=visiting members=systemview-test}
 For telling the room when the visiting-agent section moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -521,9 +548,7 @@ is why it is a question and not a decision.
 4. Does a document that crosses keep its **identity** (its leaf, its id, its history) or arrive as a
    new document on the other side?
 
-::::thread{id=transfer members=systemview-test}
 For telling the room when the transfer section moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -627,9 +652,7 @@ the finding.
 8. Is there a notion of a node being **more authoritative** than another (yours, as the origin), or
    are all nodes peers in this too?
 
-::::thread{id=updates members=systemview-test}
 For telling the room when the updates section moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -697,9 +720,7 @@ achievable in the real world, and pretending otherwise would cost us a redesign 
    **fail**, or **wait**? (If it queues, something in the middle has to hold it — which is question
    1 again, with teeth.)
 
-::::thread{id=transport members=systemview-test}
 For telling the room when the transport section moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -835,9 +856,7 @@ refuses a stranger on the port. What it does not have is:
    RFC 006 and already carries `delegate`/`broadcast`/`elect` — or is an organization's rendezvous a
    different thing that should not inherit a load-balancer's shape?
 
-::::thread{id=systemlynx members=systemview-test}
 For telling the room when the SystemLynx section moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -908,9 +927,7 @@ long as the arc takes.
    the hub** (so it ships without touching the framework)? My position: the framework — a check
    every service re-implements is the hand-rolled-`fetch` failure in a worse place.
 
-::::thread{id=hub-door members=systemview-test}
 For telling the room when the hub-door section moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -945,9 +962,7 @@ building the dangerous half first.
 2. Is anything in "out" actually load-bearing for you — something whose absence makes the first arc
    pointless?
 
-::::thread{id=scope members=systemview-test}
 For telling the room when the arc's scope moves. Nothing else goes in here.
-::::
 
 ---
 
@@ -964,10 +979,6 @@ build it, with a chip back to this document.
 
 ## What we learned on the way
 
-::::thread{id=bugs members=systemview-test}
 Anything that did not work, the moment it did not work. One line, by whoever hit it.
-::::
 
-::::thread{id=procedure members=systemview-test}
 A move that worked and should happen again, named precisely enough to be a step in a skill.
-::::
