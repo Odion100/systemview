@@ -5282,11 +5282,15 @@
   // The remainder of the track is OPEN. It is the only count with no segment, because open is the
   // absence of a decision rather than a kind of one — and a track that fills as forks close is the
   // whole thing a reader wants off one glance.
+  // A HAIRLINE, NOT A METER. His, looking at it: *"4px for the bar is high."* The ledger's track is
+  // 7px because it is the headline of an arc; this one sits under a count and above its own chips,
+  // so it is a rule that fills rather than a bar that dominates — and being visibly thinner than
+  // the ledger's is part of how this block stays recognisable as itself.
   &__bar {
     display: flex;
-    height: 5px;
+    height: 3px;
     margin: 0 0 7px;
-    border-radius: 3px;
+    border-radius: 2px;
     background: var(--sv-inset);
     overflow: hidden;
 
