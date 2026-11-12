@@ -1,5 +1,6 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { FLASH_CLASS } from "../revealBlock";
 import Decision from "./Decision";
 import Decisions from "./Decisions";
 import { MarkdownWriteProvider, MarkdownMembersProvider } from "../context";
@@ -165,6 +166,35 @@ describe("the ::decisions roll-up", () => {
     const bar = container.querySelector(".md-decisions__bar");
     expect(bar.querySelector(".is-reversed").style.width).toBe("50%");
     expect(screen.getByText("1 reversed")).toBeInTheDocument();
+  });
+
+  // His, 2026-11-12: "I think you should be able to click one of those and then bring you right to
+  // the block. It becomes an easy communication method when we're talking in a conversation."
+  it("PRESSES through to the block — the id is an address, not a label", () => {
+    const src = ["::decision[a]{id=d1 owner=you}", "", "::decision[b]{id=d2 owner=you}"].join("\n");
+    const { container } = render(
+      <div className="markdown">
+        <MarkdownMembersProvider value={{ source: src }}>
+          <Decisions />
+        </MarkdownMembersProvider>
+        <div data-md-start="1" id="one" />
+        <div data-md-start="3" id="two" />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "d2" }));
+    expect(container.querySelector("#two").className).toContain(FLASH_CLASS);
+    expect(container.querySelector("#one").className).not.toContain(FLASH_CLASS);
+  });
+
+  it("does nothing rather than throwing when the document on screen is not this one", () => {
+    render(
+      <div className="markdown">
+        <MarkdownMembersProvider value={{ source: "::decision[a]{id=d1 owner=you}" }}>
+          <Decisions />
+        </MarkdownMembersProvider>
+      </div>,
+    );
+    expect(() => fireEvent.click(screen.getByRole("button", { name: "d1" }))).not.toThrow();
   });
 
   it("says WHOSE answer is missing, and keeps the unowned visible", () => {

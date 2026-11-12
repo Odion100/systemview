@@ -162,7 +162,14 @@ export function owedBy(source) {
     .filter((d) => d.state === "open")
     .forEach((d) => {
       const who = d.owner.length ? d.owner : ["nobody named"];
-      who.forEach((w) => out.set(w, [...(out.get(w) || []), d.id || `#${d.n}`]));
+      // THE LINE TRAVELS WITH THE ID, because the id on its own can only be read — and his ask is
+      // that it be PRESSED: *"I think you should be able to click one of those and then bring you
+      // right to the block. It becomes an easy communication method when we're talking in a
+      // conversation and you try to capture something — now I know exactly what it is, I come here
+      // and I can find it easily."* An address you can say out loud and then press is the whole
+      // point of giving a decision an id in the first place.
+      const row = { id: d.id || `#${d.n}`, line: d.line, n: d.n };
+      who.forEach((w) => out.set(w, [...(out.get(w) || []), row]));
     });
   return out;
 }

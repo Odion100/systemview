@@ -5366,5 +5366,29 @@
     font-size: 11px;
     font-family: "SF Mono", Menlo, monospace;
   }
+
+  // AN ADDRESS YOU CAN SAY OUT LOUD AND THEN PRESS. It looks like the monospace id it replaced
+  // until you are near it — a row of buttons shouting at rest would compete with the chips above,
+  // and this line is a reference, not a control panel.
+  &__id {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    border-bottom: 1px solid transparent;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--sv-blue);
+      border-bottom-color: var(--sv-blue);
+      outline: none;
+    }
+  }
+
+  &__sep {
+    opacity: 0.55;
+  }
 }
 

@@ -2,6 +2,7 @@ import React from "react";
 import { useDocMembers } from "../context";
 import { decisionsOf, owedBy } from "../decisions";
 import { fillStyle } from "../../meterWidth";
+import { revealBlock } from "../revealBlock";
 
 // `::decisions` — WHAT THIS DOCUMENT HAS SETTLED AND WHAT IT STILL OWES, recounted off the
 // `::decision` blocks in the same document on every render.
@@ -91,7 +92,31 @@ const Decisions = () => {
           {[...owed.entries()].map(([who, ids]) => (
             <span key={who} className="md-decisions__owes">
               <span className="md-decisions__who">{who}</span>
-              <span className="md-decisions__ids">{ids.join(" · ")}</span>
+              {/* THE ID IS AN ADDRESS, SO IT IS PRESSABLE. The same `revealBlock` the members pin
+                  uses: every block carries `data-md-start`, so the line the parser already read is
+                  the address — nothing new is threaded through. Scrolls it into view and flashes
+                  it, and does nothing at all when the document on screen is not this one, which is
+                  a real case rather than an error. */}
+              <span className="md-decisions__ids">
+                {ids.map((row, i) => (
+                  <React.Fragment key={row.id}>
+                    {i ? <span className="md-decisions__sep"> · </span> : null}
+                    <button
+                      type="button"
+                      className="md-decisions__id"
+                      title={`go to ${row.id}`}
+                      onClick={(e) =>
+                        revealBlock(
+                          e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null,
+                          row.line,
+                        )
+                      }
+                    >
+                      {row.id}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </span>
             </span>
           ))}
         </div>

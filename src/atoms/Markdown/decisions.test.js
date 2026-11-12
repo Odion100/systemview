@@ -139,9 +139,17 @@ describe("the count a ::decisions block draws", () => {
   });
 
   it("groups what is still owed by who owes it, and keeps the UNOWNED visible", () => {
-    const owed = owedBy(["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2}"].join("\n"));
-    expect(owed.get("you")).toEqual(["d1"]);
-    expect(owed.get("nobody named")).toEqual(["d2"]);
+    const owed = owedBy(["::decision[a]{id=d1 owner=you}", "", "::decision[b]{id=d2}"].join("\n"));
+    expect(owed.get("you").map((r) => r.id)).toEqual(["d1"]);
+    expect(owed.get("nobody named").map((r) => r.id)).toEqual(["d2"]);
+  });
+
+  it("carries each id's LINE, because the id is an address to press and not just to read", () => {
+    const owed = owedBy(["::decision[a]{id=d1 owner=you}", "", "text", "::decision[b]{id=d2 owner=you}"].join("\n"));
+    expect(owed.get("you")).toEqual([
+      { id: "d1", line: 1, n: 1 },
+      { id: "d2", line: 4, n: 2 },
+    ]);
   });
 });
 
