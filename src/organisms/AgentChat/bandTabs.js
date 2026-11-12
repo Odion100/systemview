@@ -218,5 +218,5 @@ export const showsPlan = (activeTab) => String(activeTab || "") === "all";
 export const withDefaultList = (rows = []) => {
   const list = Array.isArray(rows) ? rows : [];
   if (list.some((l) => l && !l.source)) return list;
-  return [...list, { key: DEFAULT_LIST_KEY, source: "", items: [], status: null, attachments: null }];
+  return [...list, { key: DEFAULT_LIST_KEY, source: "", items: [], status: null, attachments: null, muted: null }];
 };

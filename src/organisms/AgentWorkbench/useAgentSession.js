@@ -34,6 +34,7 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
           return;
         }
         transportRef.current = s.transport;
+        setAttached((n) => n + 1);
         setEvents(s.history);
         // AUTO-COMPACTION is a TRANSIENT control signal, not a feed row. `compaction.pending` fires
         // once a second while the countdown runs — appended, it would stack fifteen rows. So it
@@ -125,6 +126,21 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
   // three kinds; `laneRuns` is the fallback for a host that predates it, which still draws the lane
   // rows rather than nothing.
   const [standingRuns, setStandingRuns] = useState([]);
+  // THE TRANSPORT ATTACHING IS ITSELF A REASON TO READ.
+  //
+  // Measured 2026-11-12: `worklist.stripRuns("systemview-test")` answered 64 rows — the session's
+  // own plan at 1/5 and two open runs among them — while his band read "nothing in flight · 0 runs
+  // 0 jobs 0 lanes". The door was right and the window had never asked it.
+  //
+  // WHY. The read below fires from an effect whose only triggers are `events.length > 0` and the
+  // lane ticks derived from events. On mount the transport is still being awaited, so the first
+  // run of that effect finds nothing to call — and `events.length > 0` is a BOOLEAN: on a session
+  // that comes back with no history, or comes back quiet after a shell restart, it never changes,
+  // so the effect never fires again and the strip stays empty until something unrelated happens.
+  //
+  // A counter flipped when the transport lands gives the effect a dep that MOVES exactly once,
+  // which is the one moment the read was missing.
+  const [attached, setAttached] = useState(0);
   const refreshLanes = useCallback(() => {
     const t = transportRef.current;
     const read = t && (t.stripRuns || t.laneRuns);
@@ -142,7 +158,7 @@ export default function useAgentSession({ projectCode, sessionId = "agent", gate
   const laneTicks = laneTicksIn(events);
   useEffect(() => {
     refreshLanes();
-  }, [events.length > 0, laneTicks, refreshLanes]);
+  }, [attached, events.length > 0, laneTicks, refreshLanes]);
   // The delete is the user's press, after the row's confirm — this only removes the RECORD; the
   // worktree and branch go through the project's own git verbs before this is called.
   const deleteLaneRun = useCallback(async (id) => {

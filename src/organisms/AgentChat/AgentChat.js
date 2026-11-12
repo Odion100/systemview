@@ -6125,6 +6125,11 @@ const countdown = (str, now = Date.now()) => {
         // todo event carries items and nothing else, which is the same reason status and
         // attachments are preserved rather than overwritten below.
         brief: r.brief || "",
+        // MUTED RIDES THE RECORD TOO, and it has to be NAMED here: this is an explicit projection,
+        // so a field nobody lists is a field the row does not have. Shipped without it once — the
+        // toggle drew un-muted whatever the disk said, which is a control reporting its own state
+        // wrongly. Same class as `save()`'s hand-carried passengers, one layer up.
+        muted: r.muted || null,
       });
     }
     for (const l of work.state.todoLists || [])
@@ -6143,6 +6148,11 @@ const countdown = (str, now = Date.now()) => {
           status: prior ? prior.status : null,
           attachments: prior ? prior.attachments : null,
           brief: prior ? prior.brief : "",
+          // A LIVE `todo` EVENT CARRIES ITEMS AND NOTHING ELSE, so the mute is preserved from the
+          // disk row exactly as the status and the attachments are. Overwriting it here would
+          // un-mute a row the instant the agent ticked an item — the same moment the record itself
+          // was built to survive.
+          muted: prior ? prior.muted : null,
         });
       }
     // THE DEFAULT LIST IS NEVER FILTERED AWAY — his ruling, 2026-11-07: *"default list always."*

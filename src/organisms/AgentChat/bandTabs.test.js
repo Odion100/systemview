@@ -209,7 +209,10 @@ describe("the head speaks work-state", () => {
 describe("the default list always has a row", () => {
   it("synthesises an empty one when the session has no plan", () => {
     expect(withDefaultList([])).toEqual([
-      { key: DEFAULT_LIST_KEY, source: "", items: [], status: null, attachments: null },
+      // `muted` is on the synthesised row for the same reason every other field is: the plan is a
+      // list he can mute, so a row that cannot carry the state would draw the toggle permanently
+      // off whatever the record says.
+      { key: DEFAULT_LIST_KEY, source: "", items: [], status: null, attachments: null, muted: null },
     ]);
   });
 
