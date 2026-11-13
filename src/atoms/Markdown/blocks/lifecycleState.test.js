@@ -1,4 +1,4 @@
-import { TRAILS, stateOf, pressTo, wouldLand, declaredOn, GROUP_OF, reasonOf, reasonsFor, stepsFor, missingProof, STATE_WORDS, RETIRE_REASONS, RETIRE_ATTR, objectiveComplete } from "./lifecycleState";
+import { TRAILS, stateOf, pressTo, wouldLand, declaredOn, GROUP_OF, reasonOf, reasonsFor, stepsFor, missingProof, missingClaim, hasClaim, STATE_WORDS, RETIRE_REASONS, RETIRE_ATTR, objectiveComplete } from "./lifecycleState";
 
 const rfc = (state) => ({ id: "RFC-075", kind: "rfc", state });
 const TODAY = "2026-10-27";
@@ -377,6 +377,50 @@ describe("a gap's resolved needs a proof, which is the state a press cannot outr
     expect(missingProof("rfc", { state: {} })).toBe("");
     expect(missingProof("arc", { state: {} })).toBe("");
     expect(missingProof("report", { state: {} })).toBe("");
+  });
+});
+
+// A GAP CARRIES A CLAIM — the half that belongs to a different person than the proof does.
+//
+// `claims.md` has always said a gap carries one "as the statement its fix is checked against", and
+// neither gate enforced it: the control refused a press with no PROOF, and the derivation withheld
+// `done` for the same reason, but nothing anywhere asked for a claim. Two of the four registered
+// gaps had already reached resolved without one.
+describe("a gap carries a claim, and the trail says so from `open`", () => {
+  const row = (state) => ({ state });
+
+  it("a gap with evidence and no claim is not resolved — somebody showed their work, nobody can check it off", () => {
+    expect(stateOf("gap", row({ resolvedDeclared: true, hasProof: true, claims: { total: 0 } }))).toBe("open");
+    expect(stateOf("gap", row({ resolvedDeclared: true, hasProof: true, claims: { total: 1 } }))).toBe("resolved");
+  });
+
+  it("the refusal names the claim and the control can add it", () => {
+    const r = pressTo("gap", "resolved", row({ claims: { total: 0 }, hasProof: true }), TODAY);
+    expect(r.ok).toBe(false);
+    expect(r.needs).toBe("claim");
+    expect(r.why).toMatch(/the OUTCOME you needed/);
+  });
+
+  // BOTH HALVES AT ONCE, because a refusal that reveals one problem per press is three presses.
+  it("both missing says both, and offers the CLAIM first — a proof exists to pay a claim", () => {
+    const r = pressTo("gap", "resolved", row({ claims: { total: 0 } }), TODAY);
+    expect(r.needs).toBe("claim");
+    expect(r.why).toMatch(/OUTCOME you needed/);
+    expect(r.why).toMatch(/run, a cmd or a test/);
+  });
+
+  // THE COMPATIBILITY RULE, and it is load-bearing rather than defensive: a hub that predates the
+  // count sends no `claims` key at all, and reading silence as ZERO would flip every gap in the
+  // system to `open` on the strength of a field that was never sent.
+  it("silence is not zero — a row with no claims key is not accused of missing one", () => {
+    expect(hasClaim({})).toBe(true);
+    expect(hasClaim({ claims: { total: 0 } })).toBe(false);
+    expect(missingClaim("gap", row({}))).toBe("");
+    expect(stateOf("gap", row({ resolvedDeclared: true, hasProof: true }))).toBe("resolved");
+  });
+
+  it("missingClaim is a gap's question and nobody else's", () => {
+    for (const k of ["rfc", "arc", "report"]) expect(missingClaim(k, row({ claims: { total: 0 } }))).toBe("");
   });
 });
 

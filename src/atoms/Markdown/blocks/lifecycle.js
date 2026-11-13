@@ -318,6 +318,18 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
     setRefused("");
   }, [appendEnd]);
 
+  // THE SAME STEP FOR THE OTHER HALF. A gap owes a claim as well as evidence, and the two belong to
+  // different people — the FILER writes the sentence, the owner proves it — so the skeleton is
+  // written as a prompt for an OUTCOME rather than a blank. The whole failure mode this guards is a
+  // sentence naming a mechanism: it reads met while the real fix goes further, which is exactly
+  // what happened on autobot G-16, where the filed sentence named one branch and the fix touched
+  // three.
+  const offerClaim = useCallback(() => {
+    if (!appendEnd) return;
+    appendEnd("::claim[what becomes true when this is fixed — the outcome you needed, never the change you want them to make]{id=g1}");
+    setRefused("");
+  }, [appendEnd]);
+
   // THE LADDER DISMISSES ITSELF ON ARRIVAL (his catch, 2026-10-29: the "nothing in the way" button
   // "usually shows up when you're already there"). When the document's own derived state lands on
   // the target — the last step wrote, or the state moved on its own — the lit station is the
@@ -572,6 +584,11 @@ export const LifecycleTrail = ({ kind, id, line, attrs = {} }) => {
           {needs === "proof" && appendEnd ? (
             <button type="button" className="md-arc__why-pick md-arc__why-pick--pause" onClick={offerProof}>
               add a proof block
+            </button>
+          ) : null}
+          {needs === "claim" && appendEnd ? (
+            <button type="button" className="md-arc__why-pick md-arc__why-pick--pause" onClick={offerClaim}>
+              add a claim
             </button>
           ) : null}
         </span>

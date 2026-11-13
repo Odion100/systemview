@@ -272,9 +272,10 @@ export function stateOf(kind, row, leaf = null) {
     // closed and there is evidence for it. `rejected` claims less, so it is the honest answer to a
     // document that cannot be trusted about which ending it took.
     if (st.rejected) return "rejected";
-    // The leaf declares the first half. `hasProof` is not on the leaf — it is a fact about the
-    // whole document — so the row answers it, and the row is the only thing that can.
-    if (st.resolvedDeclared != null) return st.resolvedDeclared && st.hasProof ? "resolved" : "open";
+    // The leaf declares the first half. `hasProof` and the claim count are not on the leaf — they
+    // are facts about the whole document — so the row answers them, and the row is the only thing
+    // that can.
+    if (st.resolvedDeclared != null) return st.resolvedDeclared && st.hasProof && hasClaim(st) ? "resolved" : "open";
     return st.done ? "resolved" : "open";
   }
   return "filed";
@@ -358,6 +359,31 @@ export function missingProof(kind, row, leaf = null) {
   const st = { ...((row && row.state) || {}), ...(leaf || {}) };
   if (st.hasProof) return "";
   return "a gap is resolved by evidence, not by saying so — add a run, a cmd or a test block";
+}
+
+/** Does the row say this gap carries a claim? An older hub sends no count — treat silence as yes. */
+export function hasClaim(st) {
+  const c = st && st.claims;
+  return !c || typeof c.total !== "number" ? true : c.total > 0;
+}
+
+/**
+ * THE OTHER HALF A GAP OWES, and it belongs to a different person than the proof does.
+ *
+ * A gap's claim is the one claim in this system whose SENTENCE and PROOF have different authors:
+ * the filer owns neither the code nor a suite, so they write what they NEEDED, and the owner proves
+ * it. Without one the resolution is prose and a sha — somebody showed their work and nobody else
+ * has a surface to check it off.
+ *
+ * WHICH IS WHY THE TRAIL SAYS THIS FROM `open` and not only at the press. The obligation is the
+ * FILER's; refuse it only at closing time and the person blocked is the owner who just did the
+ * work, who then writes the sentence themselves — the self-grading the claim exists to prevent.
+ */
+export function missingClaim(kind, row, leaf = null) {
+  if (kind !== "gap") return "";
+  const st = { ...((row && row.state) || {}), ...(leaf || {}) };
+  if (hasClaim(st)) return "";
+  return "a gap carries one claim — the OUTCOME you needed, so somebody other than the fixer can check it off";
 }
 
 /**
@@ -485,8 +511,14 @@ export function pressTo(kind, station, row, today, leaf = null, reason = "", poi
     // from so you stop pressing; this says what to add so you can. `needs` lets the control offer
     // the fix rather than only reporting the problem.
     if (kind === "gap" && station === "resolved") {
-      const gap = missingProof(kind, row, leaf);
-      if (gap) return { ok: false, why: gap, needs: "proof" };
+      // BOTH HALVES ARE NAMED, and the CLAIM is offered first when both are absent — it is the
+      // prerequisite, since a proof exists to pay a claim and a document with evidence and no
+      // claim has nothing for the evidence to be evidence OF. Reporting them together is the same
+      // discipline a report's `invalid` already follows: say everything that is missing, so the
+      // next press is the last one rather than the second of three.
+      const parts = [missingClaim(kind, row, leaf), missingProof(kind, row, leaf)].filter(Boolean);
+      if (parts.length)
+        return { ok: false, why: parts.join("; and "), needs: missingClaim(kind, row, leaf) ? "claim" : "proof" };
     }
     // THE REFUSAL HAS TO NAME THE RIGHT OBSTACLE, and for this one it did not. Going BACKWARD from
     // `built` to `approved` was refused with "approved comes from the approval block's verdict" —
