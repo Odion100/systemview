@@ -62,10 +62,9 @@ written as the OUTCOME you needed rather than the change you think they should m
 neither the code nor a suite, so a sentence naming a mechanism is an outsider designing somebody
 else's fix: it reads met while the real fix goes further.
 
-**Write it when you file, not because a rule forbids otherwise.** A sentence written before the fix
-cannot be fitted to what shipped, which is the whole value — but a gap filed without one still has
-to close, and nobody is chasing the filer down for it. A resolver writing the claim is a claim being
-made, which is all a claim ever is. What the system asks for is that one exists.
+**Write it when you file.** A sentence written before the fix cannot be fitted to what shipped,
+which is the whole value of it being yours. A gap that arrives without one still closes — whoever
+resolves it writes the claim then. What the system asks for is that a claim exists.
 
 **And `resolved=` alone does not close it.** The leaf's declaration plus something RUNNABLE in the
 document is what derives `done` — a declaration with nothing behind it made the hardest state in the

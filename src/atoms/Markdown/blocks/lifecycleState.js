@@ -373,14 +373,12 @@ export function hasClaim(st) {
  * Without a claim a resolution is prose and a sha — work was shown, and there is nothing anybody
  * can mark. The claim is the surface.
  *
- * WHO WRITES IT IS NOT A CONDITION. Best is the filer, since a sentence written before the fix
- * cannot be fitted to what shipped — but a gap filed without one still has to close, and nobody is
- * chasing the filer down for it. A resolver writing it is a claim being made, which is all a claim
- * ever is.
+ * A sentence written before the fix cannot be fitted to what shipped, which is why filing it with
+ * the gap gets the most out of it. A gap that arrives without one closes on a claim its resolver
+ * writes; what is asked is that a claim exists.
  *
- * THE TRAIL SAYS IT FROM `open` ANYWAY, because that is where it is cheapest to answer: the filer
- * is standing there, and the owner sees the hole before starting rather than meeting it at the
- * press. That is a prompt at the best moment, not a rule about whose sentence it is.
+ * THE TRAIL SAYS IT FROM `open`, the cheapest moment to answer it: the filer is standing there, and
+ * an owner picking the gap up meets the hole before starting rather than at the press.
  */
 export function missingClaim(kind, row, leaf = null) {
   if (kind !== "gap") return "";
