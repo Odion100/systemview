@@ -25,6 +25,7 @@ import {
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
 import { groupSkillsBySource, sourceCountLabel, skillDoc } from "./skillSources";
 import { CATEGORIES, COUNTS, GAP_UNITS, MODES, isCrossing, readRate, saysRate, writeRate } from "./hookRate";
+import { WHEN_OPS, needsValue, picks, seedVal, newWhenRow } from "./hookWhen";
 import { hookWithFields, hookWithNote, hookWithHint } from "./hookWith";
 import { listJobs, jobRuns, rateJobRun, hasHostJobs, saveJob } from "../../utils/hostJobs";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
@@ -961,25 +962,28 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                         <div className="agent-profile__hookform-cond" key={i}>
                           <SvSelect
                             value={r.field}
-                            onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, field: v } : x)) })}
+                            onChange={(v) =>
+                              setHd({
+                                rows: hookDraft.rows.map((x, n) =>
+                                  n === i ? { ...x, field: v, val: seedVal(valuesFor(hookDraft.on, v), x.op, "") } : x,
+                                ),
+                              })
+                            }
                             options={condFields(hookDraft.on)}
                           />
                           <SvSelect
                             value={r.op}
-                            onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, op: v } : x)) })}
-                            options={[
-                              { value: "equals", label: "is" },
-                              { value: "contains", label: "contains" },
-                              { value: "startsWith", label: "starts with" },
-                              { value: "endsWith", label: "ends with" },
-                              { value: "matches", label: "matches /re/" },
-                              { value: "gte", label: "≥" },
-                              { value: "lte", label: "≤" },
-                              { value: "exists", label: "exists" },
-                            ]}
+                            onChange={(v) =>
+                              setHd({
+                                rows: hookDraft.rows.map((x, n) =>
+                                  n === i ? { ...x, op: v, val: seedVal(valuesFor(hookDraft.on, x.field), v, x.val) } : x,
+                                ),
+                              })
+                            }
+                            options={WHEN_OPS}
                           />
-                          {r.op !== "exists" &&
-                            (valuesFor(hookDraft.on, r.field) && r.op === "equals" ? (
+                          {needsValue(r.op) &&
+                            (picks(valuesFor(hookDraft.on, r.field), r.op) ? (
                               <SvSelect
                                 value={r.val}
                                 onChange={(v) => setHd({ rows: hookDraft.rows.map((x, n) => (n === i ? { ...x, val: v } : x)) })}
@@ -1011,7 +1015,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                           setHd({
                             rows: [
                               ...hookDraft.rows,
-                              { field: (condFields(hookDraft.on)[0] || {}).value || "", op: "contains", val: "" },
+                              newWhenRow(condFields(hookDraft.on), (f) => valuesFor(hookDraft.on, f)),
                             ],
                           })
                         }
