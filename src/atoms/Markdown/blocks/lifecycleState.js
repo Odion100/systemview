@@ -370,14 +370,17 @@ export function hasClaim(st) {
 /**
  * THE OTHER HALF A GAP OWES, and it belongs to a different person than the proof does.
  *
- * A gap's claim is the one claim in this system whose SENTENCE and PROOF have different authors:
- * the filer owns neither the code nor a suite, so they write what they NEEDED, and the owner proves
- * it. Without one the resolution is prose and a sha — somebody showed their work and nobody else
- * has a surface to check it off.
+ * Without a claim a resolution is prose and a sha — work was shown, and there is nothing anybody
+ * can mark. The claim is the surface.
  *
- * WHICH IS WHY THE TRAIL SAYS THIS FROM `open` and not only at the press. The obligation is the
- * FILER's; refuse it only at closing time and the person blocked is the owner who just did the
- * work, who then writes the sentence themselves — the self-grading the claim exists to prevent.
+ * WHO WRITES IT IS NOT A CONDITION. Best is the filer, since a sentence written before the fix
+ * cannot be fitted to what shipped — but a gap filed without one still has to close, and nobody is
+ * chasing the filer down for it. A resolver writing it is a claim being made, which is all a claim
+ * ever is.
+ *
+ * THE TRAIL SAYS IT FROM `open` ANYWAY, because that is where it is cheapest to answer: the filer
+ * is standing there, and the owner sees the hole before starting rather than meeting it at the
+ * press. That is a prompt at the best moment, not a rule about whose sentence it is.
  */
 export function missingClaim(kind, row, leaf = null) {
   if (kind !== "gap") return "";

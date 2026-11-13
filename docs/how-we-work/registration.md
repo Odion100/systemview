@@ -58,10 +58,14 @@ the fix lives, for that project's owner to pick up. A gap is **not** a board car
 owner's own notes.
 
 **It is short, but not bare: it carries one `::claim`** — the statement its fix is checked against,
-written as the OUTCOME you needed rather than the change you think they should make. That is the one
-claim in this system whose sentence and proof have different authors, and it is why the sentence is
-need-shaped: the filer owns neither the code nor a suite, so a sentence naming a mechanism is an
-outsider designing somebody else's fix, and it reads met while the real fix goes further.
+written as the OUTCOME you needed rather than the change you think they should make. A filer owns
+neither the code nor a suite, so a sentence naming a mechanism is an outsider designing somebody
+else's fix: it reads met while the real fix goes further.
+
+**Write it when you file, not because a rule forbids otherwise.** A sentence written before the fix
+cannot be fitted to what shipped, which is the whole value — but a gap filed without one still has
+to close, and nobody is chasing the filer down for it. A resolver writing the claim is a claim being
+made, which is all a claim ever is. What the system asks for is that one exists.
 
 **And `resolved=` alone does not close it.** The leaf's declaration plus something RUNNABLE in the
 document is what derives `done` — a declaration with nothing behind it made the hardest state in the
