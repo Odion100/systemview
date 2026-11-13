@@ -53,9 +53,19 @@ goes later (a report is deleted; an RFC or arc is his to delete).
 ## A gap is written into the OTHER project's repo
 
 A bug, or a missing feature, found in another project while doing work that needed it: write a
-document INTO THAT PROJECT'S repo carrying `::gap{id=…}` — one line of body is enough. It is a
-message from outside, filed where the fix lives, for that project's owner to pick up. It is done
-when its leaf says `resolved=`. A gap is **not** a board card — the board is the owner's own notes.
+document INTO THAT PROJECT'S repo carrying `::gap{id=…}`. It is a message from outside, filed where
+the fix lives, for that project's owner to pick up. A gap is **not** a board card — the board is the
+owner's own notes.
+
+**It is short, but not bare: it carries one `::claim`** — the statement its fix is checked against,
+written as the OUTCOME you needed rather than the change you think they should make. That is the one
+claim in this system whose sentence and proof have different authors, and it is why the sentence is
+need-shaped: the filer owns neither the code nor a suite, so a sentence naming a mechanism is an
+outsider designing somebody else's fix, and it reads met while the real fix goes further.
+
+**And `resolved=` alone does not close it.** The leaf's declaration plus something RUNNABLE in the
+document is what derives `done` — a declaration with nothing behind it made the hardest state in the
+system the easiest to claim. The row says which half is missing rather than refusing the write.
 
 ## Fires — who hears a decision, and the receipt
 
