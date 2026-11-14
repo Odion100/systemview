@@ -1,17 +1,17 @@
-# Planning — a document with people on it, and the arc it produces
+# Planning — the report, and the arc it produces
 
-**A planning document is a report — `::report{as=planning}` — carrying members.** That is the kind,
-and it is how the document registers and how anything finds it. It exists to produce an **arc**,
+**Planning happens in a PLANNING REPORT — `::report{as=planning}`.** That is the kind, and it is
+how the document registers and how anything finds it. It exists to produce an **arc**,
 and an arc is a document too, so both are described here in one reference: split across two, the
 dispatch was written in one and the thing it dispatched lived in the other.
 
-**Called a *meeting* throughout, and that is a term of art** — not an event, a room, or a call.
-The threads carry the conversation, and the pinned row in the document's top-right corner tells
-each member when something they are on has moved; nobody has to be present at the same time. What separates a planning document from the
+**It is planning, and the document is a planning report** — not an event, a room, or a call. The
+threads carry the conversation, and the pinned row in the document's top-right corner tells anyone
+on it when something moved; nobody has to be present at the same time. What separates a planning document from the
 accounts work leaves behind is not its kind but what it CARRIES: members, replies, verdicts and an
 embedded arc make it a surface people ACT on, where most reports are read.
 
-**Who is who.** *He* is the human who owns the project — the meeting is his, the goals are his
+**Who is who.** *He* is the human who owns the project — the plan is his, the goals are his
 words, and the sends are his presses. *The opener* is the agent that creates the document and does
 the research in it. *Members* are **project codes** (`buapi`, `autobot`) — a member is a room, not
 a person, because that is what delivery takes. See `markdown.md` → `::members`.
@@ -23,10 +23,10 @@ member, `all N` tells everyone behind, and only then does a turn land in their s
 `::members{who=…}` declares membership and notifies nobody.
 
 **An agent cannot press.** The send is a window control today, so an agent that writes into a
-meeting waits for him to announce it. Plan around that: it is the current shape, not a detail.
+planning report waits for him to announce it. Plan around that: it is the current shape, not a detail.
 
 **He has no address, and needs none.** Members are project codes; he is not one. He finds out the
-meeting is ready because it is his repo and the document is open in his window — so when a meeting
+report is ready because it is his repo and the document is open in his window — so when the plan
 needs him, say so in the chat, not by expecting a notification to reach him.
 
 **What an arc is.** The deliverable, and it is its OWN kind of document — not an RFC. It carries an
@@ -34,7 +34,7 @@ needs him, say so in the chat, not by expecting a notification to reach him.
 requirements and what the work is for. An RFC comes later and one level down: the plan an
 objective's owner writes to serve it. The shape is in "What an arc looks like" below.
 
-The meeting embeds the arc back with `::file[…]` so it reads inline — **relative when the arc is in
+The report embeds the arc back with `::file[…]` so it reads inline — **relative when the arc is in
 this repo, absolute when it is in another**, which is the common case for a cross-repo goal.
 
 ## Why you would open one
@@ -46,7 +46,7 @@ Two reasons, and the second is not a lesser one.
 - **To leave a record of the collaboration.** Two agents working something out together open one so
   the exchange LEAVES SOMETHING: a document saying what was considered, by whom, and what they
   settled. Otherwise it lives in two transcripts nobody reads again and all that survives is one
-  agent's account, which is the weakest evidence here. A meeting whose only output is the record is
+  agent's account, which is the weakest evidence here. A plan whose only output is the record is
   finished, not failed.
 
 **Whoever opens it conducts it.** Not a room set up for other people to use — the opener gets the
@@ -67,17 +67,14 @@ every piece and dispatches the work. Nobody else picks it up if they stop.
    so members elsewhere can read it. The leaf decides its life, not its directory: 7d is the
    deciding window, and promoting it to `permanent` is one of its legitimate endings, chosen at
    close rather than at opening.
-2. **Planning is one agent and the human — the members line carries you and nobody else.** He adds
-   a member when he wants one in the room, and that is his call, never the author's. A room
-   pre-filled with agents on `auto=` is not a meeting: everybody wakes up mid-discussion and nobody
-   is talking. (A member is a project code, and only a CONNECTED project is one — an unknown code
-   renders fine and delivers to nobody.)
+2. **The members line carries you; he adds whom he wants.** (A member is a project code, and only
+   a CONNECTED project is one — an unknown code renders fine and delivers to nobody.)
 3. **Write his goals in his words** — quoted. If you were handed a subject rather than goals, the
-   meeting is NOT ready to open: say so and ask him for the goal. An agent that converts a request
-   into a goal has made the decision the meeting exists to make.
+   report is NOT ready to open: say so and ask him for the goal. An agent that converts a request
+   into a goal has made the decision the planning exists to make.
 4. **Write the landscape sections** — one per goal, headed by that goal, and a piece that cuts
    across several goals gets its own section named for the thing. The next chapter is what goes in
-   one. **A document of empty headings is not an opened meeting.**
+   one. **A document of empty headings is not an opened plan.**
 
 ## What goes in a landscape section
 
@@ -96,7 +93,7 @@ of the three out breaks the section in a different way.
 
 **Detail is not optional, because the arc is written FROM these.** An RFC is implementation detail —
 a plan without it is a report — so a section full of intentions cannot become an arc at close and
-the meeting quietly produces nothing. If you cannot say how, say what you would have to find out
+the planning quietly produces nothing. If you cannot say how, say what you would have to find out
 first: that is a plan, and "we should improve X" is not.
 
 **Cite, do not summarise.** A file by `path` or `path:line`, a card by its title, an RFC by its
@@ -108,7 +105,7 @@ number, a lane by its branch. A claim with no address is an opinion.
 are the only senders: a decision block or a reply FIRES when its answer lands, general prose sends
 no updates ever, and the members line decides WHEN each member hears a fire. A member on `auto=` is
 told the moment it lands. A plain member's copy is HELD, and his press in the corner releases it.
-So `auto` and `managed` describe members, not meetings — one document can hold both at once.
+So `auto` and `managed` describe members, not documents — one document can hold both at once.
 
 ### The markdown that places them
 
@@ -186,7 +183,7 @@ somebody's summary is the weakest evidence here.
   that project's running one (`autobot-10`). Match by prefix.
 - **`SendMessage({to, message})`** carries the **absolute** path — members live in different repos
   and a relative path resolves against the wrong one.
-- **Send the address, not the content.** What the meeting is for, the path, which thread is theirs.
+- **Send the address, not the content.** What the plan is for, the path, which thread is theirs.
 - **A project with no running session has not been invited.** Say so rather than leaving a member on
   the document who was never reached: a membership nobody is honouring is the exact failure this
   surface refuses everywhere else.
@@ -215,7 +212,7 @@ somebody's summary is the weakest evidence here.
 - **An objective that becomes definitive is written down the moment it is definitive** — as an
   `::objective` block carrying what, its owner, its requirements and what it is for. A line could
   only be read by eye; a block carries an ADDRESS, which is what lets the work point back at it.
-  Never planned in advance, never a list of what the meeting ought to decide.
+  Never planned in advance, never a list of what the planning ought to decide.
 - **Nothing about the mapping is rigid.** An objective can cover two goals; a goal can need three;
   a goal can need none.
 
@@ -283,7 +280,7 @@ moment he says it; closing it is a separate act and his.
 
 ## Closing one
 
-A meeting is over when every piece has become one of three things, and the document says which on
+A plan is closed when every piece has become one of three things, and the document says which on
 the section's first line — `ARC → ARC-nnn`, `CARRIED → <where>`, or `PARKED → <why>` — so the
 document can be read for what landed without reading every thread. Nothing is deleted.
 
@@ -313,7 +310,7 @@ silently embeds nothing.
 the decision and there is nowhere else to check. **Quote any value containing a space** — an
 unquoted space kills the directive silently and it renders as literal text.
 
-**A meeting that produced no arc still closes.** Every section carries `CARRIED` or `PARKED` and the
+**A plan that produced no arc still closes.** Every section carries `CARRIED` or `PARKED` and the
 document stands as the record. An RFC nobody needs is worse than a record saying the room looked and
 found nothing to build.
 
@@ -332,7 +329,7 @@ their own threads — which is what makes the dispatch auditable.
    own — that is the repo whose agent will find it.
 4. **Anything a future session would otherwise rediscover?** `remember(text, scope, subscribe)`.
 
-A close where only the conductor wrote anything is a meeting that produced one agent's homework.
+A close where only the conductor wrote anything is a plan that produced one agent's homework.
 
 ## What an arc looks like
 
@@ -410,8 +407,8 @@ ever be CHOSEN, never given.
 
 ## Amending the skill from one
 
-The procedure lives in `arc-planning`, and it is amended from a meeting somebody **ran** — never
-from this page. The `procedure` thread in each meeting records the real steps as they happen, and
+The procedure lives in `arc-planning`, and it is amended from a plan somebody **ran** — never
+from this page. The `procedure` thread in each report records the real steps as they happen, and
 those are what the skill is corrected against. This page is the shape; the thread is the evidence.
 
 ## The frame to copy
@@ -420,9 +417,9 @@ Everything inside the fence, and nothing on this page above it. Replace every `<
 prose that is not in `<<…>>` only if it is inside the fence.
 
 ```markdown
-# Meeting — <<what this one is for>>
+# <<what this planning is for>>
 
-::members{who=<<project>>|<<project>>}
+::members{who=<<you>>}
 
 <<One or two sentences: what we are here to come out with.>>
 
