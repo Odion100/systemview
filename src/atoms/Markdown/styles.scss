@@ -5308,6 +5308,17 @@
     .is-reversed { background: var(--sv-dead); }
   }
 
+  // EVERY DECISION, IN DOCUMENT ORDER, WEARING ITS STATE. The owed line below can only ever show
+  // one colour — it holds what is OPEN by definition — so this is the row that answers "which of
+  // these are settled". It takes the BAR's four colours exactly, which makes the bar legible
+  // without a key: the row underneath it IS the legend.
+  &__index {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 0 0 7px;
+  }
+
   &__counts {
     display: flex;
     flex-wrap: wrap;
@@ -5367,6 +5378,20 @@
     font-family: "SF Mono", Menlo, monospace;
   }
 
+  // NOT A PILL — and that was the first attempt, caught by looking at it rather than by any test.
+  // A pill row directly under the counts put two rows of near-identical blue lozenges on screen,
+  // and the block's whole character is being calmer than the claims ledger it was nearly copied
+  // from. These are the same monospace addresses as the owed line below, with the state in the
+  // COLOUR, which is also what makes the bar above legible: the row is its legend.
+  &__index {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    margin: 0 0 7px;
+    font-size: 11px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+
   // AN ADDRESS YOU CAN SAY OUT LOUD AND THEN PRESS. It looks like the monospace id it replaced
   // until you are near it — a row of buttons shouting at rest would compete with the chips above,
   // and this line is a reference, not a control panel.
@@ -5385,6 +5410,23 @@
       border-bottom-color: var(--sv-blue);
       outline: none;
     }
+
+    // THE TONES ARE THE BAR'S — the same four variables, read once each. A colour invented here
+    // would make the bar above a riddle. Nothing sets a border: the base rule above is a bare
+    // address on purpose, and a tone that reached for `border-color` would be writing to a
+    // zero-width border and silently showing nothing.
+    &--decided { color: var(--sv-blue-deep); }
+    // Answered-not-closed is the same blue held back, for the reason the bar's segment is: the
+    // same answer without the press, and a different hue would claim a different KIND of thing.
+    &--answered { color: var(--sv-blue); opacity: 0.75; }
+    &--awaiting { color: #c0801c; font-weight: 600; }
+    &--reversed { color: var(--sv-dead); text-decoration: line-through; }
+    // A choice made with nothing written down — the wrong half of a record, so it reads as the
+    // fault it is rather than as a finished decision.
+    &--unsaid { color: var(--sv-danger); }
+    // OPEN IS THE UNFILLED REMAINDER, exactly as it is in the bar, which has no `open` segment.
+    // So it stays plain and every colour on these rows means something was actually done.
+    &--open { color: var(--sv-text); }
   }
 
   &__sep {

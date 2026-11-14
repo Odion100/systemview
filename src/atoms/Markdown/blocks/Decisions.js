@@ -1,6 +1,6 @@
 import React from "react";
 import { useDocMembers } from "../context";
-import { decisionsOf, owedBy } from "../decisions";
+import { decisionsOf, owedBy, decisionIndex } from "../decisions";
 import { fillStyle } from "../../meterWidth";
 import { revealBlock } from "../revealBlock";
 
@@ -29,6 +29,12 @@ const Decisions = () => {
   const { source = "" } = useDocMembers() || {};
   const got = decisionsOf(source);
   const owed = owedBy(source);
+  // THE TWO ROWS ARE COMPLEMENTARY, NEVER OVERLAPPING. The owed line below holds what is still
+  // OPEN, grouped by whose answer is missing — including a fork already carrying an answer nobody
+  // closed, which is still owed a close. So this row is everything that has been ACTED ON, and
+  // every decision in the document appears in exactly one of the two. Rendering an id in both was
+  // the first attempt and it put the same address on screen twice in a four-line block.
+  const index = decisionIndex(source).filter((r) => r.tone !== "open" && r.tone !== "answered");
 
   if (!got.total)
     // ABSENCE STATED, never a blank. A document carrying this block and no decisions is a real
@@ -60,6 +66,33 @@ const Decisions = () => {
         <i className="is-awaiting" style={fillStyle(got.awaiting, got.total)} />
         <i className="is-reversed" style={fillStyle(got.reversed, got.total)} />
       </div>
+      {/* WHAT HAS BEEN ACTED ON, IN DOCUMENT ORDER, EACH WEARING ITS STATE. His ask: *"you have
+          basically [a chip] to each decision… it would be helpful if you could tell which ones
+          [are] decided or not. I think color would…"* — and colour on the owed line alone could
+          never answer it, because everything there is open by definition and would be one hue
+          repeated. These take the BAR's four colours exactly, so the bar and this row cannot
+          disagree and this row is the bar's legend. Pressable for the same reason the owed ids
+          are: an address you can say out loud and then press. */}
+      {index.length ? (
+      <div className="md-decisions__index">
+        {index.map((row) => (
+          <button
+            key={`${row.id}-${row.n}`}
+            type="button"
+            className={`md-decisions__id md-decisions__id--${row.tone}`}
+            title={`${row.id} — ${row.tone === "unsaid" ? "decided, no choice written down" : row.tone === "answered" ? "answered, not closed" : row.tone === "awaiting" ? "decided, awaiting approval" : row.tone}`}
+            onClick={(e) =>
+              revealBlock(
+                e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null,
+                row.line,
+              )
+            }
+          >
+            {row.id}
+          </button>
+        ))}
+      </div>
+      ) : null}
       <div className="md-decisions__counts">
         <span className="md-decisions__count md-decisions__count--decided">{got.decided} decided</span>
         <span className={`md-decisions__count md-decisions__count--open${got.open ? "" : " is-zero"}`}>

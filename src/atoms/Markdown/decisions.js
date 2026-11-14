@@ -156,6 +156,46 @@ export function decisionsOf(source) {
  * commonest real state (a fork noticed while writing, assigned to nobody yet) and the one most
  * worth seeing, because nothing will ever chase it.
  */
+/**
+ * EVERY DECISION AS A PRESSABLE CHIP, IN DOCUMENT ORDER, CARRYING ITS STATE.
+ *
+ * The owed line answers "whose answer is missing", so it holds only what is OPEN — which means
+ * every chip in it is the same state and colour there would say nothing. His ask was the other
+ * question: *"you have basically [a chip] to each decision… it would be helpful if you could tell
+ * which ones [are] decided or not. I think color would…"* — so this is the whole set, which makes
+ * the roll-up a MAP of the document rather than only a list of what it still owes.
+ *
+ * `tone` IS THE BAR'S OWN VOCABULARY, deliberately: the chips take the colour of the segment they
+ * belong to, so the bar and the row cannot disagree and the row IS the legend. Nothing has to be
+ * explained, which is the same reason the bar was built out of the counts' colours in the first
+ * place.
+ *
+ * THE ORDER OF THE TESTS IS THE PRECEDENCE AND IT IS NOT ARBITRARY. A reversed decision reads
+ * reversed whatever it once chose. `unsaid` beats `decided` because a choice with no `chose=` is
+ * the wrong half of a record and must not wear the colour of a finished one. `awaiting` beats
+ * `decided` because the signature is the outstanding thing. `answered` beats `open` because an
+ * answer sitting in an unclosed fork is not the same as silence.
+ */
+export function decisionIndex(source) {
+  return parseDecisions(String(source || "")).map((d) => ({
+    id: d.id || `#${d.n}`,
+    line: d.line,
+    n: d.n,
+    tone:
+      d.state === "reversed"
+        ? "reversed"
+        : d.state === "decided"
+          ? d.unsaid
+            ? "unsaid"
+            : d.awaiting
+              ? "awaiting"
+              : "decided"
+          : d.answered
+            ? "answered"
+            : "open",
+  }));
+}
+
 export function owedBy(source) {
   const out = new Map();
   parseDecisions(String(source || ""))

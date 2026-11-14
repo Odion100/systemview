@@ -197,6 +197,65 @@ describe("the ::decisions roll-up", () => {
     expect(() => fireEvent.click(screen.getByRole("button", { name: "d1" }))).not.toThrow();
   });
 
+  // WHICH ONES ARE SETTLED — his ask, and colour on the owed line could never have answered it:
+  // everything there is open by definition, so it would be one hue repeated.
+  it("shows a coloured chip per ACTED-ON decision, wearing its state", () => {
+    const { container } = roll(
+      [
+        "::decision[a]{id=d1 owner=you}",
+        "::decision[b]{id=d2 state=decided chose=X}",
+        "::decision[c]{id=d3 state=reversed chose=Y}",
+        "::decision[d]{id=d4 state=decided chose=Z ratify=him}",
+        "::decision[e]{id=d5 state=decided}",
+      ].join("\n"),
+    );
+    const tone = (id) =>
+      [...container.querySelectorAll(".md-decisions__index .md-decisions__id")].find((b) => b.textContent === id).className;
+    expect(tone("d2")).toContain("--decided");
+    expect(tone("d3")).toContain("--reversed");
+    expect(tone("d4")).toContain("--awaiting");
+    expect(tone("d5")).toContain("--unsaid");
+  });
+
+  // THE PRECEDENCE IS THE POINT, not an implementation detail: a decision carrying a ratification
+  // it has not got must not wear the colour of a finished one, and a choice with nothing written
+  // down must not either.
+  it("awaiting and unsaid outrank plain decided — neither may wear a finished colour", () => {
+    const { container } = roll(
+      ["::decision[a]{id=d1 state=decided chose=X ratify=him approved=him}", "::decision[b]{id=d2 state=decided chose=X ratify=him}"].join("\n"),
+    );
+    const tone = (id) =>
+      [...container.querySelectorAll(".md-decisions__index .md-decisions__id")].find((b) => b.textContent === id).className;
+    expect(tone("d1")).toContain("--decided");
+    expect(tone("d2")).toContain("--awaiting");
+  });
+
+  // NO DECISION APPEARS TWICE. The first attempt rendered every id in this row AND in the owed
+  // line, which put the same address on screen twice inside a four-line block.
+  it("the two rows are complementary — every decision is in exactly one of them", () => {
+    const { container } = roll(
+      ["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2 state=decided chose=X}", "::decision[c]{id=d3 owner=you chose=already-said}"].join("\n"),
+    );
+    const chips = [...container.querySelectorAll(".md-decisions__index .md-decisions__id")].map((b) => b.textContent);
+    const owed = [...container.querySelectorAll(".md-decisions__owed .md-decisions__id")].map((b) => b.textContent);
+    expect(chips).toEqual(["d2"]);
+    expect(owed.sort()).toEqual(["d1", "d3"]);
+    expect(chips.filter((c) => owed.includes(c))).toEqual([]);
+  });
+
+  // An answered-but-unclosed fork is STILL OWED A CLOSE, so it belongs to the owed line rather
+  // than to the settled row — the distinction the `answered` count exists to make.
+  it("an answered-not-closed fork stays in the owed line, not the settled row", () => {
+    const { container } = roll("::decision[a]{id=d9 owner=you chose=the-answer-he-gave}");
+    expect(container.querySelectorAll(".md-decisions__index .md-decisions__id").length).toBe(0);
+    expect(container.querySelector(".md-decisions__owed").textContent).toContain("d9");
+  });
+
+  it("the row is absent entirely when nothing has been acted on — never an empty strip", () => {
+    const { container } = roll("::decision[a]{id=d1 owner=you}");
+    expect(container.querySelector(".md-decisions__index")).toBeNull();
+  });
+
   it("says WHOSE answer is missing, and keeps the unowned visible", () => {
     roll(["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2}"].join("\n"));
     expect(screen.getByText("you")).toBeInTheDocument();
