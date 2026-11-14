@@ -27,7 +27,7 @@ import { spotlight, clearSpotlight, animationMode, setAnimationMode, MODES } fro
 import { resolveTarget, docRectOf, revealDocLines } from "../../spotlightTargets";
 import { pointTargetOf } from "./pointTarget";
 import { slotId, pinId, setNavDocked, useNavDock, isNavDocked, railId, spotId, placeInDock, setDockOrder, useDockOrder, dockOrder, orderProjects, carrying, carried } from "./navDock";
-import { tabOrder, useTabRanks } from "./tabOrder";
+import { tabOrder, useTabRanks, readRanks, writeRanks, dropAt } from "./tabOrder";
 import { hasHostDictation, startHostRecording } from "../../utils/hostDictation";
 import VoiceMode from "../../molecules/SpeakReply/VoiceMode";
 import SpeechLine from "../../molecules/SpeakReply/SpeechLine";
@@ -3973,10 +3973,14 @@ function BotBubble({ projectCode, index }) {
       if (d && d.moved && ev && railBox && ev.clientX <= railBox.right + 12 && ev.clientY >= railBox.top && ev.clientY <= railBox.bottom) {
         suppressClickRef.current = true;
         setTimeout(() => { suppressClickRef.current = false; }, 0);
-        // WHERE YOU DROPPED IT (his ask): the spot under the pointer is the spot it takes, and
-        // that spot's owner SWITCHES into the spot you left — your own, wherever it sits. Two
-        // spots trade; nothing else moves. (Shifting the column was built first and read as a
-        // blink without an animation to carry it — his call: "switching would be more intuitive.")
+        // WHERE YOU DROPPED IT — and it has to WRITE THE RANKS, not the dock order. The rail
+        // draws its spots through `tabOrder(order, ranks)`, the same recency layer the tab strip
+        // uses, because the two surfaces are ONE order (his rule). So a drop that wrote only
+        // `setDockOrder` was re-sorted out from under him on the next render — the ranks still
+        // said what they said — and the reorder snapped back. That was the break: the rail was
+        // committing to the layer the order does not come from. It goes through `dropAt`/
+        // `writeRanks` exactly as the strip does, so the drop sticks AND the tabs show the same
+        // move, which is the whole point of tying them together.
         const spots = [...railEl.querySelectorAll("[data-spot]")];
         const full = spots.map((el) => el.dataset.spot);
         let target = -1;
@@ -3987,10 +3991,17 @@ function BotBubble({ projectCode, index }) {
         if (target < 0) target = full.length - 1;
         const mine = full.indexOf(projectCode);
         if (mine >= 0 && target !== mine) {
-          full[mine] = full[target];
-          full[target] = projectCode;
+          // `dropAt`'s index is the seat in the order WITHOUT the dragged tab, so removing `mine`
+          // from ahead of `target` shifts the seat down by one.
+          const at = mine < target ? target - 1 : target;
+          const order = full.filter((pc) => pc !== projectCode);
+          const next = dropAt(readRanks(), full, projectCode, at);
+          // Down among the agents nothing has touched there is no rank to sit between — `dropAt`
+          // asks for the shared dock order to carry the position instead, the same fallback the
+          // strip takes.
+          if (next.dock) placeInDock(next.dock.pc, Math.max(0, order.indexOf(next.dock.after) + 1));
+          else writeRanks(next);
         }
-        setDockOrder(full);
         setNavDocked(projectCode, true);
         return;
       }
