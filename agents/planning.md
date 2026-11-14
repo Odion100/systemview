@@ -67,9 +67,11 @@ every piece and dispatches the work. Nobody else picks it up if they stop.
    so members elsewhere can read it. The leaf decides its life, not its directory: 7d is the
    deciding window, and promoting it to `permanent` is one of its legitimate endings, chosen at
    close rather than at opening.
-2. **Choose the members, and say why in the chat.** They are project codes, and only a CONNECTED
-   project is one — an unknown code renders fine and delivers to nobody, which is the worst
-   failure available here. The membership is a proposal like anything else: he can cut it.
+2. **Planning is one agent and the human — the members line carries you and nobody else.** He adds
+   a member when he wants one in the room, and that is his call, never the author's. A room
+   pre-filled with agents on `auto=` is not a meeting: everybody wakes up mid-discussion and nobody
+   is talking. (A member is a project code, and only a CONNECTED project is one — an unknown code
+   renders fine and delivers to nobody.)
 3. **Write his goals in his words** — quoted. If you were handed a subject rather than goals, the
    meeting is NOT ready to open: say so and ask him for the goal. An agent that converts a request
    into a goal has made the decision the meeting exists to make.
