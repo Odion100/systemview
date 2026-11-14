@@ -50,13 +50,13 @@ Two reasons, and the second is not a lesser one.
   finished, not failed.
 
 **Whoever opens it conducts it.** Not a room set up for other people to use — the opener gets the
-goals, writes the landscape, places the members, keeps each section current as plans land, closes
+goals, writes the landscape, keeps each section current as plans land, closes
 every piece and dispatches the work. Nobody else picks it up if they stop.
 
 ## Opening one
 
-1. **Give it its leaf.** `::report{id="<Subject>" as=planning retain=7d}` at the top, with
-   `::members` beside it. The leaf is what makes the document exist to the system — it registers on
+1. **Give it its leaf.** `::report{id="<Subject>" as=planning retain=7d}` at the top. The leaf is
+   what makes the document exist to the system — it registers on
    save, and from that moment the registry finds it, the band lists it, and anything can point at
    it. **A planning document with no leaf is not merely unlisted, it is invisible**, and then the
    only way anybody finds it is remembering where you put it.
@@ -67,8 +67,10 @@ every piece and dispatches the work. Nobody else picks it up if they stop.
    so members elsewhere can read it. The leaf decides its life, not its directory: 7d is the
    deciding window, and promoting it to `permanent` is one of its legitimate endings, chosen at
    close rather than at opening.
-2. **The members line carries you; he adds whom he wants.** (A member is a project code, and only
-   a CONNECTED project is one — an unknown code renders fine and delivers to nobody.)
+2. **Members only when updates should flow — most planning reports need none.** `::members` exists
+   to deliver fires; a report without it still registers, renders and closes. (A member is a
+   project code, and only a CONNECTED project is one — an unknown code renders fine and delivers
+   to nobody.)
 3. **Write his goals in his words** — quoted. If you were handed a subject rather than goals, the
    report is NOT ready to open: say so and ask him for the goal. An agent that converts a request
    into a goal has made the decision the planning exists to make.
@@ -418,8 +420,6 @@ prose that is not in `<<…>>` only if it is inside the fence.
 
 ```markdown
 # <<what this planning is for>>
-
-::members{who=<<you>>}
 
 <<One or two sentences: what we are here to come out with.>>
 
