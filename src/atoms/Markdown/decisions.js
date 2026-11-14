@@ -157,18 +157,8 @@ export function decisionsOf(source) {
  * worth seeing, because nothing will ever chase it.
  */
 /**
- * EVERY DECISION AS A PRESSABLE CHIP, IN DOCUMENT ORDER, CARRYING ITS STATE.
- *
- * The owed line answers "whose answer is missing", so it holds only what is OPEN — which means
- * every chip in it is the same state and colour there would say nothing. His ask was the other
- * question: *"you have basically [a chip] to each decision… it would be helpful if you could tell
- * which ones [are] decided or not. I think color would…"* — so this is the whole set, which makes
- * the roll-up a MAP of the document rather than only a list of what it still owes.
- *
- * `tone` IS THE BAR'S OWN VOCABULARY, deliberately: the chips take the colour of the segment they
- * belong to, so the bar and the row cannot disagree and the row IS the legend. Nothing has to be
- * explained, which is the same reason the bar was built out of the counts' colours in the first
- * place.
+ * THE STATE OF ONE DECISION AS A SINGLE WORD — the vocabulary the bar's segments use, so a chip
+ * wearing it and the bar above it cannot disagree.
  *
  * THE ORDER OF THE TESTS IS THE PRECEDENCE AND IT IS NOT ARBITRARY. A reversed decision reads
  * reversed whatever it once chose. `unsaid` beats `decided` because a choice with no `chose=` is
@@ -176,28 +166,51 @@ export function decisionsOf(source) {
  * `decided` because the signature is the outstanding thing. `answered` beats `open` because an
  * answer sitting in an unclosed fork is not the same as silence.
  */
-export function decisionIndex(source) {
-  return parseDecisions(String(source || "")).map((d) => ({
-    id: d.id || `#${d.n}`,
-    line: d.line,
-    n: d.n,
-    // WHOSE IT IS, ON THE ROW RATHER THAN IN A GROUP HEADING. `owner` owes the answer while the
-    // fork is open; `by` made the call once it closed — two different facts, and which one applies
-    // is decided by the state rather than by preferring one attribute.
-    who: (d.state === "open" ? d.owner : d.by).join(", "),
-    tone:
-      d.state === "reversed"
-        ? "reversed"
-        : d.state === "decided"
-          ? d.unsaid
-            ? "unsaid"
-            : d.awaiting
-              ? "awaiting"
-              : "decided"
-          : d.answered
-            ? "answered"
-            : "open",
-  }));
+export const toneOf = (d) =>
+  d.state === "reversed"
+    ? "reversed"
+    : d.state === "decided"
+      ? d.unsaid
+        ? "unsaid"
+        : d.awaiting
+          ? "awaiting"
+          : "decided"
+      : d.answered
+        ? "answered"
+        : "open";
+
+/**
+ * EVERY DECISION, GROUPED BY THE PERSON IT BELONGS TO, each carrying its state.
+ *
+ * ONE LIST, NOT TWO, and that is his correction twice over. The first version coloured only the
+ * open ones, which could say nothing because they are all the same state. The second put what had
+ * been acted on in a row under the bar and left the open ones grouped below — *"that's separated
+ * because it's right under the bar, from the others, which is like a whole other section… it
+ * should be all together and then the colours could tell me which one."* Then: *"why did you take
+ * away the decisions that were made?"* — because the fix was to fold the row INTO the grouping,
+ * not to gut the grouping.
+ *
+ * WHICH PERSON A DECISION BELONGS TO DEPENDS ON ITS STATE, and that is the whole reason this is
+ * not a single attribute: `owner` OWES the answer while the fork is open, `by` MADE the call once
+ * it closed. A decision taken by somebody it was not assigned to is exactly the thing an
+ * organization's record has to be able to show, so neither name is allowed to stand for the other.
+ *
+ * OPEN FIRST INSIDE EACH GROUP, because what somebody still owes is what they act on; and the
+ * unnamed group last, because nothing will ever chase those and they must not head the list.
+ */
+export function decisionsByWho(source) {
+  const groups = new Map();
+  parseDecisions(String(source || "")).forEach((d) => {
+    const tone = toneOf(d);
+    const who = (tone === "open" || tone === "answered" ? d.owner : d.by).filter(Boolean);
+    const row = { id: d.id || `#${d.n}`, line: d.line, n: d.n, tone, open: tone === "open" || tone === "answered" };
+    (who.length ? who : ["nobody named"]).forEach((w) => groups.set(w, [...(groups.get(w) || []), row]));
+  });
+  const named = [...groups.entries()].filter(([w]) => w !== "nobody named");
+  const rest = [...groups.entries()].filter(([w]) => w === "nobody named");
+  return new Map(
+    [...named, ...rest].map(([w, rows]) => [w, [...rows].sort((a, b) => (a.open === b.open ? a.n - b.n : a.open ? -1 : 1))]),
+  );
 }
 
 export function owedBy(source) {

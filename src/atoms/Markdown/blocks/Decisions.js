@@ -1,6 +1,6 @@
 import React from "react";
 import { useDocMembers } from "../context";
-import { decisionsOf, owedBy, decisionIndex } from "../decisions";
+import { decisionsOf, decisionsByWho } from "../decisions";
 import { fillStyle } from "../../meterWidth";
 import { revealBlock } from "../revealBlock";
 
@@ -36,14 +36,7 @@ const TONE_WORDS = {
 const Decisions = () => {
   const { source = "" } = useDocMembers() || {};
   const got = decisionsOf(source);
-  const owed = owedBy(source);
-  // ONE ROW, NOT TWO, AND THE COLOUR IS WHAT SEPARATES THEM. The first version put what had been
-  // ACTED ON directly under the bar and left the OPEN ones in an owner-grouped section below, which
-  // read as two unrelated things — his catch: *"that's separated because it's right under the bar,
-  // from the others, which is like a whole other section… it should be all together and then the
-  // colours could tell me which one."* They are one set of addresses; state is a property of each,
-  // not a reason to file them in different places.
-  const index = decisionIndex(source);
+  const groups = decisionsByWho(source);
 
   if (!got.total)
     // ABSENCE STATED, never a blank. A document carrying this block and no decisions is a real
@@ -75,30 +68,6 @@ const Decisions = () => {
         <i className="is-awaiting" style={fillStyle(got.awaiting, got.total)} />
         <i className="is-reversed" style={fillStyle(got.reversed, got.total)} />
       </div>
-      {/* EVERY DECISION, IN DOCUMENT ORDER, EACH WEARING ITS STATE. The colours ARE the bar's four
-          variables, so the bar and this row cannot disagree and this row is the bar's legend —
-          which is also why the open ones are the plain ones: open is the bar's unfilled remainder,
-          so every colour here means something was actually done. Pressable because an id is an
-          address: *"you should be able to click one of those and it brings you right to the
-          block — it becomes an easy communication method."* */}
-      <div className="md-decisions__index">
-        {index.map((row) => (
-          <button
-            key={`${row.id}-${row.n}`}
-            type="button"
-            className={`md-decisions__id md-decisions__id--${row.tone}`}
-            title={`${row.id} — ${TONE_WORDS[row.tone] || row.tone}${row.who ? ` · ${row.who}` : ""}`}
-            onClick={(e) =>
-              revealBlock(
-                e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null,
-                row.line,
-              )
-            }
-          >
-            {row.id}
-          </button>
-        ))}
-      </div>
       <div className="md-decisions__counts">
         <span className="md-decisions__count md-decisions__count--decided">{got.decided} decided</span>
         <span className={`md-decisions__count md-decisions__count--open${got.open ? "" : " is-zero"}`}>
@@ -123,18 +92,39 @@ const Decisions = () => {
           </span>
         ) : null}
       </div>
-      {/* WHOSE ANSWER IS MISSING — kept, because "17 open" tells him nothing he can do and "3
-          yours" is the ask. As NAMES AND COUNTS rather than a second list of ids: the addresses
-          are all in the row above now, and printing them twice was the thing that made this read
-          as two unrelated sections. The unowned group stays visible because nothing will ever
-          chase those. */}
-      {owed.size ? (
+      {/* EVERY DECISION, UNDER THE PERSON IT BELONGS TO, EACH WEARING ITS STATE. One list rather
+          than two — a row under the bar and a grouped section below read as unrelated things, and
+          they are one set of addresses. Which person a decision belongs to depends on its state:
+          `owner` owes the answer while the fork is open, `by` made the call once it closed.
+
+          The colours ARE the bar's, so the bar and this list cannot disagree and the list is the
+          bar's legend. Open is the plain one because open is the bar's unfilled remainder — every
+          colour here means something was actually done. Pressable because an id is an address:
+          *"you should be able to click one of those and it brings you right to the block."* */}
+      {groups.size ? (
         <div className="md-decisions__owed">
-          {[...owed.entries()].map(([who, ids]) => (
+          {[...groups.entries()].map(([who, rows]) => (
             <span key={who} className="md-decisions__owes">
               <span className="md-decisions__who">{who}</span>
-              <span className="md-decisions__owes-n" title={`${ids.length} open — ${ids.map((r) => r.id).join(", ")}`}>
-                {ids.length}
+              <span className="md-decisions__ids">
+                {rows.map((row, i) => (
+                  <React.Fragment key={`${row.id}-${row.n}`}>
+                    {i ? <span className="md-decisions__sep"> · </span> : null}
+                    <button
+                      type="button"
+                      className={`md-decisions__id md-decisions__id--${row.tone}`}
+                      title={`${row.id} — ${TONE_WORDS[row.tone] || row.tone}`}
+                      onClick={(e) =>
+                        revealBlock(
+                          e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null,
+                          row.line,
+                        )
+                      }
+                    >
+                      {row.id}
+                    </button>
+                  </React.Fragment>
+                ))}
               </span>
             </span>
           ))}

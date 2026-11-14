@@ -210,7 +210,7 @@ describe("the ::decisions roll-up", () => {
       ].join("\n"),
     );
     const tone = (id) =>
-      [...container.querySelectorAll(".md-decisions__index .md-decisions__id")].find((b) => b.textContent === id).className;
+      [...container.querySelectorAll(".md-decisions__owed .md-decisions__id")].find((b) => b.textContent === id).className;
     expect(tone("d2")).toContain("--decided");
     expect(tone("d3")).toContain("--reversed");
     expect(tone("d4")).toContain("--awaiting");
@@ -225,54 +225,68 @@ describe("the ::decisions roll-up", () => {
       ["::decision[a]{id=d1 state=decided chose=X ratify=him approved=him}", "::decision[b]{id=d2 state=decided chose=X ratify=him}"].join("\n"),
     );
     const tone = (id) =>
-      [...container.querySelectorAll(".md-decisions__index .md-decisions__id")].find((b) => b.textContent === id).className;
+      [...container.querySelectorAll(".md-decisions__owed .md-decisions__id")].find((b) => b.textContent === id).className;
     expect(tone("d1")).toContain("--decided");
     expect(tone("d2")).toContain("--awaiting");
   });
 
-  // ONE ROW, NOT TWO. Splitting acted-on from open put them in different places on screen and they
-  // read as unrelated sections — "that's separated because it's right under the bar, from the
-  // others, which is like a whole other section". They are one set of addresses; state is a
-  // property of each rather than a reason to file them apart.
-  it("every decision is in the one row, whatever its state", () => {
+  // ONE LIST, GROUPED BY PERSON, AND THE COLOUR SEPARATES THEM. Two earlier shapes were wrong in
+  // opposite directions: colouring only the open ones said nothing (they are all one state), and
+  // putting the acted-on ones in their own row under the bar read as a second unrelated section.
+  it("every decision is in the list, under the person it belongs to", () => {
     const { container } = roll(
       [
         "::decision[a]{id=d1 owner=you}",
-        "::decision[b]{id=d2 state=decided chose=X}",
-        "::decision[c]{id=d3 owner=you chose=already-said}",
+        "::decision[b]{id=d2 state=decided chose=X by=you}",
+        "::decision[c]{id=d3 state=decided chose=Y by=buapi}",
+        "::decision[d]{id=d4}",
       ].join("\n"),
     );
-    const row = [...container.querySelectorAll(".md-decisions__index .md-decisions__id")];
-    expect(row.map((b) => b.textContent)).toEqual(["d1", "d2", "d3"]);
-    expect(row.map((b) => (b.className.match(/--(\w+)/) || [])[1])).toEqual(["open", "decided", "answered"]);
+    const groups = [...container.querySelectorAll(".md-decisions__owes")].map((g) => [
+      g.querySelector(".md-decisions__who").textContent,
+      [...g.querySelectorAll(".md-decisions__id")].map((b) => b.textContent),
+    ]);
+    expect(groups).toEqual([["you", ["d1", "d2"]], ["buapi", ["d3"]], ["nobody named", ["d4"]]]);
   });
 
-  // Asserted on the rendered ADDRESSES rather than on textContent: concatenation makes phantoms —
-  // "1 decided" followed by "1 open" reads as a `d1` to a regex over the joined string, which is
-  // the sort of false red that teaches people to loosen a test rather than fix the thing.
+  // WHICH PERSON DEPENDS ON THE STATE, and that is why there are two attributes: `owner` owes the
+  // answer while the fork is open, `by` made the call once it closed. A decision taken by somebody
+  // it was not assigned to is exactly what an organization's record has to be able to show.
+  it("an open decision sits with who OWES it, a closed one with who MADE it", () => {
+    const { container } = roll(
+      ["::decision[a]{id=d1 owner=you by=buapi}", "::decision[b]{id=d2 state=decided chose=X owner=you by=buapi}"].join("\n"),
+    );
+    const of = (who) =>
+      [...container.querySelectorAll(".md-decisions__owes")]
+        .find((g) => g.querySelector(".md-decisions__who").textContent === who);
+    expect([...of("you").querySelectorAll(".md-decisions__id")].map((b) => b.textContent)).toEqual(["d1"]);
+    expect([...of("buapi").querySelectorAll(".md-decisions__id")].map((b) => b.textContent)).toEqual(["d2"]);
+  });
+
+  it("each id wears its state, and open comes first inside a group", () => {
+    const { container } = roll(
+      [
+        "::decision[a]{id=d1 state=decided chose=X by=you}",
+        "::decision[b]{id=d2 owner=you}",
+        "::decision[c]{id=d3 state=decided chose=Y by=you ratify=him}",
+      ].join("\n"),
+    );
+    const ids = [...container.querySelectorAll(".md-decisions__owed .md-decisions__id")];
+    expect(ids.map((b) => b.textContent)).toEqual(["d2", "d1", "d3"]);
+    expect(ids.map((b) => (b.className.match(/--(\w+)/) || [])[1])).toEqual(["open", "decided", "awaiting"]);
+  });
+
   it("…and appears exactly once — no id is rendered in two places", () => {
-    const { container } = roll(["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2 state=decided chose=X}"].join("\n"));
+    const { container } = roll(["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2 state=decided chose=X by=you}"].join("\n"));
     const shown = [...container.querySelectorAll(".md-decisions__id")].map((b) => b.textContent);
     expect(shown).toEqual(["d1", "d2"]);
     expect(new Set(shown).size).toBe(shown.length);
   });
 
-  // THE ASK SURVIVES AS A COUNT. "17 open" tells him nothing he can do; "you — 3" is the ask, and
-  // the addresses themselves are in the row above rather than printed a second time.
-  it("the owed line keeps whose answer is missing, as names and counts", () => {
-    const { container } = roll(
-      ["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2 owner=you}", "::decision[c]{id=d3}"].join("\n"),
-    );
-    const owes = [...container.querySelectorAll(".md-decisions__owes")].map((n) => n.textContent);
-    expect(owes).toEqual(["you2", "nobody named1"]);
-    expect(container.querySelector(".md-decisions__owes-n").title).toContain("d1, d2");
+  it("the unowned group is kept, and goes last — nothing will ever chase those", () => {
+    const { container } = roll(["::decision[a]{id=d1}", "::decision[b]{id=d2 owner=you}"].join("\n"));
+    const names = [...container.querySelectorAll(".md-decisions__who")].map((n) => n.textContent);
+    expect(names).toEqual(["you", "nobody named"]);
   });
 
-  it("says WHOSE answer is missing, and keeps the unowned visible", () => {
-    roll(["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2}"].join("\n"));
-    expect(screen.getByText("you")).toBeInTheDocument();
-    expect(screen.getByText("nobody named")).toBeInTheDocument();
-    expect(screen.getByText("d1")).toBeInTheDocument();
-    expect(screen.getByText("d2")).toBeInTheDocument();
-  });
 });

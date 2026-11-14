@@ -657,7 +657,10 @@
     --sv-text-strong: #eef1f7;
     --sv-text-muted: #98a0b5;
     --sv-text-faint: #42a942;
-    --sv-inset: #21252b;
+    // RAISED, NOT RECESSED. It was #21252b — the same value as `--sv-surface`, so every inset
+    // band in dark mode sat at exactly the colour of the thing it was supposed to be inset from.
+    // His value, picked in the dev tools against the live page: a notch ABOVE #282c34, not below.
+    --sv-inset: #2b2f37;
     --sv-hover: #313640;
     --sv-blue: #7d99cc;
     --sv-blue-deep: #9ab3e2;
@@ -5063,7 +5066,7 @@
 
   // THE STATE IS A PROPERTY OF THE WHOLE CARD, not 3px on an edge the eye never reaches.
   &--decided {
-    border-left-color: var(--sv-blue-deep);
+    border-left-color: #3f9e6a;
     background: color-mix(in srgb, var(--sv-blue) 4%, transparent);
   }
   &--reversed {
@@ -5120,7 +5123,7 @@
 
     &:hover:not(:disabled) { border-color: var(--sv-blue); color: var(--sv-blue); }
     &:disabled { cursor: default; }
-    &--decided { border-color: var(--sv-blue-deep); color: var(--sv-blue-deep); }
+    &--decided { border-color: #3f9e6a; color: #3f9e6a; }
     &--reversed { border-color: var(--sv-dead); color: var(--sv-dead); }
   }
 
@@ -5300,7 +5303,12 @@
       transition: width 0.35s ease;
     }
 
-    .is-decided { background: var(--sv-blue-deep); }
+    // DECIDED IS GREEN, AND IT IS THE GREEN THE CLAIMS LEDGER ALREADY USES FOR `met` —
+    // borrowed rather than invented, so "this one is done" means the same thing in both places.
+    // It replaced a blue measured at rgb(154,179,226) beside an open grey of rgb(152,160,181):
+    // a 35-point separation in one channel, which at 11px is two shades of blue-grey. His: *"I
+    // can see the colour but it's still hard to distinguish."*
+    .is-decided { background: #3f9e6a; }
     // Answered-not-closed is the same blue, held back — it is the same answer without the press,
     // and a different hue would claim it is a different KIND of thing.
     .is-answered { background: var(--sv-blue); opacity: 0.45; }
@@ -5308,16 +5316,6 @@
     .is-reversed { background: var(--sv-dead); }
   }
 
-  // EVERY DECISION, IN DOCUMENT ORDER, WEARING ITS STATE. The owed line below can only ever show
-  // one colour — it holds what is OPEN by definition — so this is the row that answers "which of
-  // these are settled". It takes the BAR's four colours exactly, which makes the bar legible
-  // without a key: the row underneath it IS the legend.
-  &__index {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin: 0 0 7px;
-  }
 
   &__counts {
     display: flex;
@@ -5332,7 +5330,7 @@
     font-size: 11px;
     color: var(--sv-text-muted);
 
-    &--decided { border-color: var(--sv-blue-deep); color: var(--sv-blue-deep); }
+    &--decided { border-color: #3f9e6a; color: #3f9e6a; }
     &--open { border-color: var(--sv-border); color: var(--sv-text); }
     &--awaiting {
       border-color: var(--sv-amber);
@@ -5386,19 +5384,6 @@
     font-family: "SF Mono", Menlo, monospace;
   }
 
-  // NOT A PILL — and that was the first attempt, caught by looking at it rather than by any test.
-  // A pill row directly under the counts put two rows of near-identical blue lozenges on screen,
-  // and the block's whole character is being calmer than the claims ledger it was nearly copied
-  // from. These are the same monospace addresses as the owed line below, with the state in the
-  // COLOUR, which is also what makes the bar above legible: the row is its legend.
-  &__index {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 2px 10px;
-    margin: 0 0 7px;
-    font-size: 11px;
-    font-family: "SF Mono", Menlo, monospace;
-  }
 
   // AN ADDRESS YOU CAN SAY OUT LOUD AND THEN PRESS. It looks like the monospace id it replaced
   // until you are near it — a row of buttons shouting at rest would compete with the chips above,
@@ -5423,7 +5408,7 @@
     // would make the bar above a riddle. Nothing sets a border: the base rule above is a bare
     // address on purpose, and a tone that reached for `border-color` would be writing to a
     // zero-width border and silently showing nothing.
-    &--decided { color: var(--sv-blue-deep); }
+    &--decided { color: #3f9e6a; }
     // Answered-not-closed is the same blue held back, for the reason the bar's segment is: the
     // same answer without the press, and a different hue would claim a different KIND of thing.
     &--answered { color: var(--sv-blue); opacity: 0.75; }
@@ -5435,11 +5420,10 @@
     // OPEN IS THE UNFILLED REMAINDER, exactly as it is in the bar, which has no `open` segment —
     // so it is the DIM one, and every colour on this row means something was actually done.
     //
-    // MUTED RATHER THAN `--sv-text`, MEASURED: against the decided blue in the dark theme, plain
-    // text came out rgb(171,178,191) beside rgb(154,179,226) — a 35-point separation in one
-    // channel, which is two shades of blue-grey at 11px and not a distinction anybody reads.
-    // Muted is rgb(139,147,167): 59 points, and dimmer as well as greyer, so brightness carries
-    // it too. Caught by sampling the live colours, not by looking at the screenshot.
+    // MUTED RATHER THAN `--sv-text`, MEASURED: plain text renders rgb(171,178,191) in the dark
+    // theme, close enough to the done colours that it reads as another state rather than as the
+    // absence of one. Muted is rgb(152,160,181) — dimmer as well as greyer, so brightness carries
+    // the distinction as well as hue. Sampled from the live page; a screenshot will not tell you.
     &--open { color: var(--sv-text-muted); }
   }
 
