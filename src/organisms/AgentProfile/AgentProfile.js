@@ -25,7 +25,7 @@ import {
 import { collections as loadCollections, records as loadRecords } from "../../utils/hostContext";
 import { groupSkillsBySource, sourceCountLabel, skillDoc } from "./skillSources";
 import { CATEGORIES, COUNTS, GAP_UNITS, MODES, isCrossing, readRate, saysRate, writeRate } from "./hookRate";
-import { WHEN_OPS, needsValue, picks, seedVal, newWhenRow } from "./hookWhen";
+import { opsFor, needsValue, picks, seedVal, newWhenRow } from "./hookWhen";
 import { hookWithFields, hookWithNote, hookWithHint } from "./hookWith";
 import { listJobs, jobRuns, rateJobRun, hasHostJobs, saveJob } from "../../utils/hostJobs";
 import SvSelect from "../../atoms/SvSelect/SvSelect";
@@ -506,6 +506,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
     do: "",
     with: {},
     rate: "once-per-session",
+    deliver: "",
     note: "",
     isNew: true,
   });
@@ -528,6 +529,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
       do: h.do,
       with: { ...(h.with || {}) },
       rate: h.rate || h.guard || "",
+      deliver: h.deliver || "",
       note: h.note || "",
       isNew: true,
     });
@@ -542,6 +544,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
       do: h.do,
       with: h.with || {},
       rate: h.rate || h.guard || "",
+      deliver: h.deliver || "",
       note: h.note || "",
       isNew: false,
     });
@@ -554,6 +557,8 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
       wasName: d.wasName,
       on: d.on,
       when: rowsToWhen(d.rows),
+      // "" means the event's own default (hooks.deliverAt) — an empty string would pin it.
+      ...(String(d.deliver || "").trim() ? { deliver: d.deliver } : {}),
       scope: d.scope,
       do: d.do,
       // ONE INPUT PER DECLARED NAME, and blanks are dropped rather than sent as empty strings — an
@@ -980,7 +985,7 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                                 ),
                               })
                             }
-                            options={WHEN_OPS}
+                            options={opsFor(eventNamed(hookDraft.on))}
                           />
                           {needsValue(r.op) &&
                             (picks(valuesFor(hookDraft.on, r.field), r.op) ? (
@@ -1205,6 +1210,23 @@ const AgentProfile = ({ onSelect, onOpenDoc, onFilterScope, urlAgent = null, url
                       Two fields reaching for one idea, and the decorative one was the one being
                       asked. So it is DERIVED from the pointer, which makes the loud label finally
                       true: the loud rows are the jobs. */}
+                  {/* WHEN THE POINTER LANDS, which is a SCHEDULE and not a condition — the thing a
+                      `when` cannot express. `{quietMin: {gte: 10}}` DROPS a match that arrives while
+                      the session is busy; `idle` keeps it and hands it over when the quiet comes. */}
+                  <div className="agent-profile__hookform-row">
+                    <label className="agent-profile__hookform-label">deliver</label>
+                    <SvSelect
+                      value={hookDraft.deliver || ""}
+                      onChange={(v) => setHd({ deliver: v })}
+                      options={[
+                        { value: "", label: "default for this event" },
+                        { value: "now", label: "now — beside the action" },
+                        { value: "turn-end", label: "turn end — not mid-turn" },
+                        { value: "idle", label: "idle — hold until the session is quiet" },
+                      ]}
+                    />
+                  </div>
+
                   <div className="agent-profile__hookform-row">
                     <label className="agent-profile__hookform-label">kind</label>
                     <span className="agent-profile__hookform-note">

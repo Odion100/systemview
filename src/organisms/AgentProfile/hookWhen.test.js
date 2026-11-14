@@ -1,4 +1,4 @@
-import { WHEN_OPS, takesWholeValue, needsValue, picks, seedVal, newWhenRow } from "./hookWhen";
+import { WHEN_OPS, PRIOR_OPS, opsFor, takesWholeValue, needsValue, picks, seedVal, newWhenRow } from "./hookWhen";
 
 // An event declares the values a field can take so nobody types a closed set from memory. The
 // mechanism worked and was unreachable: a new row was born on `contains` while the picker drew only
@@ -25,7 +25,7 @@ describe("a when row reaches the values its event declared", () => {
   // exactly what they want; the string operators take a PART of it by definition, and offering
   // `gpu-process` as the thing to find inside `gpu-process` is a dropdown with one pointless answer.
   it("only the whole-value operators pick — a fragment operator keeps its text box", () => {
-    expect(["equals", "not"].every(takesWholeValue)).toBe(true);
+    expect(["equals", "not", "was", "wasNot"].every(takesWholeValue)).toBe(true);
     expect(["contains", "startsWith", "endsWith", "matches", "gte", "lte", "exists"].some(takesWholeValue)).toBe(false);
   });
 
@@ -50,8 +50,28 @@ describe("a when row reaches the values its event declared", () => {
 
   // Every operator the row offers must be one the matcher implements, or the hook lists correctly
   // and is false forever — the failure `checkWhen` exists to catch at the writing door.
+  // `was` / `was not` ARE THE ONLY CONDITIONAL OPERATORS, because they read a snapshot most events
+  // do not carry. Offered where there is none, they are false forever — a hook that writes and
+  // lists correctly and never fires, which is why the builder hides them AND the door refuses them.
+  it("the prior pair is offered only where the event declares it carries one", () => {
+    expect(opsFor({ prior: true }).map((o) => o.value)).toContain("was");
+    expect(opsFor({}).map((o) => o.value)).not.toContain("was");
+    expect(opsFor(null).map((o) => o.value)).not.toContain("wasNot");
+  });
+
+  it("and it sits beside `is not`, where a human looks for it — not at the end of the list", () => {
+    const ops = opsFor({ prior: true }).map((o) => o.value);
+    expect(ops.slice(0, 4)).toEqual(["equals", "not", "was", "wasNot"]);
+    expect(ops.length).toBe(WHEN_OPS.length + PRIOR_OPS.length);
+  });
+
+  it("the prior pair picks too — asking what a field WAS is a whole-value question", () => {
+    expect(picks(["arc", "rfc"], "was")).toBe(true);
+    expect(picks(["arc", "rfc"], "wasNot")).toBe(true);
+  });
+
   it("every offered operator is one the matcher knows", () => {
-    const OPS = ["equals", "not", "contains", "startsWith", "endsWith", "matches", "in", "gt", "gte", "lt", "lte", "exists"];
-    for (const o of WHEN_OPS) expect(OPS).toContain(o.value);
+    const OPS = ["equals", "not", "contains", "startsWith", "endsWith", "matches", "in", "gt", "gte", "lt", "lte", "exists", "was", "wasNot"];
+    for (const o of opsFor({ prior: true })) expect(OPS).toContain(o.value);
   });
 });
