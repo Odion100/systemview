@@ -5365,6 +5365,14 @@
     gap: 7px;
   }
 
+  // A COUNT, NOT A LIST. The addresses live in the row under the bar now; printing them again
+  // beside a name is what made this read as a second, unrelated section.
+  &__owes-n {
+    color: var(--sv-text);
+    font-weight: 600;
+    font-size: 11.5px;
+  }
+
   &__who {
     min-width: 7rem;
     color: var(--sv-text);
@@ -5424,9 +5432,15 @@
     // A choice made with nothing written down — the wrong half of a record, so it reads as the
     // fault it is rather than as a finished decision.
     &--unsaid { color: var(--sv-danger); }
-    // OPEN IS THE UNFILLED REMAINDER, exactly as it is in the bar, which has no `open` segment.
-    // So it stays plain and every colour on these rows means something was actually done.
-    &--open { color: var(--sv-text); }
+    // OPEN IS THE UNFILLED REMAINDER, exactly as it is in the bar, which has no `open` segment —
+    // so it is the DIM one, and every colour on this row means something was actually done.
+    //
+    // MUTED RATHER THAN `--sv-text`, MEASURED: against the decided blue in the dark theme, plain
+    // text came out rgb(171,178,191) beside rgb(154,179,226) — a 35-point separation in one
+    // channel, which is two shades of blue-grey at 11px and not a distinction anybody reads.
+    // Muted is rgb(139,147,167): 59 points, and dimmer as well as greyer, so brightness carries
+    // it too. Caught by sampling the live colours, not by looking at the screenshot.
+    &--open { color: var(--sv-text-muted); }
   }
 
   &__sep {

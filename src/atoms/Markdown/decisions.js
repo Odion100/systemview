@@ -181,6 +181,10 @@ export function decisionIndex(source) {
     id: d.id || `#${d.n}`,
     line: d.line,
     n: d.n,
+    // WHOSE IT IS, ON THE ROW RATHER THAN IN A GROUP HEADING. `owner` owes the answer while the
+    // fork is open; `by` made the call once it closed — two different facts, and which one applies
+    // is decided by the state rather than by preferring one attribute.
+    who: (d.state === "open" ? d.owner : d.by).join(", "),
     tone:
       d.state === "reversed"
         ? "reversed"

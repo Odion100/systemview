@@ -25,16 +25,25 @@ import { revealBlock } from "../revealBlock";
 // AND `unsaid` IS ITS OWN NUMBER — a decision recorded with no `chose=`. Not folded into `decided`,
 // because it is the wrong half of a record: it says the fork closed and not which way, which is
 // worse than leaving it open.
+// The words a chip says on hover — the tone names are the bar's vocabulary and two of them are
+// terse to the point of being wrong on their own.
+const TONE_WORDS = {
+  unsaid: "decided, no choice written down",
+  answered: "answered, not closed",
+  awaiting: "decided, awaiting approval",
+};
+
 const Decisions = () => {
   const { source = "" } = useDocMembers() || {};
   const got = decisionsOf(source);
   const owed = owedBy(source);
-  // THE TWO ROWS ARE COMPLEMENTARY, NEVER OVERLAPPING. The owed line below holds what is still
-  // OPEN, grouped by whose answer is missing — including a fork already carrying an answer nobody
-  // closed, which is still owed a close. So this row is everything that has been ACTED ON, and
-  // every decision in the document appears in exactly one of the two. Rendering an id in both was
-  // the first attempt and it put the same address on screen twice in a four-line block.
-  const index = decisionIndex(source).filter((r) => r.tone !== "open" && r.tone !== "answered");
+  // ONE ROW, NOT TWO, AND THE COLOUR IS WHAT SEPARATES THEM. The first version put what had been
+  // ACTED ON directly under the bar and left the OPEN ones in an owner-grouped section below, which
+  // read as two unrelated things — his catch: *"that's separated because it's right under the bar,
+  // from the others, which is like a whole other section… it should be all together and then the
+  // colours could tell me which one."* They are one set of addresses; state is a property of each,
+  // not a reason to file them in different places.
+  const index = decisionIndex(source);
 
   if (!got.total)
     // ABSENCE STATED, never a blank. A document carrying this block and no decisions is a real
@@ -66,21 +75,19 @@ const Decisions = () => {
         <i className="is-awaiting" style={fillStyle(got.awaiting, got.total)} />
         <i className="is-reversed" style={fillStyle(got.reversed, got.total)} />
       </div>
-      {/* WHAT HAS BEEN ACTED ON, IN DOCUMENT ORDER, EACH WEARING ITS STATE. His ask: *"you have
-          basically [a chip] to each decision… it would be helpful if you could tell which ones
-          [are] decided or not. I think color would…"* — and colour on the owed line alone could
-          never answer it, because everything there is open by definition and would be one hue
-          repeated. These take the BAR's four colours exactly, so the bar and this row cannot
-          disagree and this row is the bar's legend. Pressable for the same reason the owed ids
-          are: an address you can say out loud and then press. */}
-      {index.length ? (
+      {/* EVERY DECISION, IN DOCUMENT ORDER, EACH WEARING ITS STATE. The colours ARE the bar's four
+          variables, so the bar and this row cannot disagree and this row is the bar's legend —
+          which is also why the open ones are the plain ones: open is the bar's unfilled remainder,
+          so every colour here means something was actually done. Pressable because an id is an
+          address: *"you should be able to click one of those and it brings you right to the
+          block — it becomes an easy communication method."* */}
       <div className="md-decisions__index">
         {index.map((row) => (
           <button
             key={`${row.id}-${row.n}`}
             type="button"
             className={`md-decisions__id md-decisions__id--${row.tone}`}
-            title={`${row.id} — ${row.tone === "unsaid" ? "decided, no choice written down" : row.tone === "answered" ? "answered, not closed" : row.tone === "awaiting" ? "decided, awaiting approval" : row.tone}`}
+            title={`${row.id} — ${TONE_WORDS[row.tone] || row.tone}${row.who ? ` · ${row.who}` : ""}`}
             onClick={(e) =>
               revealBlock(
                 e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null,
@@ -92,7 +99,6 @@ const Decisions = () => {
           </button>
         ))}
       </div>
-      ) : null}
       <div className="md-decisions__counts">
         <span className="md-decisions__count md-decisions__count--decided">{got.decided} decided</span>
         <span className={`md-decisions__count md-decisions__count--open${got.open ? "" : " is-zero"}`}>
@@ -117,38 +123,18 @@ const Decisions = () => {
           </span>
         ) : null}
       </div>
-      {/* WHOSE ANSWER IS MISSING — the line that makes this actionable rather than informational.
-          "17 open" tells him nothing he can do; "3 yours" is the ask. The UNOWNED group is kept
-          visible because nothing will ever chase those. */}
+      {/* WHOSE ANSWER IS MISSING — kept, because "17 open" tells him nothing he can do and "3
+          yours" is the ask. As NAMES AND COUNTS rather than a second list of ids: the addresses
+          are all in the row above now, and printing them twice was the thing that made this read
+          as two unrelated sections. The unowned group stays visible because nothing will ever
+          chase those. */}
       {owed.size ? (
         <div className="md-decisions__owed">
           {[...owed.entries()].map(([who, ids]) => (
             <span key={who} className="md-decisions__owes">
               <span className="md-decisions__who">{who}</span>
-              {/* THE ID IS AN ADDRESS, SO IT IS PRESSABLE. The same `revealBlock` the members pin
-                  uses: every block carries `data-md-start`, so the line the parser already read is
-                  the address — nothing new is threaded through. Scrolls it into view and flashes
-                  it, and does nothing at all when the document on screen is not this one, which is
-                  a real case rather than an error. */}
-              <span className="md-decisions__ids">
-                {ids.map((row, i) => (
-                  <React.Fragment key={row.id}>
-                    {i ? <span className="md-decisions__sep"> · </span> : null}
-                    <button
-                      type="button"
-                      className="md-decisions__id"
-                      title={`go to ${row.id}`}
-                      onClick={(e) =>
-                        revealBlock(
-                          e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest(".markdown") : null,
-                          row.line,
-                        )
-                      }
-                    >
-                      {row.id}
-                    </button>
-                  </React.Fragment>
-                ))}
+              <span className="md-decisions__owes-n" title={`${ids.length} open — ${ids.map((r) => r.id).join(", ")}`}>
+                {ids.length}
               </span>
             </span>
           ))}

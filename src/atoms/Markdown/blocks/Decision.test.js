@@ -230,30 +230,42 @@ describe("the ::decisions roll-up", () => {
     expect(tone("d2")).toContain("--awaiting");
   });
 
-  // NO DECISION APPEARS TWICE. The first attempt rendered every id in this row AND in the owed
-  // line, which put the same address on screen twice inside a four-line block.
-  it("the two rows are complementary — every decision is in exactly one of them", () => {
+  // ONE ROW, NOT TWO. Splitting acted-on from open put them in different places on screen and they
+  // read as unrelated sections — "that's separated because it's right under the bar, from the
+  // others, which is like a whole other section". They are one set of addresses; state is a
+  // property of each rather than a reason to file them apart.
+  it("every decision is in the one row, whatever its state", () => {
     const { container } = roll(
-      ["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2 state=decided chose=X}", "::decision[c]{id=d3 owner=you chose=already-said}"].join("\n"),
+      [
+        "::decision[a]{id=d1 owner=you}",
+        "::decision[b]{id=d2 state=decided chose=X}",
+        "::decision[c]{id=d3 owner=you chose=already-said}",
+      ].join("\n"),
     );
-    const chips = [...container.querySelectorAll(".md-decisions__index .md-decisions__id")].map((b) => b.textContent);
-    const owed = [...container.querySelectorAll(".md-decisions__owed .md-decisions__id")].map((b) => b.textContent);
-    expect(chips).toEqual(["d2"]);
-    expect(owed.sort()).toEqual(["d1", "d3"]);
-    expect(chips.filter((c) => owed.includes(c))).toEqual([]);
+    const row = [...container.querySelectorAll(".md-decisions__index .md-decisions__id")];
+    expect(row.map((b) => b.textContent)).toEqual(["d1", "d2", "d3"]);
+    expect(row.map((b) => (b.className.match(/--(\w+)/) || [])[1])).toEqual(["open", "decided", "answered"]);
   });
 
-  // An answered-but-unclosed fork is STILL OWED A CLOSE, so it belongs to the owed line rather
-  // than to the settled row — the distinction the `answered` count exists to make.
-  it("an answered-not-closed fork stays in the owed line, not the settled row", () => {
-    const { container } = roll("::decision[a]{id=d9 owner=you chose=the-answer-he-gave}");
-    expect(container.querySelectorAll(".md-decisions__index .md-decisions__id").length).toBe(0);
-    expect(container.querySelector(".md-decisions__owed").textContent).toContain("d9");
+  // Asserted on the rendered ADDRESSES rather than on textContent: concatenation makes phantoms —
+  // "1 decided" followed by "1 open" reads as a `d1` to a regex over the joined string, which is
+  // the sort of false red that teaches people to loosen a test rather than fix the thing.
+  it("…and appears exactly once — no id is rendered in two places", () => {
+    const { container } = roll(["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2 state=decided chose=X}"].join("\n"));
+    const shown = [...container.querySelectorAll(".md-decisions__id")].map((b) => b.textContent);
+    expect(shown).toEqual(["d1", "d2"]);
+    expect(new Set(shown).size).toBe(shown.length);
   });
 
-  it("the row is absent entirely when nothing has been acted on — never an empty strip", () => {
-    const { container } = roll("::decision[a]{id=d1 owner=you}");
-    expect(container.querySelector(".md-decisions__index")).toBeNull();
+  // THE ASK SURVIVES AS A COUNT. "17 open" tells him nothing he can do; "you — 3" is the ask, and
+  // the addresses themselves are in the row above rather than printed a second time.
+  it("the owed line keeps whose answer is missing, as names and counts", () => {
+    const { container } = roll(
+      ["::decision[a]{id=d1 owner=you}", "::decision[b]{id=d2 owner=you}", "::decision[c]{id=d3}"].join("\n"),
+    );
+    const owes = [...container.querySelectorAll(".md-decisions__owes")].map((n) => n.textContent);
+    expect(owes).toEqual(["you2", "nobody named1"]);
+    expect(container.querySelector(".md-decisions__owes-n").title).toContain("d1, d2");
   });
 
   it("says WHOSE answer is missing, and keeps the unowned visible", () => {
