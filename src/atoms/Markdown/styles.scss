@@ -649,7 +649,7 @@
     --sv-surface: #21252b;
     --sv-bg: #1e2127;
     --sv-border: #3a3f4b;
-    --sv-border-soft: #333845;
+    --sv-border-soft: #232c44;
     --sv-text: #abb2bf;
     // Lifted from #d7dce9 — in dark mode `strong` sat barely above the body text, so anything
     // using it to STAND OUT (the facilitation step list) read as the same weight as the prose it
@@ -657,10 +657,10 @@
     --sv-text-strong: #eef1f7;
     --sv-text-muted: #98a0b5;
     --sv-text-faint: #42a942;
-    // RAISED, NOT RECESSED. It was #21252b — the same value as `--sv-surface`, so every inset
-    // band in dark mode sat at exactly the colour of the thing it was supposed to be inset from.
-    // His value, picked in the dev tools against the live page: a notch ABOVE #282c34, not below.
-    --sv-inset: #2b2f37;
+    // His values, picked in the dev tools against the live page. The inset was #21252b — the same
+    // value as `--sv-surface`, so every inset band in dark mode sat at exactly the colour of the
+    // thing it was supposed to be inset from.
+    --sv-inset: #212630;
     --sv-hover: #313640;
     --sv-blue: #7d99cc;
     --sv-blue-deep: #9ab3e2;
